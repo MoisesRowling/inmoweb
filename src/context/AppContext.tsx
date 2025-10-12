@@ -153,7 +153,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProperties(prevProps =>
       prevProps.map(p =>
         p.id === property.id
-          ? { ...p, invested: p.invested + amount, ownedShares: p.ownedShares + 1 }
+          ? { 
+              ...p, 
+              invested: p.invested + amount, 
+              initialInvestment: p.initialInvestment + amount,
+              ownedShares: p.ownedShares + 1 
+            }
           : p
       )
     );

@@ -6,6 +6,7 @@ export type Property = {
   price: number;
   minInvestment: number;
   invested: number;
+  initialInvestment: number; // Keep track of the original invested amount
   totalShares: number;
   ownedShares: number;
   image: string; // This will be the placeholder image id

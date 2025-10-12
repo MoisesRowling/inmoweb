@@ -12,32 +12,32 @@ export function ActiveInvestments() {
   const [displayInvestments, setDisplayInvestments] = useState(activeInvestments);
 
   useEffect(() => {
-    setDisplayInvestments(activeInvestments);
+    // Initialize display state when properties change from context
+    setDisplayInvestments(properties.filter(p => p.invested > 0));
   }, [properties]);
   
   useEffect(() => {
-    if (activeInvestments.length === 0) return;
+    const activeProps = properties.filter(p => p.invested > 0);
+    if (activeProps.length === 0) return;
 
-    const interval = setInterval(() => {
-      // This is purely for visual effect on the frontend
+    // This interval is for visual animation only. It doesn't affect the actual context state.
+    const visualInterval = setInterval(() => {
       setDisplayInvestments(prevDisplay => {
         return prevDisplay.map(prop => {
-          const gainPerSecond = (prop.invested * prop.dailyReturn) / (24 * 60 * 60);
+          // Calculate gain based on the *initial* investment, not the dynamic `invested` value.
+          const gainPerSecond = (prop.initialInvestment * prop.dailyReturn) / (24 * 60 * 60);
           return { ...prop, invested: prop.invested + gainPerSecond };
         });
       });
-      
-      // This updates the actual state in context less frequently (e.g., every 10s)
-      // In a real app, this logic would live on a server.
     }, 1000);
     
-    // In a real application, you would not update the core state this frequently.
-    // The "real" update could be done via a less frequent interval or server-side process.
+    // This interval updates the "real" invested amount in the AppContext less frequently.
     const stateUpdateInterval = setInterval(() => {
         setProperties(currentProperties => 
             currentProperties.map(prop => {
                 if (prop.invested > 0) {
-                    const gainPerTenSeconds = (prop.invested * prop.dailyReturn) / (24 * 60 * 6);
+                    // Calculate gain based on the *initial* investment.
+                    const gainPerTenSeconds = (prop.initialInvestment * prop.dailyReturn) / (24 * 60 * 6);
                     return {...prop, invested: prop.invested + gainPerTenSeconds}
                 }
                 return prop;
@@ -46,10 +46,11 @@ export function ActiveInvestments() {
     }, 10000);
 
     return () => {
-      clearInterval(interval);
+      clearInterval(visualInterval);
       clearInterval(stateUpdateInterval);
     }
-  }, [activeInvestments.length, setProperties]);
+    // We depend on the number of invested properties and their initial investment values.
+  }, [properties.filter(p => p.invested > 0).map(p => p.id).join(','), setProperties]);
 
 
   return (
@@ -77,7 +78,7 @@ export function ActiveInvestments() {
                     {property.invested.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
                   </p>
                   <p className="text-xs text-green-600">
-                    +{(property.invested * property.dailyReturn).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}/día
+                    +{(property.initialInvestment * property.dailyReturn).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}/día
                   </p>
                 </div>
               </div>
