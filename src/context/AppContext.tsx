@@ -25,7 +25,7 @@ interface AppContextType {
   addTransaction: (type: 'deposit' | 'withdraw' | 'investment', amount: number, description: string) => void;
   handleDeposit: (amount: number, method: string) => void;
   handleWithdraw: (amount: number, clabe: string) => boolean;
-  handleInvest: (amount: number, property: Property) => void;
+  handleInvest: (amount: number, property: Property, term: number) => void;
   setProperties: React.Dispatch<React.SetStateAction<Property[]>>;
   setModals: React.Dispatch<React.SetStateAction<ModalState>>;
 }
@@ -135,7 +135,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
-  const handleInvest = (amount: number, property: Property) => {
+  const handleInvest = (amount: number, property: Property, term: number) => {
      if (amount > balance) {
       toast({ title: "Saldo insuficiente", variant: "destructive" });
       return;
@@ -157,12 +157,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
               ...p, 
               invested: p.invested + amount, 
               initialInvestment: p.initialInvestment + amount,
-              ownedShares: p.ownedShares + 1 
+              ownedShares: p.ownedShares + 1,
+              investmentTerm: term,
             }
           : p
       )
     );
-    addTransaction('investment', amount, `Inversión en ${property.name}`);
+    addTransaction('investment', amount, `Inversión en ${property.name} (${term} días)`);
     toast({
       title: '¡Inversión Exitosa!',
       description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.`,

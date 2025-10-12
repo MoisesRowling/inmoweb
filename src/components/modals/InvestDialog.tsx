@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useApp } from '@/context/AppContext';
 import type { Property } from '@/lib/types';
 import { DollarSign } from 'lucide-react';
@@ -17,6 +18,7 @@ const formSchema = (min: number, max: number) => z.object({
     .number()
     .min(min, { message: `La inversión mínima es de ${min.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` })
     .max(max, { message: `No tienes suficiente saldo disponible.` }),
+  term: z.enum(['7', '30'], { required_error: 'Debes seleccionar un plazo.' }),
 });
 
 interface InvestDialogProps {
@@ -30,7 +32,6 @@ const EarningPreview = ({ control, dailyReturn }: { control: any, dailyReturn: n
     if (!amount || typeof amount !== 'number' || amount <= 0) return null;
 
     const daily = amount * dailyReturn;
-    const weekly = daily * 7;
     const monthly = daily * 30;
 
     return (
@@ -42,11 +43,7 @@ const EarningPreview = ({ control, dailyReturn }: { control: any, dailyReturn: n
                     <span className="font-bold text-green-600 dark:text-green-400">{daily.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-green-800 dark:text-green-300">Semanal:</span>
-                    <span className="font-bold text-green-600 dark:text-green-400">{weekly.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
-                </div>
-                <div className="flex justify-between">
-                    <span className="text-green-800 dark:text-green-300">Mensual:</span>
+                    <span className="text-green-800 dark:text-green-300">Mensual (30 días):</span>
                     <span className="font-bold text-green-600 dark:text-green-400">{monthly.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
                 </div>
             </div>
@@ -62,11 +59,12 @@ export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
     resolver: zodResolver(currentFormSchema),
     defaultValues: {
       amount: '' as any,
+      term: '7',
     },
   });
 
   function onSubmit(values: z.infer<typeof currentFormSchema>) {
-    handleInvest(values.amount, property);
+    handleInvest(values.amount, property, parseInt(values.term, 10));
     onClose();
     form.reset();
   }
@@ -84,27 +82,66 @@ export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
         <DialogHeader>
           <DialogTitle>Invertir en {property.name}</DialogTitle>
           <DialogDescription>
-            Estás a punto de adquirir acciones en esta propiedad.
+            Selecciona el plazo y la cantidad para adquirir acciones en esta propiedad.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-2 space-y-3">
-           <div className="bg-secondary rounded-lg p-4 text-sm space-y-2">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Inversión mínima:</span>
-                <span className="font-bold text-primary">{property.minInvestment.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Rendimiento diario:</span>
-                <span className="font-bold text-green-600">{(property.dailyReturn * 100)}%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Saldo disponible:</span>
-                <span className="font-bold">{balance.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</span>
-              </div>
-            </div>
-        </div>
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+             <div className="py-2 space-y-3">
+                <div className="bg-secondary rounded-lg p-4 text-sm space-y-2">
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Inversión mínima:</span>
+                        <span className="font-bold text-primary">{property.minInvestment.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Rendimiento diario:</span>
+                        <span className="font-bold text-green-600">{(property.dailyReturn * 100)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Saldo disponible:</span>
+                        <span className="font-bold">{balance.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</span>
+                    </div>
+                </div>
+            </div>
+            <FormField
+              control={form.control}
+              name="term"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Selecciona el plazo</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="grid grid-cols-2 gap-4"
+                    >
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                            <div className='w-full'>
+                                <RadioGroupItem value="7" id="7" className='sr-only peer' />
+                                <Label htmlFor="7" className='flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary'>
+                                    <span className='text-lg font-bold'>7 Días</span>
+                                </Label>
+                            </div>
+                        </FormControl>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                           <div className='w-full'>
+                                <RadioGroupItem value="30" id="30" className='sr-only peer' />
+                                <Label htmlFor="30" className='flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary'>
+                                    <span className='text-lg font-bold'>1 Mes</span>
+                                </Label>
+                            </div>
+                        </FormControl>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="amount"

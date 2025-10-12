@@ -11,6 +11,7 @@ export type Property = {
   ownedShares: number;
   image: string; // This will be the placeholder image id
   dailyReturn: number;
+  investmentTerm?: number; // Optional investment term in days
 };
 
 export type Transaction = {
