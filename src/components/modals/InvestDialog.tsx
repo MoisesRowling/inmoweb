@@ -16,7 +16,7 @@ import { useWatch } from 'react-hook-form';
 
 const formSchema = (min: number, max: number) => z.object({
   amount: z.coerce
-    .number()
+    .number({invalid_type_error: 'Debe ser un número.'})
     .min(min, { message: `La inversión mínima es de ${min.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` })
     .max(max, { message: `No tienes suficiente saldo disponible.` }),
   term: z.enum(['7', '30'], { required_error: 'Debes seleccionar un plazo.' }),
@@ -59,7 +59,7 @@ export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
   const form = useForm<z.infer<typeof currentFormSchema>>({
     resolver: zodResolver(currentFormSchema),
     defaultValues: {
-      amount: '' as any,
+      amount: undefined,
       term: '7',
     },
   });
