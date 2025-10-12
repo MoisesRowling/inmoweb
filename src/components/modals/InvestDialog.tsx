@@ -15,10 +15,14 @@ import { DollarSign } from 'lucide-react';
 import { useWatch } from 'react-hook-form';
 
 const formSchema = (min: number, max: number) => z.object({
-  amount: z.coerce
-    .number({invalid_type_error: 'Debe ser un número.'})
-    .min(min, { message: `La inversión mínima es de ${min.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` })
-    .max(max, { message: `No tienes suficiente saldo disponible.` }),
+  amount: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+    message: 'Debe ser un número válido.',
+  }).pipe(
+    z.coerce
+      .number()
+      .min(min, { message: `La inversión mínima es de ${min.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` })
+      .max(max, { message: `No tienes suficiente saldo disponible.` })
+  ),
   term: z.enum(['7', '30'], { required_error: 'Debes seleccionar un plazo.' }),
 });
 
@@ -30,9 +34,11 @@ interface InvestDialogProps {
 
 const EarningPreview = ({ control, dailyReturn }: { control: any, dailyReturn: number }) => {
     const amount = useWatch({ control, name: 'amount' });
-    if (!amount || typeof amount !== 'number' || amount <= 0) return null;
+    const parsedAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
 
-    const daily = amount * dailyReturn;
+    if (!parsedAmount || isNaN(parsedAmount) || parsedAmount <= 0) return null;
+
+    const daily = parsedAmount * dailyReturn;
     const monthly = daily * 30;
 
     return (
@@ -59,9 +65,10 @@ export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
   const form = useForm<z.infer<typeof currentFormSchema>>({
     resolver: zodResolver(currentFormSchema),
     defaultValues: {
-      amount: '' as any,
+      amount: '',
       term: '7',
     },
+    mode: 'onTouched'
   });
 
   function onSubmit(values: z.infer<typeof currentFormSchema>) {
