@@ -12,19 +12,22 @@ import { PropertyCard } from "@/components/properties/PropertyCard";
 export default function DashboardPage() {
   const { user, balance, properties, firstInvestmentDate, setModals } = useApp();
 
-  const totalInvested = properties.reduce((sum, prop) => sum + prop.invested, 0);
-  // Correctly calculate daily gain based on initial investment of all properties
+  const totalInvested = properties.reduce((sum, prop) => sum + prop.initialInvestment, 0);
   const gananciaDiaria = properties.reduce((sum, prop) => sum + (prop.initialInvestment * prop.dailyReturn), 0);
   const totalProperties = properties.filter(prop => prop.ownedShares > 0).length;
   
 
   const getDaysSinceInvestment = () => {
     if (!firstInvestmentDate) return 0;
+    const start = new Date(firstInvestmentDate);
+    // If the date is invalid (e.g., from an empty or cleared localStorage), return 0
+    if (isNaN(start.getTime())) return 0;
+
     const now = new Date();
     // Reset time to start of day for accurate day counting
     now.setHours(0,0,0,0);
-    const start = new Date(firstInvestmentDate);
     start.setHours(0,0,0,0);
+    
     return Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   };
   
