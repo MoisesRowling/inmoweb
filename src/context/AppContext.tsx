@@ -95,7 +95,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = (email: string, name: string) => {
-    const newUserId = 'IT-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2, 5).toUpperCase();
+    const newUserId = Math.floor(10000 + Math.random() * 90000).toString();
     const newUser: User = { id: newUserId, email, name };
     setUser(newUser);
     router.push('/dashboard');
