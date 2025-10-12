@@ -56,7 +56,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (storedProperties) setProperties(JSON.parse(storedProperties));
       if (storedTransactions) setTransactions(JSON.parse(storedTransactions));
       if (storedInvestmentDate && storedInvestmentDate !== 'null') {
-        setFirstInvestmentDate(new Date(JSON.parse(storedInvestmentDate)));
+        const date = new Date(JSON.parse(storedInvestmentDate));
+        if (!isNaN(date.getTime())) {
+          setFirstInvestmentDate(date);
+        }
       }
     } catch (error) {
       console.error("Failed to hydrate state from localStorage", error);

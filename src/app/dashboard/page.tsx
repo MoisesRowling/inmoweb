@@ -20,12 +20,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const getDaysSinceInvestment = () => {
-      if (!firstInvestmentDate) return 0;
-      // The date from JSON is a string, so we need to create a new Date object.
+      // Ensure this only runs on the client and firstInvestmentDate is valid
+      if (!firstInvestmentDate || typeof window === 'undefined') {
+        return 0;
+      }
+      
       const start = new Date(firstInvestmentDate);
       
       // If the date is invalid (e.g., from an empty or cleared localStorage), return 0
-      if (isNaN(start.getTime())) return 0;
+      if (isNaN(start.getTime())) {
+        return 0;
+      }
   
       const now = new Date();
       // Reset time to start of day for accurate day counting
@@ -33,6 +38,7 @@ export default function DashboardPage() {
       start.setHours(0,0,0,0);
       
       const diffTime = now.getTime() - start.getTime();
+      // Use Math.floor to count full days passed
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       
       return diffDays >= 0 ? diffDays : 0;
