@@ -63,25 +63,25 @@ export function PropertyCard({ property, isGuest = false }: PropertyCardProps) {
             <span className="text-muted-foreground">Retorno Diario</span>
             <span className="font-semibold text-green-600">{(property.dailyReturn * 100).toFixed(0)}%</span>
           </div>
-          {isGuest && (
-             <div className="!mt-4 pt-4 border-t">
-              <p className="text-xs font-semibold text-foreground mb-2">Con inversión mínima ganarías:</p>
-              <div className="space-y-1 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Diario:</span>
-                  <span className="font-bold text-green-600">{potentialDailyEarning.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Semanal:</span>
-                  <span className="font-bold text-green-600">{potentialWeeklyEarning.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
-                </div>
-                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Mensual:</span>
-                  <span className="font-bold text-green-600">{potentialMonthlyEarning.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
-                </div>
+          
+           <div className="!mt-4 pt-4 border-t">
+            <p className="text-xs font-semibold text-foreground mb-2">Con inversión mínima ganarías:</p>
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Diario:</span>
+                <span className="font-bold text-green-600">{potentialDailyEarning.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Semanal:</span>
+                <span className="font-bold text-green-600">{potentialWeeklyEarning.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
+              </div>
+               <div className="flex justify-between">
+                <span className="text-muted-foreground">Mensual:</span>
+                <span className="font-bold text-green-600">{potentialMonthlyEarning.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
               </div>
             </div>
-          )}
+          </div>
+        
           {!isGuest && (
             <>
               <div className="flex justify-between items-center">

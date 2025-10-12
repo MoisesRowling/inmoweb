@@ -97,7 +97,7 @@ export default function DashboardPage() {
              <div className="space-y-4">
                 <h2 className="text-2xl font-bold text-foreground font-headline">Invierte en Propiedades</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {properties.map(p => <PropertyCard key={p.id} property={p} isGuest={true} />)}
+                    {properties.map(p => <PropertyCard key={p.id} property={p} isGuest={false} />)}
                 </div>
              </div>
           </div>
