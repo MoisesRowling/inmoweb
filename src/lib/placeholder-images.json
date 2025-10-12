@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hacienda-santorini",
+      "description": "Hacienda Santorini",
+      "imageUrl": "https://picsum.photos/seed/house1/800/600",
+      "imageHint": "hacienda mexico"
+    },
+    {
+      "id": "casa-monaco",
+      "description": "Casa Monaco",
+      "imageUrl": "https://picsum.photos/seed/house2/800/600",
+      "imageHint": "modern house"
+    },
+    {
+      "id": "residencia-ejecutiva",
+      "description": "Residencia Ejecutiva",
+      "imageUrl": "https://picsum.photos/seed/house3/800/600",
+      "imageHint": "luxury residence"
+    },
+    {
+      "id": "loft-esmeralda",
+      "description": "Loft Esmeralda",
+      "imageUrl": "https://picsum.photos/seed/house4/800/600",
+      "imageHint": "luxury loft"
+    }
+  ]
 }
