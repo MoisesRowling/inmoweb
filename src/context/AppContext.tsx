@@ -32,6 +32,20 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Helper to check if the stored properties are outdated
+const arePropertiesOutdated = (storedProperties: Property[]): boolean => {
+  if (storedProperties.length !== propertiesData.length) return true;
+  for (const propData of propertiesData) {
+    const storedProp = storedProperties.find(p => p.id === propData.id);
+    // If a property is missing or its name/image doesn't match, it's outdated
+    if (!storedProp || storedProp.name !== propData.name || storedProp.image !== propData.image) {
+      return true;
+    }
+  }
+  return false;
+};
+
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [balance, setBalance] = useState(0);
@@ -47,13 +61,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const storedUser = localStorage.getItem('inmosmart-user');
       const storedBalance = localStorage.getItem('inmosmart-balance');
-      const storedProperties = localStorage.getItem('inmosmart-properties');
+      const storedPropertiesJSON = localStorage.getItem('inmosmart-properties');
       const storedTransactions = localStorage.getItem('inmosmart-transactions');
       const storedInvestmentDate = localStorage.getItem('inmosmart-investmentDate');
 
       if (storedUser) setUser(JSON.parse(storedUser));
       if (storedBalance) setBalance(JSON.parse(storedBalance));
-      if (storedProperties) setProperties(JSON.parse(storedProperties));
+      
+      if (storedPropertiesJSON) {
+        const storedProperties = JSON.parse(storedPropertiesJSON);
+        // If properties from localStorage are outdated, load fresh data
+        // but keep the user's investment progress.
+        if (arePropertiesOutdated(storedProperties)) {
+            const updatedProperties = propertiesData.map(freshProp => {
+                const oldProp = storedProperties.find(p => p.id === freshProp.id);
+                return oldProp ? { ...freshProp, ...{
+                    invested: oldProp.invested,
+                    initialInvestment: oldProp.initialInvestment,
+                    ownedShares: oldProp.ownedShares,
+                    investmentTerm: oldProp.investmentTerm
+                }} : freshProp;
+            });
+            setProperties(updatedProperties);
+        } else {
+            setProperties(storedProperties);
+        }
+      }
+
       if (storedTransactions) setTransactions(JSON.parse(storedTransactions));
       if (storedInvestmentDate && storedInvestmentDate !== 'null') {
         const date = new Date(JSON.parse(storedInvestmentDate));
@@ -104,7 +138,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     setBalance(0);
-    setProperties(propertiesData);
+    setProperties(propertiesData); // Reset to default on logout
     setTransactions([]);
     setFirstInvestmentDate(null);
     localStorage.clear();
@@ -113,7 +147,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleDeposit = (amount: number, method: string) => {
     setBalance(prev => prev + amount);
-    addTransaction('deposit', amount, `Depósito por ${method === 'card' ? 'Tarjeta' : 'SPEI'}`);
+    addTransaction('deposit', amount, `Depósito por SPEI`);
     toast({
       title: 'Depósito Exitoso',
       description: `Has depositado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.`,
