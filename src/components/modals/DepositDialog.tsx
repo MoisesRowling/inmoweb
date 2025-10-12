@@ -113,6 +113,10 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
                         </Alert>
 
                          <div className="space-y-3 rounded-lg border bg-secondary/50 p-4">
+                             <div>
+                                <p className="text-xs text-muted-foreground">Beneficiario</p>
+                                <p className="font-semibold">InmoSmart</p>
+                            </div>
                             <div>
                                 <p className="text-xs text-muted-foreground">Banco</p>
                                 <p className="font-semibold">BBVA</p>
@@ -134,10 +138,6 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
                                 <Button size="icon" variant="ghost" onClick={() => copyToClipboard(user?.id || '')}>
                                     <Copy className="h-4 w-4"/>
                                 </Button>
-                            </div>
-                             <div>
-                                <p className="text-xs text-muted-foreground">Beneficiario</p>
-                                <p className="font-semibold">InmoSmart</p>
                             </div>
                          </div>
                          <DialogFooter>
