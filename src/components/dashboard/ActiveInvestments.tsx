@@ -35,7 +35,7 @@ export function ActiveInvestments() {
     const stateUpdateInterval = setInterval(() => {
         setProperties(currentProperties => 
             currentProperties.map(prop => {
-                if (prop.invested > 0) {
+                if (prop.invested > 0 && prop.initialInvestment > 0) {
                     // Calculate gain based on the *initial* investment.
                     const gainPerTenSeconds = (prop.initialInvestment * prop.dailyReturn) / (24 * 60 * 6);
                     return {...prop, invested: prop.invested + gainPerTenSeconds}
@@ -75,7 +75,7 @@ export function ActiveInvestments() {
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-primary tabular-nums">
-                    {property.invested.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                    {(property.invested || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
                   </p>
                   <p className="text-xs text-green-600">
                     +{(property.initialInvestment * property.dailyReturn).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}/día

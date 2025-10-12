@@ -13,8 +13,10 @@ export default function DashboardPage() {
   const { user, balance, properties, firstInvestmentDate, setModals } = useApp();
 
   const totalInvested = properties.reduce((sum, prop) => sum + prop.invested, 0);
+  // Correctly calculate daily gain based on initial investment of all properties
+  const gananciaDiaria = properties.reduce((sum, prop) => sum + (prop.initialInvestment * prop.dailyReturn), 0);
   const totalProperties = properties.filter(prop => prop.ownedShares > 0).length;
-  const gananciaDiaria = totalInvested * 0.10;
+  
 
   const getDaysSinceInvestment = () => {
     if (!firstInvestmentDate) return 0;
