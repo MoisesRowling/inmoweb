@@ -113,14 +113,9 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
                         </Alert>
 
                          <div className="space-y-3 rounded-lg border bg-secondary/50 p-4">
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <p className="text-xs text-muted-foreground">Tu ID de Usuario (Concepto)</p>
-                                    <p className="font-mono font-bold text-primary">{user?.id}</p>
-                                </div>
-                                <Button size="icon" variant="ghost" onClick={() => copyToClipboard(user?.id || '')}>
-                                    <Copy className="h-4 w-4"/>
-                                </Button>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Banco</p>
+                                <p className="font-semibold">BBVA</p>
                             </div>
                             <div className="flex justify-between items-center">
                                 <div>
@@ -131,9 +126,14 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
                                     <Copy className="h-4 w-4"/>
                                 </Button>
                             </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">Banco</p>
-                                <p className="font-semibold">BBVA</p>
+                             <div className="flex justify-between items-center">
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Tu ID de Usuario (Concepto)</p>
+                                    <p className="font-mono font-bold text-primary">{user?.id}</p>
+                                </div>
+                                <Button size="icon" variant="ghost" onClick={() => copyToClipboard(user?.id || '')}>
+                                    <Copy className="h-4 w-4"/>
+                                </Button>
                             </div>
                              <div>
                                 <p className="text-xs text-muted-foreground">Beneficiario</p>
