@@ -1,5 +1,5 @@
 'use client';
-
+import React, { useState, useEffect } from "react";
 import { AppShell } from "@/components/shared/AppShell";
 import { useApp } from "@/context/AppContext";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -11,29 +11,36 @@ import { PropertyCard } from "@/components/properties/PropertyCard";
 
 export default function DashboardPage() {
   const { user, balance, properties, firstInvestmentDate, setModals } = useApp();
+  const [daysSinceInvestment, setDaysSinceInvestment] = useState(0);
 
   const totalInvested = properties.reduce((sum, prop) => sum + prop.initialInvestment, 0);
   const gananciaDiaria = properties.reduce((sum, prop) => sum + (prop.initialInvestment * prop.dailyReturn), 0);
   const totalProperties = properties.filter(prop => prop.ownedShares > 0).length;
   
 
-  const getDaysSinceInvestment = () => {
-    if (!firstInvestmentDate) return 0;
-    const start = new Date(firstInvestmentDate);
-    // If the date is invalid (e.g., from an empty or cleared localStorage), return 0
-    if (isNaN(start.getTime())) return 0;
-
-    const now = new Date();
-    // Reset time to start of day for accurate day counting
-    now.setHours(0,0,0,0);
-    start.setHours(0,0,0,0);
-    
-    return Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  };
+  useEffect(() => {
+    const getDaysSinceInvestment = () => {
+      if (!firstInvestmentDate) return 0;
+      // The date from JSON is a string, so we need to create a new Date object.
+      const start = new Date(firstInvestmentDate);
+      
+      // If the date is invalid (e.g., from an empty or cleared localStorage), return 0
+      if (isNaN(start.getTime())) return 0;
   
-  const daysSinceInvestment = getDaysSinceInvestment();
-  const daysRemaining = Math.max(0, 14 - daysSinceInvestment);
-
+      const now = new Date();
+      // Reset time to start of day for accurate day counting
+      now.setHours(0,0,0,0);
+      start.setHours(0,0,0,0);
+      
+      const diffTime = now.getTime() - start.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      return diffDays >= 0 ? diffDays : 0;
+    };
+    
+    setDaysSinceInvestment(getDaysSinceInvestment());
+  }, [firstInvestmentDate]);
+  
   if (!user) {
     return null; // AppShell handles redirection
   }
