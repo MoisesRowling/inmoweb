@@ -1,51 +1,20 @@
 'use client';
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { AppShell } from "@/components/shared/AppShell";
 import { useApp } from "@/context/AppContext";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { DollarSign, Activity, Building2, CalendarDays } from "lucide-react";
+import { DollarSign, Activity, Building2 } from "lucide-react";
 import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
 import { Button } from "@/components/ui/button";
 import { PropertyCard } from "@/components/properties/PropertyCard";
 
 export default function DashboardPage() {
-  const { user, balance, properties, firstInvestmentDate, setModals } = useApp();
-  const [daysSinceInvestment, setDaysSinceInvestment] = useState(0);
-
+  const { user, balance, properties, setModals } = useApp();
+  
   const totalInvested = properties.reduce((sum, prop) => sum + prop.initialInvestment, 0);
   const gananciaDiaria = properties.reduce((sum, prop) => sum + (prop.initialInvestment * prop.dailyReturn), 0);
   const totalProperties = properties.filter(prop => prop.ownedShares > 0).length;
-  
-
-  useEffect(() => {
-    const getDaysSinceInvestment = () => {
-      // Ensure this only runs on the client and firstInvestmentDate is valid
-      if (!firstInvestmentDate || typeof window === 'undefined') {
-        return 0;
-      }
-      
-      const start = new Date(firstInvestmentDate);
-      
-      // If the date is invalid (e.g., from an empty or cleared localStorage), return 0
-      if (isNaN(start.getTime())) {
-        return 0;
-      }
-  
-      const now = new Date();
-      // Reset time to start of day for accurate day counting
-      now.setHours(0,0,0,0);
-      start.setHours(0,0,0,0);
-      
-      const diffTime = now.getTime() - start.getTime();
-      // Use Math.floor to count full days passed
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      
-      return diffDays >= 0 ? diffDays : 0;
-    };
-    
-    setDaysSinceInvestment(getDaysSinceInvestment());
-  }, [firstInvestmentDate]);
   
   if (!user) {
     return null; // AppShell handles redirection
@@ -65,7 +34,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatCard
             title="Saldo Total"
             value={balance}
@@ -88,13 +57,6 @@ export default function DashboardPage() {
             description="En tu portafolio"
             icon={Building2}
             color="accent"
-          />
-           <StatCard
-            title="Días de Inversión"
-            value={daysSinceInvestment}
-            description={"Retiros habilitados"}
-            icon={CalendarDays}
-            color="orange"
           />
         </div>
 
