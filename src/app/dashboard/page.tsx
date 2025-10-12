@@ -6,8 +6,8 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { DollarSign, Activity, Building2, CalendarDays } from "lucide-react";
 import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
-import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 import { Button } from "@/components/ui/button";
+import { PropertyCard } from "@/components/properties/PropertyCard";
 
 export default function DashboardPage() {
   const { user, balance, properties, firstInvestmentDate, setModals } = useApp();
@@ -94,7 +94,12 @@ export default function DashboardPage() {
             ) : (
                 <ActiveInvestments />
             )}
-             <PortfolioSuggestion />
+             <div className="space-y-4">
+                <h2 className="text-2xl font-bold text-foreground font-headline">Invierte en Propiedades</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {properties.map(p => <PropertyCard key={p.id} property={p} isGuest={true} />)}
+                </div>
+             </div>
           </div>
           <div className="lg:col-span-1">
             <TransactionHistory />
