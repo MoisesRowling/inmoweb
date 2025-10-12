@@ -84,13 +84,13 @@ export function PropertyCard({ property, isGuest = false }: PropertyCardProps) {
         
           {!isGuest && (
             <>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center pt-4 border-t mt-4">
                 <span className="text-muted-foreground">Tu Inversión</span>
-                <span className="font-semibold">{property.invested.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
+                <span className="font-semibold">{(property.invested || 0).toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Tus Acciones</span>
-                <span className="font-semibold text-primary">{property.ownedShares}</span>
+                <span className="font-semibold text-primary">{property.ownedShares || 0}</span>
               </div>
             </>
           )}
