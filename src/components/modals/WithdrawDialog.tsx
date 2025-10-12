@@ -93,13 +93,6 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
                 </FormItem>
               )}
             />
-             <Alert variant="default" className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-300">
-                <Info className="h-4 w-4 !text-yellow-600 dark:!text-yellow-400" />
-                <AlertTitle className="font-semibold !text-yellow-900 dark:!text-yellow-200">Importante</AlertTitle>
-                <AlertDescription>
-                    Se requiere mantener la inversión por un mínimo de 14 días antes de poder realizar retiros.
-                </AlertDescription>
-            </Alert>
             <DialogFooter>
               <Button type="submit" className="w-full">Confirmar Retiro</Button>
             </DialogFooter>

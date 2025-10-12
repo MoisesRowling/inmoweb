@@ -117,25 +117,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const handleWithdraw = (amount: number, clabe: string): boolean => {
-    if (!firstInvestmentDate) {
-      toast({
-        title: 'Retiro no permitido',
-        description: 'Necesitas realizar al menos una inversión antes de poder retirar.',
-        variant: 'destructive',
-      });
-      return false;
-    }
-
-    const daysSinceInvestment = Math.floor((new Date().getTime() - firstInvestmentDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSinceInvestment < 14) {
-      toast({
-        title: 'Retiro no permitido',
-        description: `Debes esperar 14 días desde tu primera inversión. Días restantes: ${14 - daysSinceInvestment}.`,
-        variant: 'destructive',
-      });
-      return false;
-    }
-
     if (amount > balance) {
         toast({
             title: 'Saldo insuficiente',

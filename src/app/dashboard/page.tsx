@@ -71,10 +71,10 @@ export default function DashboardPage() {
             icon={Building2}
             color="accent"
           />
-          <StatCard
+           <StatCard
             title="Días de Inversión"
             value={daysSinceInvestment}
-            description={firstInvestmentDate ? (daysRemaining > 0 ? `${daysRemaining} días para retirar` : "Retiros habilitados") : "N/A"}
+            description={"Retiros habilitados"}
             icon={CalendarDays}
             color="orange"
           />
