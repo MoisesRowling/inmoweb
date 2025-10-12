@@ -45,8 +45,8 @@ export const propertiesData: Property[] = [
   },
   {
     id: 4,
-    name: 'Loft Esmeralda',
-    location: 'Polanco, Ciudad de México',
+    name: 'Casa Esmeralda',
+    location: 'Guadalajara, Jalisco',
     type: 'Loft',
     price: 5500000,
     minInvestment: 1000,
@@ -54,7 +54,7 @@ export const propertiesData: Property[] = [
     initialInvestment: 0,
     ownedShares: 0,
     totalShares: 100,
-    image: 'loft-esmeralda',
+    image: 'casa-esmeralda',
     dailyReturn: 0.10,
   }
 ];
