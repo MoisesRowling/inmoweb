@@ -61,7 +61,7 @@ export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
   const form = useForm<z.infer<typeof currentFormSchema>>({
     resolver: zodResolver(currentFormSchema),
     defaultValues: {
-      amount: undefined,
+      amount: '' as any,
     },
   });
 
