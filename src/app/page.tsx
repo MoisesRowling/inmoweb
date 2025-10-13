@@ -17,22 +17,23 @@ export default function Home() {
   const { isAuthenticated, isAuthLoading } = useApp();
   const router = useRouter();
 
+  // Redirect authenticated users from home to dashboard
   useEffect(() => {
-    // Redirect authenticated users from home to dashboard
     if (!isAuthLoading && isAuthenticated) {
       router.replace('/dashboard');
     }
   }, [isAuthenticated, isAuthLoading, router]);
 
-  // Show a loading skeleton while we determine auth state, to prevent flashing the landing page.
+  // Show a loading skeleton while we determine auth state or if the user is authenticated
+  // This prevents flashing the landing page for authenticated users before redirecting
   if (isAuthLoading || isAuthenticated) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <Header />
-        <main className="flex-1 p-8">
+        <main className="flex-1 container mx-auto p-4 md:p-8">
             <div className="flex flex-col space-y-3">
-            <Skeleton className="h-40 w-full rounded-xl" />
-            <div className="space-y-2 pt-4">
+            <Skeleton className="h-[30vh] w-full rounded-xl" />
+            <div className="space-y-4 pt-8">
                 <Skeleton className="h-8 w-1/2" />
                 <Skeleton className="h-6 w-1/3" />
             </div>
@@ -43,6 +44,7 @@ export default function Home() {
     )
   }
   
+  // Render the landing page only if we know the user is not authenticated
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />

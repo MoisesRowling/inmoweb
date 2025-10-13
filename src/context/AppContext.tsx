@@ -34,8 +34,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const fetcher = (url: string) => fetch(url).then(res => {
   if (res.status === 401) {
-    // This is now handled by AppShell's useEffect, but we still need to avoid parsing a 401 response body
-    return null; // Return null for 401 errors, SWR will see this as empty data
+    // AppShell handles the redirect. This just signals that there's no user data.
+    return null;
   }
   if (!res.ok) {
     throw new Error('An error occurred while fetching the data.');
@@ -63,15 +63,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isAuthFormLoading, setIsAuthFormLoading] = useState(false);
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
-  // Let SWR handle auth state based on fetcher result.
-  const { data, error, isLoading, mutate: revalidateData } = useSWR('/api/data', fetcher, {
-    refreshInterval: 2000, // Re-fetch every 2 seconds
-    shouldRetryOnError: false, // Don't retry on 401
+  const { data, error, isLoading } = useSWR('/api/data', fetcher, {
+    refreshInterval: 2000, 
+    shouldRetryOnError: false,
     revalidateOnFocus: true,
   });
   
   const isAuthenticated = !!data && !error;
-  // isAuthLoading is true only on the initial load.
   const isAuthLoading = isLoading && data === undefined && !error;
 
   const login = async (email: string, pass: string) => {
@@ -90,8 +88,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       
       const { user } = await res.json();
 
-      // Optimistically update the cache with user data and revalidate in the background
-      // This ensures isAuthenticated becomes true almost instantly
+      // IMPORTANT: Wait for mutation to complete before redirecting
       await mutate('/api/data', (currentData: any) => ({ ...currentData, user }), true);
       
       toast({ title: '¡Bienvenido de vuelta!' });
@@ -99,17 +96,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (err: any) {
       toast({ title: 'Error de inicio de sesión', description: err.message || 'El correo o la contraseña son incorrectos.', variant: 'destructive' });
     } finally {
-      setIsAuthFormLoading(false);
+        setIsAuthFormLoading(false);
     }
   };
   
   const logout = useCallback(async () => {
     if (typeof window === 'undefined') return;
-    // Clear local SWR cache for user data without revalidation.
     await mutate('/api/data', null, false);
-    // Call the logout API endpoint to clear the session cookie.
     await fetch('/api/auth/logout', { method: 'POST' });
-    // Use the router to redirect to the login page.
     router.replace('/login');
   }, [router]);
 
@@ -128,7 +122,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       
       const { user } = await res.json();
-      // Optimistically update and revalidate to log the user in
+      
+      // IMPORTANT: Wait for mutation to complete before redirecting
       await mutate('/api/data', (currentData: any) => ({ ...currentData, user }), true);
 
       toast({ title: '¡Cuenta creada exitosamente!', description: 'Bienvenido a InmoSmart.' });
@@ -143,11 +138,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleAction = async (action: string, payload: any) => {
     try {
-      // Optimistic update
       const optimisticData = { ...data };
-      // Note: A more complex optimistic update would predict the exact new state.
-      // For now, we just revalidate.
-
       await mutate('/api/data', apiUpdater('/api/data', { arg: { action, payload } }), {
           optimisticData: optimisticData,
           rollbackOnError: true,
