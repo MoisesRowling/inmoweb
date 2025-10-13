@@ -48,8 +48,8 @@ async function getCurrentTime() {
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-super-secret-key-that-is-at-least-32-bytes-long');
 
-async function getUserIdFromSession(request: NextRequest): Promise<string | null> {
-    const sessionToken = request.cookies.get('session')?.value;
+async function getUserIdFromSession(): Promise<string | null> {
+    const sessionToken = cookies().get('session')?.value;
     if (!sessionToken) {
         return null;
     }
@@ -64,7 +64,7 @@ async function getUserIdFromSession(request: NextRequest): Promise<string | null
 
 
 export async function GET(request: NextRequest) {
-  const userId = await getUserIdFromSession(request);
+  const userId = await getUserIdFromSession();
 
   if (!userId) {
     return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const userId = await getUserIdFromSession(request);
+    const userId = await getUserIdFromSession();
     if (!userId) {
         return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
     }
