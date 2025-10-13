@@ -40,6 +40,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   // If not authenticated and not loading, it's a public page or login/register
+  // This case is handled by the useEffect above which redirects to /login.
+  // The children (e.g. login page) will render while the redirect happens.
   if (!isAuthenticated) {
       return children;
   }

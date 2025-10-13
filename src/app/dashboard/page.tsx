@@ -13,9 +13,9 @@ import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 export default function DashboardPage() {
   const { user, balance, properties, investments, setModals } = useApp();
   
-  // The AppShell now handles the loading state until the user object is ready.
-  // We add this check to prevent a flash of incorrect content or errors if
-  // AppShell's loading state and this component's render get out of sync.
+  // AppShell now correctly handles the loading state.
+  // The check for `!user` here was redundant and causing a blank page.
+  // By the time this component renders, AppShell guarantees `user` is available.
   if (!user) {
     return null;
   }
