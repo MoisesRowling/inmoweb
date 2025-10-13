@@ -2,142 +2,162 @@
  * @fileoverview Firestore Security Rules for the investment platform.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles, account balances, investments, and transactions.
- * Properties are publicly readable but not writable by clients.
+ * This ruleset enforces a strict user-ownership model for user-related data
+ * (profiles, account balances, investments, transactions). Properties are publicly readable.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information, accessible only by the user.
- * - /users/{userId}/account_balance/{accountBalanceId}: Stores account balance data, accessible only by the user.
- * - /users/{userId}/investments/{investmentId}: Stores investment data, accessible only by the user.
- * - /users/{userId}/transactions/{transactionId}: Stores transaction history, accessible only by the user.
- * - /properties/{propertyId}: Stores property information, publicly readable.
+ * - /users/{userId}: User profiles, accessible only by the user themselves.
+ * - /users/{userId}/account_balance/{accountBalanceId}: Account balances, accessible only by the user. accountBalanceId is the same as userId.
+ * - /users/{userId}/investments/{investmentId}: User's investment data, accessible only by the user.
+ * - /users/{userId}/transactions/{transactionId}: User's transaction history, accessible only by the user.
+ * - /properties/{propertyId}: Property information, publicly readable.
  *
  * Key Security Decisions:
- * - Users can only access their own data.
- * - Properties are publicly readable but can only be managed by backend processes (no client writes).
- * - Listing of users is not allowed.
- * - Account Balance ID must match the User ID for data consistency.
+ * - Users can only create their own user document.
+ * - Users can only manage their own account balance, investments, and transactions.
+ * - Properties are publicly readable to facilitate browsing.
  *
  * Denormalization for Authorization:
- *  - The User ID is present both in the path (/users/{userId}) and as a field within the documents in the user's subcollections (e.g., investments, transactions).
- *    This allows for efficient authorization checks without additional reads.
+ * - The 'id' field within the /users/{userId} document must match the {userId} in the path. This is enforced on create and is immutable on update. This avoids needing a separate lookup.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secures user profiles, allowing only the user to read and write their own profile.
+     * @description Secure user profiles. Only the user can read and write their own profile.
      * @path /users/{userId}
-     * @allow (create) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can create their profile if request.auth.uid == userId AND request.resource.data.id == userId.
-     * @allow (get) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can read their profile if request.auth.uid == userId.
-     * @allow (update) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can update their profile if request.auth.uid == userId.
-     * @allow (delete) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can delete their profile if request.auth.uid == userId.
-     * @deny (create) - User 'otherUser' cannot create a profile for user '4h2gcWG8hhMf2VHoqntOIU0fMls2'.
-     * @deny (get) - User 'otherUser' cannot read user '4h2gcWG8hhMf2VHoqntOIU0fMls2' profile.
-     * @deny (update) - User 'otherUser' cannot update user '4h2gcWG8hhMf2VHoqntOIU0fMls2' profile.
-     * @deny (delete) - User 'otherUser' cannot delete user '4h2gcWG8hhMf2VHoqntOIU0fMls2' profile.
-     * @principle Enforces document ownership for all operations on user profiles.
+     * @allow (create) User with UID 'test_user' can create their own profile if the ID field matches their UID.
+     *   Request data: { "id": "test_user", "name": "Test User", "email": "test@example.com" }
+     * @allow (get) User with UID 'test_user' can read their profile.
+     * @allow (update) User with UID 'test_user' can update their profile.
+     * @allow (delete) User with UID 'test_user' can delete their profile.
+     * @deny (create) User with UID 'other_user' cannot create a profile with ID 'test_user'.
+     *   Request data: { "id": "test_user", "name": "Test User", "email": "test@example.com" }
+     * @deny (get) User with UID 'other_user' cannot read user profile with ID 'test_user'
+     * @deny (update) User with UID 'other_user' cannot update user profile with ID 'test_user'
+     * @deny (delete) User with UID 'other_user' cannot delete user profile with ID 'test_user'
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
-      allow get: if isOwner(userId);
-      allow list: if false; // Listing users is not allowed.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId) && resource.data.id == userId;
-      allow delete: if isExistingOwner(userId);
 
       function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
+        return isOwner(userId) && resource != null;
       }
 
-      /**
-       * @description Secures account balance data, allowing only the user to read and write their own account balance.
-       * @path /users/{userId}/account_balance/{accountBalanceId}
-       * @allow (create) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can create their account balance if request.auth.uid == userId AND request.resource.data.userId == userId AND accountBalanceId == userId.
-       * @allow (get) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can read their account balance if request.auth.uid == userId.
-       * @allow (update) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can update their account balance if request.auth.uid == userId AND resource.data.userId == userId AND accountBalanceId == userId.
-       * @allow (delete) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can delete their account balance if request.auth.uid == userId AND accountBalanceId == userId.
-       * @deny (create) - User 'otherUser' cannot create an account balance for user '4h2gcWG8hhMf2VHoqntOIU0fMls2'.
-       * @deny (get) - User 'otherUser' cannot read user '4h2gcWG8hhMf2VHoqntOIU0fMls2' account balance.
-       * @deny (update) - User 'otherUser' cannot update user '4h2gcWG8hhMf2VHoqntOIU0fMls2' account balance.
-       * @deny (delete) - User 'otherUser' cannot delete user '4h2gcWG8hhMf2VHoqntOIU0fMls2' account balance.
-       * @principle Enforces document ownership and account ID consistency for all operations on account balances.
-       */
-      match /account_balance/{accountBalanceId} {
-        allow get: if isOwner(userId) && accountBalanceId == userId;
-        allow list: if isOwner(userId) && accountBalanceId == userId;
-        allow create: if isOwner(userId) && request.resource.data.userId == userId && accountBalanceId == userId;
-        allow update: if isOwner(userId) && resource.data.userId == userId && accountBalanceId == userId;
-        allow delete: if isExistingOwner(userId) && accountBalanceId == userId;
+      allow get: if isOwner(userId);
+      allow list: if false; // User listing is disabled.
 
-        function isExistingOwner(userId) {
-            return isOwner(userId) && resource != null;
-        }
-      }
-
-      /**
-       * @description Secures investment data, allowing only the user to read and write their own investments.
-       * @path /users/{userId}/investments/{investmentId}
-       * @allow (create) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can create their investment if request.auth.uid == userId AND request.resource.data.userId == userId.
-       * @allow (get) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can read their investment if request.auth.uid == userId.
-       * @allow (update) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can update their investment if request.auth.uid == userId AND resource.data.userId == userId.
-       * @allow (delete) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can delete their investment if request.auth.uid == userId.
-       * @deny (create) - User 'otherUser' cannot create an investment for user '4h2gcWG8hhMf2VHoqntOIU0fMls2'.
-       * @deny (get) - User 'otherUser' cannot read user '4h2gcWG8hhMf2VHoqntOIU0fMls2' investment.
-       * @deny (update) - User 'otherUser' cannot update user '4h2gcWG8hhMf2VHoqntOIU0fMls2' investment.
-       * @deny (delete) - User 'otherUser' cannot delete user '4h2gcWG8hhMf2VHoqntOIU0fMls2' investment.
-       * @principle Enforces document ownership for all operations on investments.
-       */
-      match /investments/{investmentId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isOwner(userId) && resource.data.userId == userId;
-        allow delete: if isExistingOwner(userId);
-
-        function isExistingOwner(userId) {
-            return isOwner(userId) && resource != null;
-        }
-      }
-
-      /**
-       * @description Secures transaction history, allowing only the user to read and write their own transactions.
-       * @path /users/{userId}/transactions/{transactionId}
-       * @allow (create) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can create a transaction if request.auth.uid == userId AND request.resource.data.userId == userId.
-       * @allow (get) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can read their transaction if request.auth.uid == userId.
-       * @allow (update) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can update their transaction if request.auth.uid == userId AND resource.data.userId == userId.
-       * @allow (delete) - User '4h2gcWG8hhMf2VHoqntOIU0fMls2' can delete their transaction if request.auth.uid == userId.
-       * @deny (create) - User 'otherUser' cannot create a transaction for user '4h2gcWG8hhMf2VHoqntOIU0fMls2'.
-       * @deny (get) - User 'otherUser' cannot read user '4h2gcWG8hhMf2VHoqntOIU0fMls2' transaction.
-       * @deny (update) - User 'otherUser' cannot update user '4h2gcWG8hhMf2VHoqntOIU0fMls2' transaction.
-       * @deny (delete) - User 'otherUser' cannot delete user '4h2gcWG8hhMf2VHoqntOIU0fMls2' transaction.
-       * @principle Enforces document ownership for all operations on transactions.
-       */
-      match /transactions/{transactionId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isOwner(userId) && resource.data.userId == userId;
-        allow delete: if isExistingOwner(userId);
-
-        function isExistingOwner(userId) {
-            return isOwner(userId) && resource != null;
-        }
-      }
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows public read access to property information.  Writes are disallowed from the client.
+     * @description Secure user account balances. Only the user can read and write their own account balance.
+     * @path /users/{userId}/account_balance/{accountBalanceId}
+     * @allow (create) User with UID 'test_user' can create their own account balance if the userId matches and the accountBalanceId matches.
+     *   Request data: { "userId": "test_user", "balance": 100 }
+     * @allow (get) User with UID 'test_user' can read their account balance.
+     * @allow (update) User with UID 'test_user' can update their account balance if the userId matches.
+     * @allow (delete) User with UID 'test_user' can delete their account balance if the userId matches.
+     * @deny (create) User with UID 'other_user' cannot create an account balance for user 'test_user'.
+     *   Request data: { "userId": "test_user", "balance": 100 }
+     * @deny (get) User with UID 'other_user' cannot read user 'test_user' account balance.
+     * @deny (update) User with UID 'other_user' cannot update user 'test_user' account balance.
+     * @deny (delete) User with UID 'other_user' cannot delete user 'test_user' account balance.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/account_balance/{accountBalanceId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId) && userId == accountBalanceId;
+      allow list: if isOwner(userId) && userId == accountBalanceId;
+      allow create: if isOwner(userId) && request.resource.data.userId == userId && userId == accountBalanceId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == userId && userId == accountBalanceId;
+      allow delete: if isExistingOwner(userId) && userId == accountBalanceId;
+    }
+
+    /**
+     * @description Secure user investments. Only the user can read and write their own investments.
+     * @path /users/{userId}/investments/{investmentId}
+     * @allow (create) User with UID 'test_user' can create their own investment if the userId matches.
+     *   Request data: { "userId": "test_user", "propertyId": "prop123", "investedAmount": 50 }
+     * @allow (get) User with UID 'test_user' can read their investment.
+     * @allow (update) User with UID 'test_user' can update their investment if the userId matches.
+     * @allow (delete) User with UID 'test_user' can delete their investment if the userId matches.
+     * @deny (create) User with UID 'other_user' cannot create an investment for user 'test_user'.
+     *   Request data: { "userId": "test_user", "propertyId": "prop123", "investedAmount": 50 }
+     * @deny (get) User with UID 'other_user' cannot read user 'test_user' investment.
+     * @deny (update) User with UID 'other_user' cannot update user 'test_user' investment.
+     * @deny (delete) User with UID 'other_user' cannot delete user 'test_user' investment.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/investments/{investmentId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Secure user transactions. Only the user can read and write their own transactions.
+     * @path /users/{userId}/transactions/{transactionId}
+     * @allow (create) User with UID 'test_user' can create their own transaction if the userId matches.
+     *   Request data: { "userId": "test_user", "type": "deposit", "amount": 20 }
+     * @allow (get) User with UID 'test_user' can read their transaction.
+     * @allow (update) User with UID 'test_user' can update their transaction if the userId matches.
+     * @allow (delete) User with UID 'test_user' can delete their transaction if the userId matches.
+     * @deny (create) User with UID 'other_user' cannot create a transaction for user 'test_user'.
+     *   Request data: { "userId": "test_user", "type": "deposit", "amount": 20 }
+     * @deny (get) User with UID 'other_user' cannot read user 'test_user' transaction.
+     * @deny (update) User with UID 'other_user' cannot update user 'test_user' transaction.
+     * @deny (delete) User with UID 'other_user' cannot delete user 'test_user' transaction.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/transactions/{transactionId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allow public read access to property information. Writes are disallowed.
      * @path /properties/{propertyId}
-     * @allow (get) - Any user can read property information.
-     * @allow (list) - Any user can list properties.
-     * @deny (create) - No user can create property information.
-     * @deny (update) - No user can update property information.
-     * @deny (delete) - No user can delete property information.
-     * @principle Public read access with no client write access.
+     * @allow (get) Any user can read property information.
+     * @allow (list) Any user can list property documents.
+     * @deny (create) No one can create property documents.
+     * @deny (update) No one can update property documents.
+     * @deny (delete) No one can delete property documents.
+     * @principle Allows public read access to properties, while preventing any modifications.
      */
     match /properties/{propertyId} {
       allow get: if true;
