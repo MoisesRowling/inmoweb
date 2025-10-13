@@ -13,6 +13,13 @@ import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 export default function DashboardPage() {
   const { user, balance, properties, investments, setModals } = useApp();
   
+  // The AppShell now handles the loading state until the user object is ready.
+  // We add this check to prevent a flash of incorrect content or errors if
+  // AppShell's loading state and this component's render get out of sync.
+  if (!user) {
+    return null;
+  }
+
   const totalInvested = investments.reduce((sum, inv) => sum + inv.investedAmount, 0);
   const totalProperties = [...new Set(investments.map(inv => inv.propertyId))].length;
 
@@ -24,20 +31,17 @@ export default function DashboardPage() {
     return sum + (inv.investedAmount * dailyReturn);
   }, 0);
 
-  // The AppShell now handles the loading state until the user object is ready.
-  // No need to check for user here, as AppShell guarantees it exists.
-  
   return (
     <AppShell>
       <div className="space-y-8">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground font-headline">Bienvenido, {user!.name.split(' ')[0]}</h1>
+            <h1 className="text-3xl font-bold text-foreground font-headline">Bienvenido, {user.name.split(' ')[0]}</h1>
             <p className="text-muted-foreground mt-1">Aquí está el resumen de tu portafolio de inversiones.</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-muted-foreground">ID de Usuario</p>
-            <p className="text-sm font-mono font-semibold text-primary">{user!.publicId}</p>
+            <p className="text-sm font-mono font-semibold text-primary">{user.publicId}</p>
           </div>
         </div>
 
