@@ -34,17 +34,12 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const fetcher = async (url: string) => {
     const res = await fetch(url);
-
-    // If the server returns a 401, it means the session is invalid.
-    // We return null to signal to SWR that there is no user data.
     if (res.status === 401) {
         return null;
     }
-
     if (!res.ok) {
         throw new Error('An error occurred while fetching the data.');
     }
-
     return res.json();
 };
 
@@ -68,15 +63,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isAuthFormLoading, setIsAuthFormLoading] = useState(false);
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
-  const { data, error, isLoading, mutate: revalidateData } = useSWR('/api/data', fetcher, {
+  const { data, error, isLoading, isValidating, mutate: revalidateData } = useSWR('/api/data', fetcher, {
     refreshInterval: 2000, 
     shouldRetryOnError: false, // Important to prevent loops on 401
+    revalidateOnFocus: true,
   });
   
-  // isAuthenticated is true ONLY if data is present and there was no error.
   const isAuthenticated = !!data && !error;
-  // isAuthLoading is true only on the initial load when data is still undefined.
-  const isAuthLoading = isLoading && data === undefined;
+  const isAuthLoading = isLoading;
 
   const login = async (email: string, pass: string) => {
     setIsAuthFormLoading(true);
@@ -92,15 +86,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         throw new Error(errorBody.message || 'Invalid credentials');
       }
       
-      const { user } = await res.json();
-      
-      // Trigger a revalidation of the user data.
-      // SWR will fetch the data again, and AppShell will react to the change
-      // in `isAuthenticated` state and handle the redirect.
+      // Don't get user from response, let SWR handle it to be the single source of truth.
+      // The API sets the cookie, so the next `revalidateData` call will fetch the user session.
       await revalidateData();
       
       toast({ title: '¡Bienvenido de vuelta!' });
-      // DO NOT REDIRECT HERE. AppShell is responsible for all routing logic.
+      // AppShell is now responsible for ALL routing logic.
 
     } catch (err: any) {
       toast({ title: 'Error de inicio de sesión', description: err.message || 'El correo o la contraseña son incorrectos.', variant: 'destructive' });
@@ -110,12 +101,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
   
   const logout = useCallback(async () => {
-    // Tell SWR to clear its cache for '/api/data' immediately.
-    // This will set `isAuthenticated` to false.
+    // Clear local SWR cache immediately by setting data to null.
+    // The `false` prevents it from revalidating immediately.
     await revalidateData(null, false);
-    // Call the API to clear the session cookie.
+    // Call the API to clear the session cookie from the server.
     await fetch('/api/auth/logout', { method: 'POST' });
-    // AppShell will detect the change in `isAuthenticated` and redirect.
+    // AppShell will detect the change in `isAuthenticated` and redirect automatically.
   }, [revalidateData]);
 
   const registerAndCreateUser = async (name: string, email: string, password: string) => {
@@ -132,7 +123,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         throw new Error(errorBody.message);
       }
       
-      // Revalidate data, AppShell will handle redirect.
       await revalidateData();
 
       toast({ title: '¡Cuenta creada exitosamente!', description: 'Bienvenido a InmoSmart.' });
@@ -146,14 +136,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleAction = async (action: string, payload: any) => {
     try {
-      const optimisticData = { ...data };
+      // Use mutate to optimistically update UI and then revalidate
       await mutate('/api/data', apiUpdater('/api/data', { arg: { action, payload } }), {
-          optimisticData: optimisticData,
+          optimisticData: data, // use current data as a base
           rollbackOnError: true,
-          populateCache: true,
-          revalidate: true,
+          populateCache: true, // populate cache with response
+          revalidate: false, // data is fresh from the API response
       });
-
       return { success: true };
     } catch (error: any) {
       toast({ title: `Error en la operación: ${action}`, description: error.message, variant: 'destructive' });
@@ -176,7 +165,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toast({ title: 'Saldo insuficiente', description: 'No tienes suficiente saldo para este retiro.', variant: 'destructive' });
         return false;
     }
-    const { success } = await handleAction('withdraw', { userId: data?.user?.id, amount, clabe });
+    const { success } = await handleAction('withdraw', { amount, clabe });
     if (success) {
       toast({ title: 'Retiro Exitoso', description: `Has retirado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
       return true;
@@ -189,7 +178,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast({ title: "Saldo insuficiente", variant: "destructive" });
       return;
     }
-    const { success } = await handleAction('invest', { userId: data?.user?.id, amount, property, term });
+    const { success } = await handleAction('invest', { amount, property, term });
     if(success) {
       toast({ title: '¡Inversión Exitosa!', description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.` });
     }

@@ -34,21 +34,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isHomePage = pathname === '/';
 
   useEffect(() => {
-    // While auth is loading, we show a loader below, so do nothing here.
     if (isAuthLoading) {
-      return;
+      return; // Do nothing while loading, the loader will be shown.
     }
 
-    // If user is authenticated and on a public page (login/register/home), redirect to dashboard.
-    if (isAuthenticated && (isPublicPage || isHomePage)) {
-      router.replace('/dashboard');
-    }
-
-    // If user is NOT authenticated and tries to access a protected page, redirect to login.
-    if (!isAuthenticated && !isPublicPage && !isHomePage) {
+    if (isAuthenticated) {
+      // If authenticated, redirect from public pages or home to the dashboard.
+      if (isPublicPage || isHomePage) {
+        router.replace('/dashboard');
+      }
+    } else {
+      // If not authenticated, redirect from protected pages to login.
+      if (!isPublicPage && !isHomePage) {
         router.replace('/login');
+      }
     }
-
   }, [isAuthenticated, isAuthLoading, isPublicPage, isHomePage, router, pathname]);
 
   // While checking auth state, show a full page loader.
@@ -56,12 +56,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <FullPageLoader />;
   }
 
-  // If we are redirecting, show loader.
-  if (isAuthenticated && (isPublicPage || isHomePage)) {
-    return <FullPageLoader />;
-  }
+  // If we are on a protected route but not authenticated yet, show loader to prevent flicker.
   if (!isAuthenticated && !isPublicPage && !isHomePage) {
-    return <FullPageLoader />;
+      return <FullPageLoader />;
+  }
+
+  // If we are on a public route but authenticated, show loader while redirecting.
+  if (isAuthenticated && (isPublicPage || isHomePage)) {
+      return <FullPageLoader />;
   }
   
   // If user is authenticated and on a protected page, show the app shell.
