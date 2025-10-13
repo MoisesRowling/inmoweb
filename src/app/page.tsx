@@ -1,3 +1,5 @@
+'use client';
+
 import { Header } from "@/components/shared/Header";
 import { Footer } from "@/components/shared/Footer";
 import { Button } from "@/components/ui/button";
@@ -5,8 +7,39 @@ import Link from "next/link";
 import { propertiesData } from "@/lib/data";
 import { PropertyCard } from "@/components/properties/PropertyCard";
 import { Activity, ArrowRight, Building2, Home as HomeIcon } from "lucide-react";
+import { useApp } from "@/context/AppContext";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Home() {
+  const { isAuthenticated } = useApp();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/dashboard');
+    }
+  }, [isAuthenticated, router]);
+
+  if (isAuthenticated) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background">
+        <Header />
+        <main className="flex-1 p-8">
+            <div className="flex flex-col space-y-3">
+            <Skeleton className="h-[125px] w-full rounded-xl" />
+            <div className="space-y-2">
+                <Skeleton className="h-4 w-[250px]" />
+                <Skeleton className="h-4 w-[200px]" />
+            </div>
+            </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+  
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
