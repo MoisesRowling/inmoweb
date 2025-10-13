@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useRouter } from 'next/navigation';
 import type { Property, Transaction, User, Investment, AccountBalance } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, useFirestore, useUser, useMemoFirebase } from '@/firebase/provider';
+import { useAuth, useFirestore, useUser as useFirebaseUserHook, useMemoFirebase } from '@/firebase/provider';
 import { 
   initiateEmailSignUp, 
   initiateEmailSignIn,
@@ -32,7 +32,7 @@ interface AppContextType {
   user: User | null;
   firebaseUser: FirebaseUser | null;
   isAuthenticated: boolean;
-  isAuthLoading: boolean;
+  isAuthLoading: boolean; // This will now be managed locally
   balance: number;
   properties: Property[];
   transactions: Transaction[];
@@ -53,9 +53,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
   
-  const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
+  const { user: firebaseUser, isUserLoading: isFirebaseUserLoading } = useFirebaseUserHook();
   const auth = useAuth();
   const firestore = useFirestore();
+
+  const [isAuthLoading, setIsAuthLoading] = useState(false); // Local state for login/register process
 
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
@@ -77,46 +79,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   
   const balance = balanceData?.balance ?? 0;
 
-  // --- Effects ---
-  useEffect(() => {
-    // This effect should only handle redirection after auth state is fully resolved.
-    if (!isAuthLoading) {
-      if (firebaseUser && user) { // Ensure both firebase auth and firestore user doc are loaded
-        // If user is on a public page, redirect to dashboard.
-        if (router.pathname === '/' || router.pathname === '/login' || router.pathname === '/register') {
-          router.replace('/dashboard');
-        }
-      } else if (!firebaseUser) {
-        // If user is not authenticated, redirect to login unless they are on a public page.
-        if (router.pathname !== '/' && router.pathname !== '/login' && router.pathname !== '/register' && router.pathname !== '/logout') {
-           router.replace('/login');
-        }
-      }
-    }
-  }, [isAuthLoading, firebaseUser, user, router]);
-
-
   // --- Auth Functions ---
   const login = (email: string, pass: string) => {
+    setIsAuthLoading(true);
     initiateEmailSignIn(auth, email, pass, 
       () => {
         toast({ title: '¡Bienvenido de vuelta!'});
-        // Redirection is handled by the useEffect above
+        // Redirection is handled by AppShell
+        setIsAuthLoading(false);
       },
       (error) => {
         toast({ title: 'Error de inicio de sesión', description: 'Tus credenciales son incorrectas.', variant: 'destructive' });
+        setIsAuthLoading(false);
       }
     );
   };
   
   const logout = () => {
     signOut(auth).then(() => {
-      // Clear local state if necessary and redirect
       router.push('/login');
     });
   };
 
   const registerAndCreateUser = useCallback(async (name: string, email: string, password: string) => {
+    setIsAuthLoading(true);
     initiateEmailSignUp(
       auth,
       email,
@@ -154,9 +140,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
             title: '¡Cuenta creada exitosamente!',
             description: 'Ahora puedes iniciar sesión.',
           });
+          setIsAuthLoading(false);
           router.push('/login');
         })
         .catch((serverError) => {
+           setIsAuthLoading(false);
            const permissionError = new FirestorePermissionError({
             path: `users/${fUser.uid}`,
             operation: 'create',
@@ -166,9 +154,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
       },
       (error) => {
+        setIsAuthLoading(false);
         toast({
           title: 'Error de registro',
-          description: error.message,
+          description: "El correo electrónico ya está en uso.",
           variant: 'destructive',
         });
       }
@@ -304,7 +293,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     user,
     firebaseUser,
     isAuthenticated: !!firebaseUser,
-    isAuthLoading,
+    isAuthLoading: isAuthLoading || isFirebaseUserLoading,
     balance,
     properties: properties || [],
     transactions: transactions || [],
@@ -329,3 +318,5 @@ export const useApp = (): AppContextType => {
   }
   return context;
 };
+
+    
