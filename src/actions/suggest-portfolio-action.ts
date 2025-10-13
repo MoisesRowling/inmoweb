@@ -3,16 +3,11 @@
 import { suggestPortfolio } from '@/ai/flows/suggest-portfolio';
 import type { SuggestPortfolioInput, SuggestPortfolioOutput } from '@/ai/flows/suggest-portfolio';
 import type { Property } from '@/lib/types';
-import { collection, getDocs, getFirestore } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase/index-server';
+import { propertiesData } from '@/lib/data';
 
-// Initialize server-side Firebase
-const { firestore } = initializeFirebase();
-
+// Since Firebase is removed, we'll use local mock data.
 async function getProperties(): Promise<Property[]> {
-  const propertiesCol = collection(firestore, 'properties');
-  const snapshot = await getDocs(propertiesCol);
-  return snapshot.docs.map(doc => doc.data() as Property);
+  return propertiesData as Property[];
 }
 
 export async function getPortfolioSuggestion(

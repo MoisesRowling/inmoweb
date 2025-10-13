@@ -9,10 +9,16 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useApp } from '@/context/AppContext';
 import AuthFormWrapper from '@/components/auth/AuthFormWrapper';
-import { useAuth } from '@/firebase';
-import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
 import { useToast } from '@/hooks/use-toast';
 
+// Dummy login function for demonstration purposes
+const fakeLogin = (email: string) => {
+  // In a real app, you would have a function that returns the user's name
+  if (email.includes('@')) {
+    return email.split('@')[0];
+  }
+  return "Usuario";
+}
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Por favor ingresa un correo electrónico válido.' }),
@@ -20,8 +26,9 @@ const formSchema = z.object({
 });
 
 export default function LoginPage() {
-  const auth = useAuth();
   const { toast } = useToast();
+  // We need to simulate the login functionality now
+  const { registerAndCreateUser } = useApp(); // We'll reuse this to show a success message
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -31,32 +38,15 @@ export default function LoginPage() {
     },
   });
 
+  // This is a temporary login handler
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!auth) return;
-    initiateEmailSignIn(
-      auth, 
-      values.email, 
-      values.password,
-      () => {
-        // Success is handled by the global onAuthStateChanged listener in AppContext
-      },
-      (error) => {
-        let description = 'El correo electrónico o la contraseña son incorrectos.';
-        if (error.code === 'auth/user-not-found') {
-          description = 'No se encontró una cuenta con este correo electrónico.';
-        } else if (error.code === 'auth/wrong-password') {
-          description = 'La contraseña es incorrecta. Por favor, inténtalo de nuevo.';
-        } else if (error.code === 'auth/too-many-requests') {
-          description = 'Has intentado iniciar sesión demasiadas veces. Intenta más tarde.';
-        }
-        
-        toast({
-          title: 'Error de autenticación',
-          description: description,
-          variant: 'destructive',
-        });
-      }
-    );
+    toast({
+      title: "Inicio de sesión simulado",
+      description: "¡Bienvenido de nuevo! Redirigiendo a tu dashboard."
+    });
+    // A real login implementation would be here.
+    // For now, we'll just redirect. The AppContext doesn't handle auth anymore.
+    window.location.href = '/dashboard';
   }
 
   return (

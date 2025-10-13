@@ -19,11 +19,20 @@ export default function DashboardPage() {
   const dailyGain = investments.reduce((sum, inv) => {
     const property = properties.find(p => p.id === inv.propertyId);
     if (!property) return sum;
-    return sum + (inv.investedAmount * property.dailyReturn);
+    // Ensure dailyReturn is a number before calculation
+    const dailyReturn = typeof property.dailyReturn === 'number' ? property.dailyReturn : 0;
+    return sum + (inv.investedAmount * dailyReturn);
   }, 0);
 
   if (!user) {
-    return null; // AppShell handles redirection
+    return (
+      <AppShell>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Cargando...</h1>
+          <p>Redirigiendo a la página de inicio de sesión.</p>
+        </div>
+      </AppShell>
+    );
   }
   
   return (

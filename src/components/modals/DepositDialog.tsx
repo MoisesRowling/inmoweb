@@ -18,8 +18,12 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
   const { toast } = useToast();
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({ title: 'Copiado al portapapeles' });
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+        toast({ title: 'Copiado al portapapeles' });
+    } else {
+        toast({ title: 'No se pudo copiar', variant: 'destructive'});
+    }
   };
 
   const WhatsAppIcon = () => (
@@ -29,7 +33,6 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
     </svg>
   )
   
-  // This is a simulation. In a real app, this would be a webhook or a manual confirmation.
   const handleFakeDeposit = () => {
     handleDeposit(5000); // Simulate a 5000 MXN deposit
     onClose();

@@ -17,12 +17,14 @@ export default function Home() {
   const { isAuthenticated, properties } = useApp();
   const router = useRouter();
 
+  // This check is now just for navigation, not for loading data
   useEffect(() => {
     if (isAuthenticated) {
       router.replace('/dashboard');
     }
   }, [isAuthenticated, router]);
 
+  // If the user becomes authenticated, we show a loader while redirecting
   if (isAuthenticated) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
@@ -41,6 +43,7 @@ export default function Home() {
     )
   }
   
+  // Render the public homepage for unauthenticated users
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
