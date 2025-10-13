@@ -7,7 +7,6 @@ import { DollarSign, Activity, Building2 } from "lucide-react";
 import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
 import { Button } from "@/components/ui/button";
-import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
@@ -107,7 +106,6 @@ export default function DashboardPage() {
             ) : (
                 <ActiveInvestments />
             )}
-             <PortfolioSuggestion />
           </div>
           <div className="lg:col-span-1">
             <TransactionHistory />
