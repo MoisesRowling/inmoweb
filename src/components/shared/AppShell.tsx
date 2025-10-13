@@ -13,22 +13,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
   const isAuthPage = pathname === '/login' || pathname === '/register';
-  const isPublicPage = isAuthPage || pathname === '/';
 
   useEffect(() => {
+    // Si todavía estamos verificando el estado de autenticación, no hagas nada todavía.
     if (isAuthLoading) {
-      return; // No hacer nada mientras se verifica la autenticación
+      return;
     }
 
-    // Si no está autenticado y no está en una página pública, redirigir a login
-    if (!isAuthenticated && !isPublicPage) {
+    // Si el usuario está en una página de autenticación (login/register) pero ya está autenticado,
+    // lo redirigimos al dashboard.
+    if (isAuthenticated && isAuthPage) {
+      router.replace('/dashboard');
+    }
+
+    // Si el usuario NO está autenticado y NO está en una página de autenticación,
+    // lo redirigimos a la página de login.
+    if (!isAuthenticated && !isAuthPage) {
       router.replace('/login');
     }
+  }, [isAuthenticated, isAuthLoading, isAuthPage, router, pathname]);
 
-  }, [isAuthenticated, isAuthLoading, isPublicPage, router]);
-
-  // Si se está autenticando y no es una página pública, mostrar un esqueleto de carga
-  if (isAuthLoading && !isPublicPage) {
+  // Mientras se verifica el estado de la sesión, si estamos en una ruta protegida,
+  // muestra un esqueleto de carga para evitar mostrar contenido incorrecto.
+  if (isAuthLoading && !isAuthPage) {
      return (
       <div className="min-h-screen bg-background p-8">
         <div className="flex flex-col space-y-3">
@@ -47,18 +54,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Si no está autenticado y está en una página pública, simplemente renderiza el contenido
-  if (!isAuthenticated && isPublicPage) {
-      return <>{children}</>;
+  // Si no está autenticado y está en una página protegida, el useEffect ya lo está redirigiendo.
+  // Renderizar null evita cualquier parpadeo de contenido no autorizado.
+  if (!isAuthenticated && !isAuthPage) {
+      return null;
   }
-
-  // Si no está autenticado y está en una página protegida, el useEffect ya lo redirigió,
-  // podemos retornar null o un loader para evitar renderizar nada
-  if (!isAuthenticated) {
+  
+  // Si está autenticado y en una página de autenticación, el useEffect lo está redirigiendo.
+  // Renderizar null evita el parpadeo de la página de login/register.
+  if (isAuthenticated && isAuthPage) {
       return null;
   }
 
-  // Si está autenticado, muestra el layout de la aplicación
+  // Si está autenticado, muestra el layout de la aplicación con su contenido
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />

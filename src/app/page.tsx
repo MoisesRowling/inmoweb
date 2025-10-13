@@ -24,8 +24,8 @@ export default function Home() {
     }
   }, [isAuthenticated, isAuthLoading, router]);
 
-  // Show a loading skeleton while we determine auth state or if the user is authenticated
-  // This prevents flashing the landing page for authenticated users before redirecting
+  // While checking auth or if the user is authenticated (and about to be redirected),
+  // show a skeleton to prevent the landing page from flashing.
   if (isAuthLoading || isAuthenticated) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
@@ -44,7 +44,7 @@ export default function Home() {
     )
   }
   
-  // Render the landing page only if we know the user is not authenticated
+  // Render the landing page only if we know the user is not authenticated.
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
