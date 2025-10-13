@@ -1,5 +1,5 @@
 export type Property = {
-  id: string; // Changed to string for Firestore
+  id: string; 
   name: string;
   location: string;
   type: string;
@@ -17,7 +17,7 @@ export type Property = {
 };
 
 export type Transaction = {
-  id: string; // Changed to string for Firestore
+  id: string; 
   userId: string;
   type: 'deposit' | 'withdraw' | 'investment';
   amount: number;
@@ -26,7 +26,7 @@ export type Transaction = {
 };
 
 export type User = {
-  id: string; // This is the Firebase Auth UID
+  id: string; // Simulated user ID
   publicId: string; // This is the 5-digit user-facing ID
   name: string;
   email: string;
@@ -40,14 +40,4 @@ export type Investment = {
     ownedShares: number;
     investmentDate: string; // ISO String
     term: number; // in days
-};
-
-export type AccountBalance = {
-    balance: number;
-    userId: string;
-}
-
-// Represents a document in the publicIds collection
-export type PublicId = {
-  uid: string; // Firebase Auth UID associated with this public ID
 };

@@ -13,11 +13,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function DashboardPage() {
   const { user, balance, properties, investments, setModals } = useApp();
   
-  // AppShell now handles the main loading state. We can assume `user` is available here.
-  // We still might want to show skeletons for sub-components if their data arrives later.
   if (!user) {
-    // This should ideally not be hit if AppShell is working correctly,
-    // but as a fallback, it prevents crashing.
+    // AppShell handles the main loading state, so we just show a skeleton here 
+    // for the brief moment before user data is available after auth is confirmed.
     return (
         <AppShell>
             <div className="space-y-8">
@@ -25,6 +23,19 @@ export default function DashboardPage() {
                     <div className="space-y-2">
                         <Skeleton className="h-8 w-48" />
                         <Skeleton className="h-4 w-72" />
+                    </div>
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Skeleton className="h-[125px] w-full rounded-xl" />
+                    <Skeleton className="h-[125px] w-full rounded-xl" />
+                    <Skeleton className="h-[125px] w-full rounded-xl" />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                        <Skeleton className="h-[300px] w-full rounded-xl" />
+                    </div>
+                    <div className="lg:col-span-1">
+                        <Skeleton className="h-[400px] w-full rounded-xl" />
                     </div>
                 </div>
             </div>
