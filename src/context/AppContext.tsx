@@ -160,10 +160,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       async (userCredential) => {
         const fUser = userCredential.user;
         await updateProfile(fUser, { displayName: name });
-
-        const userDocData = { id: fUser.uid, name, email };
         
-        // This is a non-blocking operation. It will run in the background.
+        let finalUserDoc: User;
+
         runTransaction(firestore, async (transaction) => {
           const publicId = await generateUniquePublicId(firestore);
           
@@ -173,7 +172,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
           transaction.set(publicIdDocRef, { uid: fUser.uid });
           
-          const finalUserDoc = { ...userDocData, publicId };
+          finalUserDoc = { id: fUser.uid, name, email, publicId };
           transaction.set(userDocRef, finalUserDoc);
 
           transaction.set(balanceDocRef, {
@@ -181,13 +180,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
             balance: 0,
           });
           
-          return { finalUserDoc, publicId };
+          return { finalUserDoc };
         })
-        .then(({ finalUserDoc, publicId }) => {
-            // Add the publicId to the userDocData for full context in case of error later
-            const fullUserData = { ...finalUserDoc, publicId };
-            
-            // Chain a then block for success
+        .then(() => {
             toast({
               title: '¡Cuenta creada exitosamente!',
               description: 'Ahora puedes iniciar sesión.',
@@ -195,24 +190,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
             router.push('/login');
         })
         .catch((serverError) => {
-          // This is the critical change: Use .catch() for error handling.
           const permissionError = new FirestorePermissionError({
-            path: `users/${fUser.uid}`, // The primary document being created
+            path: `users/${fUser.uid}`,
             operation: 'create',
-            requestResourceData: userDocData, // Pass the data that was attempted
+            requestResourceData: finalUserDoc,
           });
           
-          // Emit the contextual error. DO NOT use console.error here.
           errorEmitter.emit('permission-error', permissionError);
 
-          // We also inform the user that the registration failed at a high level.
           toast({
             title: 'Error de registro',
             description: 'No se pudo crear el perfil de usuario. Inténtalo de nuevo.',
             variant: 'destructive',
           });
 
-          // Optional but recommended: Clean up the created auth user if the DB transaction fails.
           fUser.delete();
         });
       },
