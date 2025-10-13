@@ -7,17 +7,43 @@ import { DollarSign, Activity, Building2 } from "lucide-react";
 import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
 import { Button } from "@/components/ui/button";
-import { PropertyCard } from "@/components/properties/PropertyCard";
 import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
-  const { user, balance, properties, investments, setModals } = useApp();
+  const { user, balance, properties, investments, setModals, isAuthLoading } = useApp();
   
-  // AppShell now correctly handles the loading state.
-  // The check for `!user` here was redundant and causing a blank page.
-  // By the time this component renders, AppShell guarantees `user` is available.
-  if (!user) {
-    return null;
+  // The dashboard page is now responsible for its own loading state.
+  // We show a skeleton if the user object hasn't been loaded from Firestore yet.
+  // isAuthLoading from useApp() can also be used for an initial auth check.
+  if (!user || (isAuthLoading && !user)) {
+    return (
+      <AppShell>
+        <div className="space-y-8">
+          <div className="flex justify-between items-center">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-72" />
+            </div>
+            <Skeleton className="h-10 w-24" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Skeleton className="h-64 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
+            <div className="lg:col-span-1">
+              <Skeleton className="h-96 w-full" />
+            </div>
+          </div>
+        </div>
+      </AppShell>
+    );
   }
 
   const totalInvested = investments.reduce((sum, inv) => sum + inv.investedAmount, 0);
@@ -26,7 +52,6 @@ export default function DashboardPage() {
   const dailyGain = investments.reduce((sum, inv) => {
     const property = properties.find(p => p.id === inv.propertyId);
     if (!property) return sum;
-    // Ensure dailyReturn is a number before calculation
     const dailyReturn = typeof property.dailyReturn === 'number' ? property.dailyReturn : 0;
     return sum + (inv.investedAmount * dailyReturn);
   }, 0);

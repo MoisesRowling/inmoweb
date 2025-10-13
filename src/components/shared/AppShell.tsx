@@ -8,36 +8,29 @@ import { Footer } from './Footer';
 import { Skeleton } from '../ui/skeleton';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isAuthLoading, user } = useApp();
+  const { isAuthenticated, isAuthLoading } = useApp();
   const router = useRouter();
   const pathname = usePathname();
   
   const isAuthPage = pathname === '/login' || pathname === '/register';
 
   useEffect(() => {
-    // If auth state is still loading, do nothing.
-    if (isAuthLoading) return;
+    // If auth state is still loading, do nothing to prevent premature redirects.
+    if (isAuthLoading) {
+      return;
+    }
 
-    // If user is not authenticated and is not on an auth page, redirect to login.
+    // If the user is NOT authenticated and is trying to access a protected page,
+    // redirect them to the login page.
     if (!isAuthenticated && !isAuthPage) {
       router.replace('/login');
     }
-    
-    // If user IS authenticated and on an auth page, redirect to dashboard.
-    if (isAuthenticated && isAuthPage) {
-        router.replace('/dashboard');
-    }
-
   }, [isAuthenticated, isAuthLoading, isAuthPage, router]);
 
-
-  // Show a skeleton loader while auth state is resolving OR
-  // if the user is authenticated but user data hasn't loaded from Firestore yet.
-  // This prevents content flashing for authenticated users on protected routes.
-  const isLoading = isAuthLoading || (isAuthenticated && !user && !isAuthPage);
-
-  if (isLoading) {
-    return (
+  // While checking auth state, show a global loading skeleton.
+  // This prevents flashing content.
+  if (isAuthLoading && !isAuthPage) {
+     return (
       <div className="min-h-screen bg-background p-8">
         <div className="flex flex-col space-y-3">
           <Skeleton className="h-16 w-full" />
@@ -56,12 +49,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   // If the user is not authenticated, but we're on a public or auth page,
-  // let the page render. The useEffect above will handle redirection if needed.
+  // let the page render itself.
   if (!isAuthenticated) {
-      return children;
+      return <>{children}</>;
   }
 
-  // If authenticated and user data is loaded, show the app shell for protected routes.
+  // If authenticated, show the main app layout for protected routes.
+  // The child component (e.g., DashboardPage) will be responsible for its own content-specific loading state.
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
@@ -72,5 +66,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-
-    

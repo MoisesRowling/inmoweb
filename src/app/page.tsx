@@ -14,15 +14,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Property } from "@/lib/types";
 
 export default function Home() {
-  const { isAuthenticated, isAuthLoading, properties, user } = useApp();
+  const { isAuthenticated, isAuthLoading } = useApp();
   const router = useRouter();
 
   useEffect(() => {
     // Redirect authenticated users from home to dashboard
-    if (!isAuthLoading && isAuthenticated && user) {
+    if (!isAuthLoading && isAuthenticated) {
       router.replace('/dashboard');
     }
-  }, [isAuthenticated, isAuthLoading, user, router]);
+  }, [isAuthenticated, isAuthLoading, router]);
 
   // Show a loading skeleton while we determine auth state, to prevent flashing the landing page.
   if (isAuthLoading || isAuthenticated) {
@@ -70,7 +70,7 @@ export default function Home() {
             <p className="text-center text-muted-foreground mb-12">Invierte desde cualquier cantidad en bienes raíces premium.</p>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {(properties.length > 0 ? properties : propertiesData as Property[]).slice(0, 4).map((property) => (
+              {(propertiesData as Property[]).slice(0, 4).map((property) => (
                 <PropertyCard key={property.id} property={property} isGuest={true} />
               ))}
             </div>
@@ -113,5 +113,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
