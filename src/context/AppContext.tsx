@@ -4,11 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useRouter } from 'next/navigation';
 import type { Property, Transaction, User, Investment, AccountBalance } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, useFirestore, useUser as useFirebaseUserHook, useMemoFirebase } from '@/firebase/provider';
-import { 
-  initiateEmailSignUp, 
-  initiateEmailSignIn,
-} from '@/firebase/non-blocking-login';
+import { useAuth as useFirebaseAuth, useFirestore, useUser as useFirebaseUserHook, useMemoFirebase } from '@/firebase/provider';
 import { 
     doc,
     collection,
@@ -20,7 +16,7 @@ import {
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { User as FirebaseUser, signOut } from 'firebase/auth';
+import { User as FirebaseUser, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
 type ModalState = {
   deposit: boolean;
@@ -54,7 +50,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   
   const { user: firebaseUser, isUserLoading: isFirebaseUserLoading } = useFirebaseUserHook();
-  const auth = useAuth();
+  const auth = useFirebaseAuth();
   const firestore = useFirestore();
 
   const [isAuthLoading, setIsAuthLoading] = useState(false);
@@ -80,20 +76,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const balance = balanceData?.balance ?? 0;
 
   // --- Auth Functions ---
-  const login = useCallback((email: string, pass: string) => {
+  const login = async (email: string, pass: string) => {
     setIsAuthLoading(true);
-    initiateEmailSignIn(auth, email, pass, 
-      () => {
-        toast({ title: '¡Bienvenido de vuelta!'});
-        // Redirection is handled by AppShell
-        setIsAuthLoading(false);
-      },
-      (error) => {
-        toast({ title: 'Error de inicio de sesión', description: 'Tus credenciales son incorrectas.', variant: 'destructive' });
-        setIsAuthLoading(false);
-      }
-    );
-  }, [auth, toast]);
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+      toast({ title: '¡Bienvenido de vuelta!' });
+      // Redirection is handled by AppShell
+    } catch (error) {
+      console.error("Login Error:", error);
+      toast({ title: 'Error de inicio de sesión', description: 'Tus credenciales son incorrectas.', variant: 'destructive' });
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
   
   const logout = useCallback(() => {
     signOut(auth).then(() => {
@@ -101,69 +96,63 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, [auth, router]);
 
-  const registerAndCreateUser = useCallback(async (name: string, email: string, password: string) => {
+  const registerAndCreateUser = async (name: string, email: string, password: string) => {
     setIsAuthLoading(true);
-    initiateEmailSignUp(
-      auth,
-      email,
-      password,
-      async (userCredential) => {
-        const fUser = userCredential.user;
-        
-        try {
-            await runTransaction(firestore, async (transaction) => {
-                const userDocRef = doc(firestore, 'users', fUser.uid);
-                
-                let publicId: string;
-                let publicIdDocRef;
-                let publicIdDoc;
-                do {
-                  publicId = Math.floor(10000 + Math.random() * 90000).toString();
-                  publicIdDocRef = doc(firestore, 'publicIds', publicId);
-                  publicIdDoc = await transaction.get(publicIdDocRef);
-                } while (publicIdDoc.exists());
-    
-                const finalUserDoc: User = {
-                    id: fUser.uid,
-                    name,
-                    email,
-                    publicId
-                };
-                
-                const accountBalanceDocRef = doc(firestore, `users/${fUser.uid}/account`, 'balance');
-                
-                transaction.set(userDocRef, finalUserDoc);
-                transaction.set(publicIdDocRef, { uid: fUser.uid });
-                transaction.set(accountBalanceDocRef, { balance: 0, userId: fUser.uid });
-            });
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const fUser = userCredential.user;
+      
+      await runTransaction(firestore, async (transaction) => {
+          const userDocRef = doc(firestore, 'users', fUser.uid);
+          
+          let publicId: string;
+          let publicIdDocRef;
+          let publicIdDoc;
+          do {
+            publicId = Math.floor(10000 + Math.random() * 90000).toString();
+            publicIdDocRef = doc(firestore, 'publicIds', publicId);
+            publicIdDoc = await transaction.get(publicIdDocRef);
+          } while (publicIdDoc.exists());
 
-            toast({
-              title: '¡Cuenta creada exitosamente!',
-              description: 'Ahora puedes iniciar sesión.',
-            });
-            router.push('/login');
+          const finalUserDoc: User = {
+              id: fUser.uid,
+              name,
+              email,
+              publicId
+          };
+          
+          const accountBalanceDocRef = doc(firestore, `users/${fUser.uid}/account`, 'balance');
+          
+          transaction.set(userDocRef, finalUserDoc);
+          transaction.set(publicIdDocRef, { uid: fUser.uid });
+          transaction.set(accountBalanceDocRef, { balance: 0, userId: fUser.uid });
+      });
 
-        } catch (serverError) {
-           const permissionError = new FirestorePermissionError({
-            path: `users/${fUser.uid}`,
-            operation: 'create',
-            requestResourceData: { name, email },
-          });
-          throw permissionError;
-        } finally {
-            setIsAuthLoading(false);
+      toast({
+        title: '¡Cuenta creada exitosamente!',
+        description: 'Ahora puedes iniciar sesión.',
+      });
+      router.push('/login');
+
+    } catch (error: any) {
+        console.error("Registration Error:", error);
+        if (error.code === 'auth/email-already-in-use') {
+             toast({
+                title: 'Error de registro',
+                description: "El correo electrónico ya está en uso.",
+                variant: 'destructive',
+            });
+        } else {
+             toast({
+                title: 'Error de registro',
+                description: "Ocurrió un error inesperado. Intenta de nuevo.",
+                variant: 'destructive',
+            });
         }
-      },
-      (error) => {
+    } finally {
         setIsAuthLoading(false);
-        toast({
-          title: 'Error de registro',
-          description: "El correo electrónico ya está en uso.",
-          variant: 'destructive',
-        });
-      }
-    );
-  }, [auth, firestore, router, toast]);
+    }
+  };
 
   const handleDeposit = (amount: number) => {
     if (!firebaseUser || !balanceDocRef) return;
@@ -319,5 +308,3 @@ export const useApp = (): AppContextType => {
   }
   return context;
 };
-
-    
