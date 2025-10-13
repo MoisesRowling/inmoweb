@@ -85,7 +85,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
 
       if (!res.ok) {
-        throw new Error('Invalid credentials');
+        const errorBody = await res.json();
+        throw new Error(errorBody.message || 'Invalid credentials');
       }
 
       const { user } = await res.json();
@@ -93,8 +94,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setUserId(user.id);
       toast({ title: '¡Bienvenido de vuelta!' });
       router.push('/dashboard');
-    } catch (err) {
-      toast({ title: 'Error de inicio de sesión', description: 'El correo o la contraseña son incorrectos.', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Error de inicio de sesión', description: err.message || 'El correo o la contraseña son incorrectos.', variant: 'destructive' });
     } finally {
       setIsAuthFormLoading(false);
     }
