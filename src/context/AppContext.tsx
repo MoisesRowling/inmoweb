@@ -89,9 +89,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       
       toast({ title: '¡Bienvenido de vuelta!' });
-      // Instead of complex client-side state management, we just tell Next.js
-      // to refresh the page. This will re-run the server-side logic (including AppShell)
-      // with the new session cookie. It's the most robust way.
+      // Refresh the page to re-run server logic (AppShell) with the new session cookie.
       router.refresh();
 
     } catch (err: any) {
@@ -103,8 +101,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   
   const logout = useCallback(async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
-    // Same as login, refresh to re-run server logic. AppShell will see the user
-    // is logged out and redirect to /login.
+    // Refresh to re-run server logic. AppShell will redirect to /login.
     router.refresh();
   }, [router]);
 
