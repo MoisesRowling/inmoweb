@@ -3,7 +3,7 @@ import { useApp } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Logo } from './Logo';
-import { ArrowDownCircle, ArrowUpCircle, LogOut, Wallet } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, LogOut } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
@@ -63,6 +63,9 @@ export function Header() {
           </Button>
         </SheetTrigger>
         <SheetContent side="right">
+          <div className="mt-4">
+            <Logo />
+          </div>
           <nav className="flex flex-col gap-4 mt-8">
             {isAuthenticated ? (
                <>
@@ -116,7 +119,7 @@ export function Header() {
               </>
             )}
           </div>
-          <div className="md:hidden flex items-center">
+          <div className="flex items-center md:hidden">
              {isAuthenticated && <UserMenu />}
              <MobileNav />
           </div>
