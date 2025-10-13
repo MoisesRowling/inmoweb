@@ -13,13 +13,13 @@ import {
     doc,
     collection,
     runTransaction,
-    getDoc,
     serverTimestamp,
     writeBatch,
     query,
     orderBy,
 } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
+import { useDoc } from '@/firebase/firestore/use-doc';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { User as FirebaseUser, signOut } from 'firebase/auth';
 
@@ -58,13 +58,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const firestore = useFirestore();
 
-  const [user, setUser] = useState<User | null>(null);
-  const [balance, setBalance] = useState(0);
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
   // --- Firestore Data Hooks ---
-  const userQuery = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
-  const { data: userData } = useCollection<User>(userQuery);
+  const userDocRef = useMemoFirebase(() => firebaseUser ? doc(firestore, 'users', firebaseUser.uid) : null, [firestore, firebaseUser]);
+  const { data: user } = useDoc<User>(userDocRef);
 
   const investmentsQuery = useMemoFirebase(() => firebaseUser ? query(collection(firestore, `users/${firebaseUser.uid}/investments`), orderBy('investmentDate', 'desc')) : null, [firestore, firebaseUser]);
   const { data: investments } = useCollection<Investment>(investmentsQuery);
@@ -75,19 +73,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const propertiesQuery = useMemoFirebase(() => firestore ? collection(firestore, 'properties') : null, [firestore]);
   const { data: properties } = useCollection<Property>(propertiesQuery);
 
-  const balanceQuery = useMemoFirebase(() => firebaseUser ? collection(firestore, `users/${firebaseUser.uid}/account_balance`) : null, [firestore, firebaseUser]);
+  const balanceQuery = useMemoFirebase(() => firebaseUser ? query(collection(firestore, `users/${firebaseUser.uid}/account_balance`)) : null, [firestore, firebaseUser]);
   const { data: balanceData } = useCollection<AccountBalance>(balanceQuery);
   
-  // --- Effects ---
-  useEffect(() => {
-    if (firebaseUser && userData) {
-      const currentUserData = userData.find(u => u.id === firebaseUser.uid);
-      setUser(currentUserData || null);
-    } else {
-      setUser(null);
-    }
-  }, [firebaseUser, userData]);
+  const [balance, setBalance] = useState(0);
 
+  // --- Effects ---
   useEffect(() => {
     if (balanceData && balanceData.length > 0) {
       setBalance(balanceData[0].balance);
@@ -117,7 +108,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   
   const logout = () => {
     signOut(auth).then(() => {
-      setUser(null);
       router.push('/login');
     });
   };
@@ -151,7 +141,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             };
             
             const accountBalanceDocRef = doc(collection(firestore, `users/${fUser.uid}/account_balance`));
-
+            
             transaction.set(userDocRef, finalUserDoc);
             transaction.set(publicIdDocRef, { uid: fUser.uid });
             transaction.set(accountBalanceDocRef, { balance: 0, userId: fUser.uid });
@@ -184,9 +174,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleDeposit = (amount: number) => {
     if (!firebaseUser || !balanceData || balanceData.length === 0) return;
-    const newBalance = (balance || 0) + amount;
+    const currentBalanceDoc = balanceData[0];
+    const newBalance = currentBalanceDoc.balance + amount;
     
-    const balanceDocRef = doc(firestore, `users/${firebaseUser.uid}/account_balance`, balanceData![0].id);
+    const balanceDocRef = doc(firestore, `users/${firebaseUser.uid}/account_balance`, currentBalanceDoc.id);
     const transactionDocRef = doc(collection(firestore, `users/${firebaseUser.uid}/transactions`));
     
     const batch = writeBatch(firestore);
@@ -225,9 +216,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return false;
     }
     if(!firebaseUser || !balanceData || balanceData.length === 0) return false;
-
-    const newBalance = balance - amount;
-    const balanceDocRef = doc(firestore, `users/${firebaseUser.uid}/account_balance`, balanceData[0].id);
+    const currentBalanceDoc = balanceData[0];
+    const newBalance = currentBalanceDoc.balance - amount;
+    const balanceDocRef = doc(firestore, `users/${firebaseUser.uid}/account_balance`, currentBalanceDoc.id);
     const transactionDocRef = doc(collection(firestore, `users/${firebaseUser.uid}/transactions`));
 
     const batch = writeBatch(firestore);
@@ -267,9 +258,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
     }
     if (!firebaseUser || !balanceData || balanceData.length === 0) return;
-
-    const newBalance = balance - amount;
-    const balanceDocRef = doc(firestore, `users/${firebaseUser.uid}/account_balance`, balanceData[0].id);
+    const currentBalanceDoc = balanceData[0];
+    const newBalance = currentBalanceDoc.balance - amount;
+    const balanceDocRef = doc(firestore, `users/${firebaseUser.uid}/account_balance`, currentBalanceDoc.id);
     const investmentDocRef = doc(collection(firestore, `users/${firebaseUser.uid}/investments`));
     const transactionDocRef = doc(collection(firestore, `users/${firebaseUser.uid}/transactions`));
 
