@@ -33,6 +33,10 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const fetcher = (url: string) => fetch(url).then(res => {
+  if (res.status === 401) {
+    // If we get a 401, it means the session is invalid, so we should log out.
+    window.location.href = '/logout';
+  }
   if (!res.ok) {
     throw new Error('An error occurred while fetching the data.');
   }
@@ -52,30 +56,20 @@ const apiUpdater = async (url: string, { arg }: { arg: any }) => {
   return res.json();
 }
 
-
 export function AppProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [userId, setUserId] = useState<string | null>(null);
   const [isAuthFormLoading, setIsAuthFormLoading] = useState(false);
-  
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
-  // Load userId from localStorage on initial load
-  useEffect(() => {
-    const storedUserId = localStorage.getItem('inmosmart-userid');
-    if (storedUserId) {
-      setUserId(storedUserId);
-    }
-  }, []);
-  
-  const dataUrl = userId ? `/api/data?userId=${userId}` : null;
-  const { data, error, isLoading, mutate: revalidateData } = useSWR(dataUrl, fetcher, {
-    refreshInterval: 60000 // Re-fetch every 60 seconds
+  const { data, error, isLoading, mutate: revalidateData } = useSWR('/api/data', fetcher, {
+    refreshInterval: 2000 // Re-fetch every 2 seconds
   });
-
+  
   const isAuthenticated = !!data && !!data.user;
+  // We consider it loading if there's no data and no error yet.
+  const isAuthLoading = !data && !error;
 
   const login = async (email: string, pass: string) => {
     setIsAuthFormLoading(true);
@@ -90,10 +84,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const errorBody = await res.json();
         throw new Error(errorBody.message || 'Invalid credentials');
       }
-
-      const { user } = await res.json();
-      localStorage.setItem('inmosmart-userid', user.id);
-      setUserId(user.id);
+      
+      // Revalidate data to get user info after login
+      await revalidateData();
       toast({ title: '¡Bienvenido de vuelta!' });
       router.push('/dashboard');
     } catch (err: any) {
@@ -103,10 +96,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const logout = useCallback(() => {
-    localStorage.removeItem('inmosmart-userid');
-    setUserId(null);
-    mutate(key => typeof key === 'string' && key.startsWith('/api/data'), undefined, { revalidate: false }); // Clear SWR cache for user data
+  const logout = useCallback(async () => {
+    // Clear local SWR cache for user data
+    mutate('/api/data', undefined, { revalidate: false });
+    // Call the logout API endpoint to clear the session cookie
+    await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
   }, [router]);
 
@@ -123,10 +117,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const errorBody = await res.json();
         throw new Error(errorBody.message);
       }
-
-      const { user } = await res.json();
-      localStorage.setItem('inmosmart-userid', user.id);
-      setUserId(user.id);
+      
+      // Revalidate to fetch data for the newly registered user
+      await revalidateData();
       toast({ title: '¡Cuenta creada exitosamente!', description: 'Bienvenido a InmoSmart.' });
       router.push('/dashboard');
 
@@ -139,8 +132,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleAction = async (action: string, payload: any) => {
     try {
-      await apiUpdater('/api/data', { arg: { action, payload } });
-      revalidateData(); // Trigger a re-fetch of the data
+      // Optimistic update
+      const optimisticData = { ...data };
+      // Note: A more complex optimistic update would predict the exact new state.
+      // For now, we just revalidate.
+
+      await mutate('/api/data', apiUpdater('/api/data', { arg: { action, payload } }), {
+          optimisticData: optimisticData,
+          rollbackOnError: true,
+          populateCache: true,
+          revalidate: true,
+      });
+
       return { success: true };
     } catch (error: any) {
       toast({ title: `Error en la operación: ${action}`, description: error.message, variant: 'destructive' });
@@ -149,7 +152,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const handleDeposit = async (amount: number) => {
-    const { success } = await handleAction('deposit', { userId, amount });
+    const { success } = await handleAction('deposit', { amount });
      if (success) {
       toast({
           title: 'Depósito Exitoso',
@@ -163,7 +166,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toast({ title: 'Saldo insuficiente', description: 'No tienes suficiente saldo para este retiro.', variant: 'destructive' });
         return false;
     }
-    const { success } = await handleAction('withdraw', { userId, amount, clabe });
+    const { success } = await handleAction('withdraw', { userId: data?.user?.id, amount, clabe });
     if (success) {
       toast({ title: 'Retiro Exitoso', description: `Has retirado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
       return true;
@@ -176,7 +179,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast({ title: "Saldo insuficiente", variant: "destructive" });
       return;
     }
-    const { success } = await handleAction('invest', { userId, amount, property, term });
+    const { success } = await handleAction('invest', { userId: data?.user?.id, amount, property, term });
     if(success) {
       toast({ title: '¡Inversión Exitosa!', description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.` });
     }
@@ -185,7 +188,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: AppContextType = {
     user: data?.user || null,
     isAuthenticated,
-    isAuthLoading: (isLoading && !data) || isAuthFormLoading,
+    isAuthLoading: isAuthLoading || isAuthFormLoading,
     balance: data?.balance ?? 0,
     properties: data?.properties || [],
     transactions: data?.transactions || [],

@@ -1,8 +1,10 @@
 // IMPORTANT: This file is a work-in-progress and is not fully implemented.
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import type { Investment, Property } from '@/lib/types';
+import type { Investment, Property, User } from '@/lib/types';
+import { jwtVerify } from 'jose';
+import { cookies } from 'next/headers';
 
 // Helper to get the full path to db.json
 const dbPath = path.join(process.cwd(), 'db.json');
@@ -44,46 +46,71 @@ async function getCurrentTime() {
     }
 }
 
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-super-secret-key-that-is-at-least-32-bytes-long');
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
+async function getUserIdFromSession(request: NextRequest): Promise<string | null> {
+    const sessionToken = request.cookies.get('session')?.value;
+    if (!sessionToken) {
+        return null;
+    }
+    try {
+        const { payload } = await jwtVerify(sessionToken, JWT_SECRET);
+        return payload.userId as string;
+    } catch (error) {
+        console.error("Failed to verify JWT:", error);
+        return null;
+    }
+}
+
+
+export async function GET(request: NextRequest) {
+  const userId = await getUserIdFromSession(request);
 
   if (!userId) {
-    return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
+    return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
   }
 
   const db = readDB();
   
   const user = db.users.find((u: any) => u.id === userId);
   if (!user) {
+    // This case might happen if user was deleted but session is still valid
+    // We should clear the cookie
+    cookies().delete('session');
     return NextResponse.json({ message: 'User not found' }, { status: 404 });
   }
 
   // --- Real-time return calculation ---
-  const now = await getCurrentTime();
-  const userInvestments: Investment[] = db.investments.filter((i: any) => i.userId === userId);
+  let userBalanceInfo = db.balances[userId] || { amount: 0, lastUpdated: new Date().toISOString() };
+  let userInvestments: Investment[] = db.investments.filter((i: any) => i.userId === userId);
   const properties: Property[] = db.properties;
 
+  const now = await getCurrentTime();
+  const lastUpdate = new Date(userBalanceInfo.lastUpdated);
+  const secondsSinceLastUpdate = (now.getTime() - lastUpdate.getTime()) / 1000;
+  
+  let totalGains = 0;
+  
   const updatedInvestments = userInvestments.map(investment => {
     const property = properties.find(p => p.id === investment.propertyId);
     if (!property || property.dailyReturn <= 0) {
       return { ...investment, currentValue: investment.investedAmount };
     }
     
+    // This calculates gains from the investment's start date until now
     const investmentDate = new Date(investment.investmentDate);
-    const secondsElapsed = (now.getTime() - investmentDate.getTime()) / 1000;
+    const secondsElapsedTotal = (now.getTime() - investmentDate.getTime()) / 1000;
     
-    if (secondsElapsed <= 0) {
+    if (secondsElapsedTotal <= 0) {
         return { ...investment, currentValue: investment.investedAmount };
     }
 
     const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400; // 86400 seconds in a day
-    const gains = gainPerSecond * secondsElapsed;
+    const investmentTotalGains = gainPerSecond * secondsElapsedTotal;
     
     return {
       ...investment,
-      currentValue: investment.investedAmount + gains
+      currentValue: investment.investedAmount + investmentTotalGains
     };
   });
   // --- End of calculation ---
@@ -93,7 +120,7 @@ export async function GET(request: Request) {
 
   const userData = {
     user: userSafe,
-    balance: db.balances[userId]?.amount || 0,
+    balance: userBalanceInfo.amount,
     investments: updatedInvestments,
     transactions: db.transactions.filter((t: any) => t.userId === userId).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     properties: db.properties
@@ -102,7 +129,12 @@ export async function GET(request: Request) {
   return NextResponse.json(userData);
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+    const userId = await getUserIdFromSession(request);
+    if (!userId) {
+        return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
+    }
+
   const body = await request.json();
   const { action, payload } = body;
   
@@ -111,10 +143,9 @@ export async function POST(request: Request) {
   }
 
   const db = readDB();
-  const { userId } = payload;
 
   const now = await getCurrentTime();
-  let userBalance = db.balances[userId] || { amount: 0 };
+  let userBalance = db.balances[userId] || { amount: 0, lastUpdated: new Date().toISOString() };
   
   // Apply the requested action
   switch(action) {
@@ -200,10 +231,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Invalid action' }, { status: 400 });
   }
 
+  userBalance.lastUpdated = now.toISOString();
   db.balances[userId] = userBalance;
   writeDB(db);
   
-  // After a successful POST, we don't need to return the full dataset.
-  // The client will re-fetch (revalidate) using SWR.
-  return NextResponse.json({ message: 'Data updated successfully' }, { status: 200 });
+  // After a successful POST, we return the full updated dataset.
+  // This helps SWR's `populateCache` to work correctly.
+  const updatedData = await GET(request);
+  return updatedData;
 }
