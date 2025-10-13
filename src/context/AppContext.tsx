@@ -12,6 +12,7 @@ import {
     writeBatch,
     query,
     orderBy,
+    updateDoc,
 } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useDoc } from '@/firebase/firestore/use-doc';
@@ -81,11 +82,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       await signInWithEmailAndPassword(auth, email, pass);
       toast({ title: '¡Bienvenido de vuelta!' });
-    } catch (error) {
+      router.push('/dashboard');
+    } catch (error: any) {
       console.error("Login Error:", error);
-      toast({ title: 'Error de inicio de sesión', description: 'Tus credenciales son incorrectas.', variant: 'destructive' });
+      let description = 'Ocurrió un error inesperado.';
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        description = 'El correo o la contraseña son incorrectos.';
+      }
+      toast({ title: 'Error de inicio de sesión', description, variant: 'destructive' });
     } finally {
-        setIsAuthLoading(false);
+      setIsAuthLoading(false);
     }
   };
   
@@ -130,6 +136,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         title: '¡Cuenta creada exitosamente!',
         description: 'Bienvenido a InmoSmart.',
       });
+      router.push('/dashboard');
     } catch (error: any) {
         console.error("Registration Error:", error);
         if (error.code === 'auth/email-already-in-use') {
@@ -157,7 +164,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const transactionDocRef = doc(collection(firestore, `users/${firebaseUser.uid}/transactions`));
     
     const batch = writeBatch(firestore);
-    batch.set(balanceDocRef, { balance: newBalance, userId: firebaseUser.uid }, { merge: true });
+    batch.update(balanceDocRef, { balance: newBalance });
     batch.set(transactionDocRef, {
       id: transactionDocRef.id,
       userId: firebaseUser.uid,
@@ -304,3 +311,5 @@ export const useApp = (): AppContextType => {
   }
   return context;
 };
+
+    
