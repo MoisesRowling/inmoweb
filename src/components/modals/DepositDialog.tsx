@@ -75,9 +75,9 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
                <div className="flex justify-between items-center">
                   <div>
                       <p className="text-xs text-muted-foreground">Tu ID de Usuario (Concepto)</p>
-                      <p className="font-mono font-bold text-primary">{user?.id}</p>
+                      <p className="font-mono font-bold text-primary">{user?.publicId}</p>
                   </div>
-                  <Button size="icon" variant="ghost" onClick={() => copyToClipboard(user?.id || '')}>
+                  <Button size="icon" variant="ghost" onClick={() => copyToClipboard(user?.publicId || '')}>
                       <Copy className="h-4 w-4"/>
                   </Button>
               </div>

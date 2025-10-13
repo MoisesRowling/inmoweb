@@ -13,6 +13,7 @@ export function Header() {
   const { isAuthenticated, user, logout, balance, setModals } = useApp();
 
   const getInitials = (name: string) => {
+    if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
@@ -22,7 +23,7 @@ export function Header() {
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
             <AvatarFallback className="bg-primary text-primary-foreground font-bold">
-              {user ? getInitials(user.name) : 'U'}
+              {getInitials(user?.name ?? '')}
             </AvatarFallback>
           </Avatar>
         </Button>
@@ -37,11 +38,11 @@ export function Header() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => setModals(prev => ({ ...prev, deposit: true }))}>
+        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setModals(prev => ({ ...prev, deposit: true }))}}>
           <ArrowUpCircle className="mr-2 h-4 w-4" />
           <span>Depositar Fondos</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setModals(prev => ({ ...prev, withdraw: true }))}>
+        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setModals(prev => ({ ...prev, withdraw: true }))}}>
           <ArrowDownCircle className="mr-2 h-4 w-4" />
           <span>Retirar Fondos</span>
         </DropdownMenuItem>
@@ -110,12 +111,17 @@ export function Header() {
                   <Link href="/login">Iniciar Sesión</Link>
                 </Button>
                 <Button asChild>
-                  <Link href="/register">Crear Cuenta</Link>
+                  <Link href="/register">Crear Cuenta</Button>
                 </Button>
               </>
             )}
           </div>
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center">
+            {isAuthenticated && (
+              <div className="mr-2">
+                <UserMenu />
+              </div>
+            )}
             <MobileNav />
           </div>
         </div>

@@ -1,0 +1,222 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the investment platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firebase Auth UID."
+        },
+        "publicId": {
+          "type": "string",
+          "description": "A 5-digit, user-facing, unique numeric ID."
+        },
+        "name": {
+          "type": "string",
+          "description": "User's full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        }
+      },
+      "required": ["id", "publicId", "name", "email"]
+    },
+    "Property": {
+      "title": "Property",
+      "type": "object",
+      "description": "Represents an investment property available on the platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the property."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the property."
+        },
+        "location": {
+          "type": "string",
+          "description": "Location of the property."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of property (e.g., House, Loft)."
+        },
+        "price": {
+          "type": "number",
+          "description": "Total price of the property."
+        },
+        "minInvestment": {
+          "type": "number",
+          "description": "Minimum investment amount allowed for this property."
+        },
+        "totalShares": {
+          "type": "number",
+          "description": "Total number of shares available for this property."
+        },
+        "image": {
+            "type": "string",
+            "description": "Placeholder image ID from placeholder-images.json"
+        },
+        "dailyReturn": {
+            "type": "number",
+            "description": "Daily return on investment percentage."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "location",
+        "type",
+        "price",
+        "minInvestment",
+        "totalShares",
+        "image",
+        "dailyReturn"
+      ]
+    },
+    "Investment": {
+      "title": "Investment",
+      "type": "object",
+      "description": "Represents a user's investment in a specific property.",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Reference to User's Firebase Auth UID."
+        },
+        "propertyId": {
+          "type": "string",
+          "description": "Reference to Property."
+        },
+        "investedAmount": {
+          "type": "number",
+          "description": "Amount invested by the user in this property."
+        },
+        "ownedShares": {
+          "type": "number",
+          "description": "Number of shares owned by the user for this property."
+        },
+        "investmentDate": {
+          "type": "string",
+          "description": "Date when the investment was made.",
+          "format": "date-time"
+        },
+        "term": {
+            "type": "number",
+            "description": "Investment term in days."
+        }
+      },
+      "required": [
+        "userId",
+        "propertyId",
+        "investedAmount",
+        "ownedShares",
+        "investmentDate",
+        "term"
+      ]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "type": "object",
+      "description": "Represents a financial transaction (deposit, withdrawal, or investment).",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Reference to User's Firebase Auth UID."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of transaction (deposit, withdrawal, investment).",
+          "enum": ["deposit", "withdrawal", "investment"]
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount of the transaction."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the transaction."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the transaction.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "type",
+        "amount",
+        "description",
+        "date"
+      ]
+    },
+    "AccountBalance": {
+      "title": "AccountBalance",
+      "type": "object",
+      "description": "Represents the user's account balance.",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Reference to User's Firebase Auth UID."
+        },
+        "balance": {
+          "type": "number",
+          "description": "Current account balance."
+        }
+      },
+      "required": [
+        "userId",
+        "balance"
+      ]
+    },
+    "PublicId": {
+        "title": "PublicId",
+        "type": "object",
+        "description": "Maps a 5-digit public ID to a Firebase Auth UID to ensure uniqueness.",
+        "properties": {
+            "uid": {
+                "type": "string",
+                "description": "The Firebase Auth UID of the user."
+            }
+        },
+        "required": ["uid"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "/users/{userId}": {
+        "schema": { "$ref": "#/entities/User"},
+        "description": "Stores user profiles. The userId is the Firebase Auth UID."
+    },
+    "/users/{userId}/account_balance/{accountBalanceId}": {
+        "schema": { "$ref": "#/entities/AccountBalance"},
+        "description": "Stores the account balance for each user. Accessible only by the user themselves. The accountBalanceId should be the same as userId."
+    },
+    "/users/{userId}/investments/{investmentId}": {
+        "schema": { "$ref": "#/entities/Investment"},
+        "description": "Stores a user's investment data. Accessible only by the user themselves."
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+        "schema": { "$ref": "#/entities/Transaction"},
+        "description": "Stores transaction history for each user. Accessible only by the user themselves."
+    },
+    "/properties/{propertyId}": {
+        "schema": { "$ref": "#/entities/Property"},
+        "description": "Stores property information. Publicly readable."
+    },
+    "/publicIds/{publicId}": {
+        "schema": { "$ref": "#/entities/PublicId"},
+        "description": "Stores a mapping of 5-digit public IDs to ensure uniqueness. The document ID is the 5-digit number."
+    }
+  }
+}

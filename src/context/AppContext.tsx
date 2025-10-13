@@ -7,7 +7,7 @@ import { propertiesData } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useAuth, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { signOut, updateProfile } from 'firebase/auth';
-import { collection, doc, writeBatch, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, doc, writeBatch, serverTimestamp, Timestamp, runTransaction, getDoc } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
 
@@ -42,7 +42,6 @@ const seedProperties = async (firestore: ReturnType<typeof useFirestore>) => {
 
     for (const prop of propertiesData) {
         const docRef = doc(propertiesCol, String(prop.id));
-        // For seeding, we'll just add them all. In a real app you might check existence.
         batch.set(docRef, {
             id: String(prop.id),
             name: prop.name,
@@ -63,6 +62,26 @@ const seedProperties = async (firestore: ReturnType<typeof useFirestore>) => {
     }
 };
 
+async function generateUniquePublicId(firestore: ReturnType<typeof useFirestore>): Promise<string> {
+  const publicIdsRef = collection(firestore, 'publicIds');
+  let publicId: string;
+  let isUnique = false;
+  let attempts = 0;
+
+  while (!isUnique && attempts < 10) { // Limit attempts to prevent infinite loops
+    publicId = Math.floor(10000 + Math.random() * 90000).toString();
+    const idDocRef = doc(publicIdsRef, publicId);
+    const docSnap = await getDoc(idDocRef);
+    if (!docSnap.exists()) {
+      isUnique = true;
+      return publicId;
+    }
+    attempts++;
+  }
+
+  throw new Error("Could not generate a unique public ID after multiple attempts.");
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const { user: firebaseUser, isUserLoading } = useUser();
   const auth = useAuth();
@@ -74,17 +93,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
   // === Firestore Data Hooks ===
-  const propertiesQuery = useMemoFirebase(() => collection(firestore, 'properties'), [firestore]);
+  const propertiesQuery = useMemoFirebase(() => firestore ? collection(firestore, 'properties') : null, [firestore]);
   const { data: properties, isLoading: isLoadingProperties } = useCollection<Property>(propertiesQuery);
   
-  const balanceDocRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.id, 'account_balance', user.id) : null, [user, firestore]);
+  const userDocRef = useMemoFirebase(() => firebaseUser ? doc(firestore, 'users', firebaseUser.uid) : null, [firebaseUser, firestore]);
+  const { data: userData } = useDoc<User>(userDocRef);
+
+  const balanceDocRef = useMemoFirebase(() => firebaseUser ? doc(firestore, 'users', firebaseUser.uid, 'account_balance', firebaseUser.uid) : null, [firebaseUser, firestore]);
   const { data: balanceData, isLoading: isLoadingBalance } = useDoc<{ balance: number }>(balanceDocRef);
   const balance = balanceData?.balance ?? 0;
 
-  const transactionsQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.id, 'transactions') : null, [user, firestore]);
+  const transactionsQuery = useMemoFirebase(() => firebaseUser ? collection(firestore, 'users', firebaseUser.uid, 'transactions') : null, [firebaseUser, firestore]);
   const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
 
-  const investmentsQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.id, 'investments') : null, [user, firestore]);
+  const investmentsQuery = useMemoFirebase(() => firebaseUser ? collection(firestore, 'users', firebaseUser.uid, 'investments') : null, [firebaseUser, firestore]);
   const { data: investments, isLoading: isLoadingInvestments } = useCollection<Investment>(investmentsQuery);
 
   // Seed properties on initial load if not present
@@ -94,37 +116,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [firestore, properties]);
   
-  // Set user state based on Firebase Auth
+  // Set user state based on Firebase Auth and Firestore user data
   useEffect(() => {
-    if (!isUserLoading && firebaseUser) {
-      const appUser: User = {
-        id: firebaseUser.uid,
-        name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuario',
-        email: firebaseUser.email || '',
-      };
-      setUser(appUser);
-      if(window.location.pathname === '/login' || window.location.pathname === '/register' || window.location.pathname === '/') {
+    if (!isUserLoading && firebaseUser && userData) {
+      setUser(userData);
+       if(window.location.pathname === '/login' || window.location.pathname === '/register' || window.location.pathname === '/') {
         router.push('/dashboard');
       }
     } else if (!isUserLoading && !firebaseUser) {
       setUser(null);
     }
-  }, [firebaseUser, isUserLoading, router]);
+  }, [firebaseUser, isUserLoading, userData, router]);
 
   const addTransaction = useCallback(async (type: 'deposit' | 'withdraw' | 'investment', amount: number, description: string) => {
-    if (!user) return;
+    if (!firebaseUser) return;
     const newTransaction = {
-      userId: user.id,
+      userId: firebaseUser.id,
       type,
       amount,
       description,
       date: new Date().toISOString(),
     };
-    const transactionsCol = collection(firestore, 'users', user.id, 'transactions');
+    const transactionsCol = collection(firestore, 'users', firebaseUser.uid, 'transactions');
     addDocumentNonBlocking(transactionsCol, newTransaction);
-  }, [user, firestore]);
+  }, [firebaseUser, firestore]);
 
   const logout = async () => {
+    if (!auth) return;
     await signOut(auth);
     setUser(null);
     router.push('/login');
@@ -133,41 +151,71 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const registerAndCreateUser = useCallback(async (name: string, email: string, password: string) => {
     if (!auth || !firestore) return;
     
-    // This will trigger onAuthStateChanged, which will set the user
     initiateEmailSignUp(auth, email, password, async (userCredential) => {
-      // This callback runs on successful user creation in Firebase Auth
       const fUser = userCredential.user;
       await updateProfile(fUser, { displayName: name });
 
-      // Now, create the user profile and balance documents in Firestore
-      const userDocRef = doc(firestore, 'users', fUser.uid);
-      const userData = {
-        id: fUser.uid,
-        name: name,
-        email: email
-      };
-      setDocumentNonBlocking(userDocRef, userData, { merge: false });
+      try {
+        await runTransaction(firestore, async (transaction) => {
+          const publicId = await generateUniquePublicId(firestore);
+          
+          const userDocRef = doc(firestore, 'users', fUser.uid);
+          const publicIdDocRef = doc(firestore, 'publicIds', publicId);
+          const balanceDocRef = doc(firestore, 'users', fUser.uid, 'account_balance', fUser.uid);
 
-      const balanceDocRef = doc(firestore, 'users', fUser.uid, 'account_balance', fUser.uid);
-      const balanceData = {
-        userId: fUser.uid,
-        balance: 0,
+          transaction.set(publicIdDocRef, { uid: fUser.uid });
+          
+          transaction.set(userDocRef, {
+            id: fUser.uid,
+            publicId,
+            name,
+            email,
+          });
+
+          transaction.set(balanceDocRef, {
+            userId: fUser.uid,
+            balance: 0,
+          });
+        });
+
+        toast({
+          title: '¡Cuenta creada exitosamente!',
+          description: 'Ahora puedes iniciar sesión.',
+        });
+        router.push('/login');
+
+      } catch (error) {
+        console.error("Error creating user documents in transaction:", error);
+        toast({
+            title: 'Error de registro',
+            description: 'No se pudo crear el perfil de usuario. Inténtalo de nuevo.',
+            variant: 'destructive',
+        });
+        // Optional: delete the just-created Firebase Auth user
+        await fUser.delete();
       }
-      setDocumentNonBlocking(balanceDocRef, balanceData, { merge: false });
-
-      toast({
-        title: '¡Cuenta creada exitosamente!',
-        description: 'Ahora puedes iniciar sesión.',
-      });
-      router.push('/login');
+    }, (error) => {
+        if (error.code === 'auth/email-already-in-use') {
+            toast({
+                title: 'Correo ya registrado',
+                description: 'El correo electrónico que ingresaste ya está en uso. Por favor, inicia sesión.',
+                variant: 'destructive',
+            });
+        } else {
+            toast({
+                title: 'Error de registro',
+                description: error.message || 'Ocurrió un error inesperado.',
+                variant: 'destructive',
+            });
+        }
     });
   }, [auth, firestore, router, toast]);
 
   const handleDeposit = (amount: number) => {
-    if(!user) return;
+    if(!firebaseUser) return;
     const newBalance = balance + amount;
-    const balanceRef = doc(firestore, 'users', user.id, 'account_balance', user.id);
-    setDocumentNonBlocking(balanceRef, { balance: newBalance, userId: user.id }, { merge: true });
+    const balanceRef = doc(firestore, 'users', firebaseUser.uid, 'account_balance', firebaseUser.uid);
+    setDocumentNonBlocking(balanceRef, { balance: newBalance, userId: firebaseUser.uid }, { merge: true });
     
     addTransaction('deposit', amount, `Depósito por SPEI`);
     toast({
@@ -186,10 +234,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
         return false;
     }
-    if(!user) return false;
+    if(!firebaseUser) return false;
 
     const newBalance = balance - amount;
-    const balanceRef = doc(firestore, 'users', user.id, 'account_balance', user.id);
+    const balanceRef = doc(firestore, 'users', firebaseUser.uid, 'account_balance', firebaseUser.uid);
     setDocumentNonBlocking(balanceRef, { balance: newBalance }, { merge: true });
 
     addTransaction('withdraw', amount, `Retiro a CLABE: ...${clabe.slice(-4)}`);
@@ -209,21 +257,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toast({ title: `La inversión mínima es de ${property.minInvestment.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}`, variant: "destructive" });
         return;
     }
-    if(!user) return;
+    if(!firebaseUser) return;
 
     const newBalance = balance - amount;
-    const balanceRef = doc(firestore, 'users', user.id, 'account_balance', user.id);
+    const balanceRef = doc(firestore, 'users', firebaseUser.uid, 'account_balance', firebaseUser.uid);
     setDocumentNonBlocking(balanceRef, { balance: newBalance }, { merge: true });
 
     const newInvestment = {
-        userId: user.id,
+        userId: firebaseUser.uid,
         propertyId: property.id,
         investedAmount: amount,
         ownedShares: 1, // Simplified
         investmentDate: new Date().toISOString(),
         term,
     };
-    const investmentsCol = collection(firestore, 'users', user.id, 'investments');
+    const investmentsCol = collection(firestore, 'users', firebaseUser.uid, 'investments');
     addDocumentNonBlocking(investmentsCol, newInvestment);
 
     addTransaction('investment', amount, `Inversión en ${property.name} (${term} días)`);

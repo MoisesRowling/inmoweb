@@ -26,7 +26,8 @@ export type Transaction = {
 };
 
 export type User = {
-  id: string;
+  id: string; // This is the Firebase Auth UID
+  publicId: string; // This is the 5-digit user-facing ID
   name: string;
   email: string;
 };
@@ -45,3 +46,8 @@ export type AccountBalance = {
     balance: number;
     userId: string;
 }
+
+// Represents a document in the publicIds collection
+export type PublicId = {
+  uid: string; // Firebase Auth UID associated with this public ID
+};
