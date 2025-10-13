@@ -83,7 +83,7 @@ export function Header() {
           </nav>
         </SheetContent>
       </Sheet>
-  )
+  );
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -117,12 +117,8 @@ export function Header() {
             )}
           </div>
           <div className="md:hidden flex items-center">
-            {isAuthenticated && (
-              <div className="mr-2">
-                <UserMenu />
-              </div>
-            )}
-            <MobileNav />
+             {isAuthenticated && <UserMenu />}
+             <MobileNav />
           </div>
         </div>
       </div>
