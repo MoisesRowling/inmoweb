@@ -7,37 +7,13 @@ import Link from "next/link";
 import { propertiesData } from "@/lib/data";
 import { PropertyCard } from "@/components/properties/PropertyCard";
 import { Activity, ArrowRight, Building2, Home as HomeIcon } from "lucide-react";
-import { useApp } from "@/context/AppContext";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { Property } from "@/lib/types";
 
+// The AppShell is now responsible for all redirection logic.
+// This component is now "dumb" and only renders the landing page content.
+// It no longer needs to know about the authentication state.
 export default function Home() {
-  const { isAuthenticated, isAuthLoading } = useApp();
-  const router = useRouter();
-
-  // If we are checking auth, or the user is authenticated, we show a loading skeleton.
-  // The AppShell is responsible for redirecting authenticated users away from this page.
-  if (isAuthLoading || isAuthenticated) {
-    return (
-      <div className="flex flex-col min-h-screen bg-background">
-        <Header />
-        <main className="flex-1 container mx-auto p-4 md:p-8">
-            <div className="flex flex-col space-y-3">
-            <Skeleton className="h-[30vh] w-full rounded-xl" />
-            <div className="space-y-4 pt-8">
-                <Skeleton className="h-8 w-1/2" />
-                <Skeleton className="h-6 w-1/3" />
-            </div>
-            </div>
-        </main>
-        <Footer />
-      </div>
-    )
-  }
   
-  // Render the landing page only if we know the user is not authenticated.
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />

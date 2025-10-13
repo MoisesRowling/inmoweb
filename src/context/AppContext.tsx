@@ -68,7 +68,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isAuthFormLoading, setIsAuthFormLoading] = useState(false);
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
-  const { data, error, isLoading } = useSWR('/api/data', fetcher, {
+  const { data, error, isLoading, mutate: revalidateData } = useSWR('/api/data', fetcher, {
     refreshInterval: 2000, 
     shouldRetryOnError: false, // Important to prevent loops on 401
   });
@@ -97,7 +97,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Trigger a revalidation of the user data.
       // SWR will fetch the data again, and AppShell will react to the change
       // in `isAuthenticated` state and handle the redirect.
-      await mutate('/api/data');
+      await revalidateData();
       
       toast({ title: '¡Bienvenido de vuelta!' });
       // DO NOT REDIRECT HERE. AppShell is responsible for all routing logic.
@@ -112,11 +112,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     // Tell SWR to clear its cache for '/api/data' immediately.
     // This will set `isAuthenticated` to false.
-    await mutate('/api/data', null, false);
+    await revalidateData(null, false);
     // Call the API to clear the session cookie.
     await fetch('/api/auth/logout', { method: 'POST' });
-    // AppShell will detect the change in `isAuthenticated` and redirect to /login.
-  }, []);
+    // AppShell will detect the change in `isAuthenticated` and redirect.
+  }, [revalidateData]);
 
   const registerAndCreateUser = async (name: string, email: string, password: string) => {
     setIsAuthFormLoading(true);
@@ -133,7 +133,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       
       // Revalidate data, AppShell will handle redirect.
-      await mutate('/api/data');
+      await revalidateData();
 
       toast({ title: '¡Cuenta creada exitosamente!', description: 'Bienvenido a InmoSmart.' });
 
