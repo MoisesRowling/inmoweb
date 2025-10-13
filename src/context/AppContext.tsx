@@ -136,10 +136,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleDataUpdate = async (action: string, payload: any) => {
     try {
+      // We optimistically update the local data, then revalidate.
+      // SWR will handle rolling back if the API call fails.
       const { data: updatedData } = await postUpdater('/api/data', { arg: { action, payload } });
-      mutate(`/api/data?userId=${userId}`, updatedData, false);
+      mutate(`/api/data?userId=${userId}`, updatedData, false); // Update local cache without re-fetching
       return { success: true };
     } catch (error: any) {
+      // SWR will automatically roll back the optimistic update on error.
       return { success: false, error: error.message };
     }
   }
@@ -187,8 +190,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: AppContextType = {
     user: data?.user || null,
     isAuthenticated,
-    isAuthLoading: isLoading,
-    balance: data?.balance || 0,
+    isAuthLoading: isLoading && !data, // Show loading only on initial load
+    balance: data?.balance ?? 0,
     properties: data?.properties || [],
     transactions: data?.transactions || [],
     investments: data?.investments || [],

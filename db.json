@@ -6,10 +6,24 @@
       "name": "Usuario de Prueba",
       "email": "test@test.com",
       "password": "password123"
+    },
+    {
+      "id": "user-1760397877209",
+      "publicId": "18854",
+      "name": "Laten",
+      "email": "mxlaten@gmail.com",
+      "password": "caballos1212"
     }
   ],
   "balances": {
-    "user-1": 15000
+    "user-1": {
+      "amount": 15000,
+      "lastUpdated": "2024-01-01T00:00:00.000Z"
+    },
+    "user-1760397877209": {
+      "amount": 0,
+      "lastUpdated": "2024-01-01T00:00:00.000Z"
+    }
   },
   "investments": [],
   "transactions": [],

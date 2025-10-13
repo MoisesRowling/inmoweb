@@ -40,7 +40,11 @@ export async function POST(request: Request) {
   };
 
   db.users.push(newUser);
-  db.balances[newUser.id] = 0; // Initialize balance for new user
+  // Initialize balance for new user with the new structure
+  db.balances[newUser.id] = {
+    amount: 0,
+    lastUpdated: new Date().toISOString()
+  };
 
   writeDB(db);
 

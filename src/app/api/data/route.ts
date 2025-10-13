@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import type { Investment, Property } from '@/lib/types';
 
 // Helper to get the full path to db.json
 const dbPath = path.join(process.cwd(), 'db.json');
@@ -41,14 +42,43 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ message: 'User not found' }, { status: 404 });
   }
+
+  // --- Real-time return calculation ---
+  const now = new Date();
+  const userBalance = db.balances[userId] || { amount: 0, lastUpdated: now.toISOString() };
+  const lastUpdated = new Date(userBalance.lastUpdated);
+  const secondsElapsed = (now.getTime() - lastUpdated.getTime()) / 1000;
+
+  let totalGains = 0;
+  const userInvestments: Investment[] = db.investments.filter((i: any) => i.userId === userId);
+  const properties: Property[] = db.properties;
+
+  if (secondsElapsed > 0 && userInvestments.length > 0) {
+    userInvestments.forEach(investment => {
+      const property = properties.find(p => p.id === investment.propertyId);
+      if (property && property.dailyReturn > 0) {
+        const dailyReturn = property.dailyReturn; // e.g., 0.1 for 10%
+        const gainPerSecond = (investment.investedAmount * dailyReturn) / 86400; // 86400 seconds in a day
+        totalGains += gainPerSecond * secondsElapsed;
+      }
+    });
+  }
+  
+  if (totalGains > 0) {
+    userBalance.amount += totalGains;
+    userBalance.lastUpdated = now.toISOString();
+    db.balances[userId] = userBalance;
+    writeDB(db);
+  }
+  // --- End of calculation ---
   
   // We don't want to send the password to the client
   const { password, ...userSafe } = user;
 
   const userData = {
     user: userSafe,
-    balance: db.balances[userId] || 0,
-    investments: db.investments.filter((i: any) => i.userId === userId),
+    balance: userBalance.amount,
+    investments: userInvestments,
     transactions: db.transactions.filter((t: any) => t.userId === userId),
     properties: db.properties
   };
@@ -65,19 +95,44 @@ export async function POST(request: Request) {
   }
 
   const db = readDB();
+  const { userId } = payload;
 
+  // Before any modification, update gains to have the most current balance
+  const now = new Date();
+  let userBalance = db.balances[userId] || { amount: 0, lastUpdated: now.toISOString() };
+  
+  const lastUpdated = new Date(userBalance.lastUpdated);
+  const secondsElapsed = (now.getTime() - lastUpdated.getTime()) / 1000;
+  
+  if (secondsElapsed > 0) {
+      let totalGains = 0;
+      const userInvestments: Investment[] = db.investments.filter((i: any) => i.userId === userId);
+      const properties: Property[] = db.properties;
+
+      userInvestments.forEach(investment => {
+          const property = properties.find(p => p.id === investment.propertyId);
+          if (property && property.dailyReturn > 0) {
+              const dailyReturn = property.dailyReturn;
+              const gainPerSecond = (investment.investedAmount * dailyReturn) / 86400;
+              totalGains += gainPerSecond * secondsElapsed;
+          }
+      });
+      userBalance.amount += totalGains;
+  }
+  
+  // Now, apply the requested action
   switch(action) {
     case 'invest': {
-      const { userId, amount, property, term } = payload;
-      if (!userId || !amount || !property || !term) {
+      const { amount, property, term } = payload;
+      if (!amount || !property || !term) {
         return NextResponse.json({ message: 'Missing fields for investment' }, { status: 400 });
       }
 
-      if (db.balances[userId] < amount) {
+      if (userBalance.amount < amount) {
         return NextResponse.json({ message: 'Insufficient balance' }, { status: 400 });
       }
       
-      db.balances[userId] -= amount;
+      userBalance.amount -= amount;
 
       const newInvestment = {
         id: `inv-${Date.now()}`,
@@ -104,11 +159,11 @@ export async function POST(request: Request) {
     }
 
     case 'deposit': {
-      const { userId, amount } = payload;
-      if (!userId || !amount) {
+      const { amount } = payload;
+      if (!amount) {
         return NextResponse.json({ message: 'Missing fields for deposit' }, { status: 400 });
       }
-      db.balances[userId] = (db.balances[userId] || 0) + amount;
+      userBalance.amount += amount;
        const newTransaction = {
         id: `trans-${Date.now()}`,
         userId,
@@ -122,16 +177,16 @@ export async function POST(request: Request) {
     }
 
     case 'withdraw': {
-       const { userId, amount, clabe } = payload;
-       if (!userId || !amount || !clabe) {
+       const { amount, clabe } = payload;
+       if (!amount || !clabe) {
         return NextResponse.json({ message: 'Missing fields for withdrawal' }, { status: 400 });
       }
 
-      if (db.balances[userId] < amount) {
+      if (userBalance.amount < amount) {
         return NextResponse.json({ message: 'Insufficient balance' }, { status: 400 });
       }
 
-      db.balances[userId] -= amount;
+      userBalance.amount -= amount;
 
       const newTransaction = {
         id: `trans-${Date.now()}`,
@@ -149,6 +204,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Invalid action' }, { status: 400 });
   }
 
+  // Update balance and timestamp after action
+  userBalance.lastUpdated = new Date().toISOString();
+  db.balances[userId] = userBalance;
   writeDB(db);
   
   // Return the updated state for the specific user
@@ -157,7 +215,7 @@ export async function POST(request: Request) {
 
   const userData = {
     user: userSafe,
-    balance: db.balances[payload.userId] || 0,
+    balance: db.balances[payload.userId]?.amount || 0,
     investments: db.investments.filter((i: any) => i.userId === payload.userId),
     transactions: db.transactions.filter((t: any) => t.userId === payload.userId),
     properties: db.properties
