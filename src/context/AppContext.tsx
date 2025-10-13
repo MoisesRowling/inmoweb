@@ -152,77 +152,86 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const registerAndCreateUser = useCallback(async (name: string, email: string, password: string) => {
     if (!auth || !firestore) return;
-    
-    initiateEmailSignUp(auth, email, password, async (userCredential) => {
-      const fUser = userCredential.user;
-      await updateProfile(fUser, { displayName: name });
-      
-      const userDocData = { id: fUser.uid, name, email };
 
-      // This is a non-blocking operation. It will run in the background.
-      runTransaction(firestore, async (transaction) => {
-        const publicId = await generateUniquePublicId(firestore);
-        
-        const userDocRef = doc(firestore, 'users', fUser.uid);
-        const publicIdDocRef = doc(firestore, 'publicIds', publicId);
-        const balanceDocRef = doc(firestore, 'users', fUser.uid, 'account_balance', fUser.uid);
+    initiateEmailSignUp(
+      auth,
+      email,
+      password,
+      async (userCredential) => {
+        const fUser = userCredential.user;
+        await updateProfile(fUser, { displayName: name });
 
-        transaction.set(publicIdDocRef, { uid: fUser.uid });
+        const userDocData = { id: fUser.uid, name, email };
         
-        const finalUserDoc = { ...userDocData, publicId };
-        transaction.set(userDocRef, finalUserDoc);
-
-        transaction.set(balanceDocRef, {
-          userId: fUser.uid,
-          balance: 0,
-        });
-        
-        // Return the data for error reporting context
-        return finalUserDoc;
-      }).then(() => {
-          toast({
-            title: '¡Cuenta creada exitosamente!',
-            description: 'Ahora puedes iniciar sesión.',
-          });
-          router.push('/login');
-      }).catch((error) => {
-          // This catch block is crucial for contextual errors.
-          console.log('Transaction failed:', error); // You can keep this for basic debugging if needed.
+        // This is a non-blocking operation. It will run in the background.
+        runTransaction(firestore, async (transaction) => {
+          const publicId = await generateUniquePublicId(firestore);
           
+          const userDocRef = doc(firestore, 'users', fUser.uid);
+          const publicIdDocRef = doc(firestore, 'publicIds', publicId);
+          const balanceDocRef = doc(firestore, 'users', fUser.uid, 'account_balance', fUser.uid);
+
+          transaction.set(publicIdDocRef, { uid: fUser.uid });
+          
+          const finalUserDoc = { ...userDocData, publicId };
+          transaction.set(userDocRef, finalUserDoc);
+
+          transaction.set(balanceDocRef, {
+            userId: fUser.uid,
+            balance: 0,
+          });
+          
+          return { finalUserDoc, publicId };
+        })
+        .then(({ finalUserDoc, publicId }) => {
+            // Add the publicId to the userDocData for full context in case of error later
+            const fullUserData = { ...finalUserDoc, publicId };
+            
+            // Chain a then block for success
+            toast({
+              title: '¡Cuenta creada exitosamente!',
+              description: 'Ahora puedes iniciar sesión.',
+            });
+            router.push('/login');
+        })
+        .catch((serverError) => {
+          // This is the critical change: Use .catch() for error handling.
           const permissionError = new FirestorePermissionError({
-              path: `users/${fUser.uid}`, // The primary document being created
-              operation: 'create',
-              requestResourceData: userDocData, // Pass the data that was attempted
+            path: `users/${fUser.uid}`, // The primary document being created
+            operation: 'create',
+            requestResourceData: userDocData, // Pass the data that was attempted
           });
           
+          // Emit the contextual error. DO NOT use console.error here.
           errorEmitter.emit('permission-error', permissionError);
 
           // We also inform the user that the registration failed at a high level.
           toast({
-              title: 'Error de registro',
-              description: 'No se pudo crear el perfil de usuario. Inténtalo de nuevo.',
-              variant: 'destructive',
+            title: 'Error de registro',
+            description: 'No se pudo crear el perfil de usuario. Inténtalo de nuevo.',
+            variant: 'destructive',
           });
-          
-          // Optional: Delete the auth user since the DB transaction failed.
-          fUser.delete();
-      });
 
-    }, (error) => { // This is the error handler for initiateEmailSignUp
-        if (error.code === 'auth/email-already-in-use') {
-            toast({
-                title: 'Correo ya registrado',
-                description: 'El correo electrónico que ingresaste ya está en uso. Por favor, inicia sesión.',
-                variant: 'destructive',
-            });
+          // Optional but recommended: Clean up the created auth user if the DB transaction fails.
+          fUser.delete();
+        });
+      },
+      (authError) => {
+        if (authError.code === 'auth/email-already-in-use') {
+          toast({
+            title: 'Correo ya registrado',
+            description: 'El correo electrónico que ingresaste ya está en uso. Por favor, inicia sesión.',
+            variant: 'destructive',
+          });
         } else {
-            toast({
-                title: 'Error de registro',
-                description: 'Ocurrió un error inesperado al crear tu cuenta.',
-                variant: 'destructive',
-            });
+          toast({
+            title: 'Error de registro',
+            description: 'Ocurrió un error inesperado al crear tu cuenta.',
+            variant: 'destructive',
+          });
         }
-    });
+      }
+    );
   }, [auth, firestore, router, toast]);
 
   const handleDeposit = (amount: number) => {
@@ -323,5 +332,3 @@ export const useApp = (): AppContextType => {
   }
   return context;
 };
-
-    
