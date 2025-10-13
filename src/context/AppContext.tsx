@@ -88,7 +88,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       } else if (!firebaseUser) {
         // If user is not authenticated, redirect to login unless they are on a public page.
-        if (router.pathname !== '/' && router.pathname !== '/login' && router.pathname !== '/register') {
+        if (router.pathname !== '/' && router.pathname !== '/login' && router.pathname !== '/register' && router.pathname !== '/logout') {
            router.replace('/login');
         }
       }
