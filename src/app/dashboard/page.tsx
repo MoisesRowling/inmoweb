@@ -36,7 +36,7 @@ export default function DashboardPage() {
           </div>
           <div className="text-right">
             <p className="text-xs text-muted-foreground">ID de Usuario</p>
-            <p className="text-sm font-mono font-semibold text-primary">{user.id.substring(0, 8)}...</p>
+            <p className="text-sm font-mono font-semibold text-primary">{user.id.substring(0, 5)}</p>
           </div>
         </div>
 

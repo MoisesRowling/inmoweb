@@ -37,16 +37,16 @@ export function Header() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setModals(prev => ({ ...prev, deposit: true }))}>
+        <DropdownMenuItem onSelect={() => setModals(prev => ({ ...prev, deposit: true }))}>
           <ArrowUpCircle className="mr-2 h-4 w-4" />
           <span>Depositar Fondos</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setModals(prev => ({ ...prev, withdraw: true }))}>
+        <DropdownMenuItem onSelect={() => setModals(prev => ({ ...prev, withdraw: true }))}>
           <ArrowDownCircle className="mr-2 h-4 w-4" />
           <span>Retirar Fondos</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={logout}>
+        <DropdownMenuItem onSelect={logout}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Cerrar Sesión</span>
         </DropdownMenuItem>

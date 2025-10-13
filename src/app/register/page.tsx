@@ -11,8 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import AuthFormWrapper from '@/components/auth/AuthFormWrapper';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/firebase';
-import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
-import { updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'El nombre debe tener al menos 3 caracteres.' }),
@@ -40,21 +39,31 @@ export default function RegisterPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      initiateEmailSignUp(auth, values.email, values.password);
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, { displayName: values.name });
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, { displayName: values.name });
       }
+
       toast({
         title: '¡Cuenta creada exitosamente!',
         description: 'Ahora puedes iniciar sesión.',
       });
       router.push('/login');
     } catch (error: any) {
-      toast({
-        title: 'Error al registrar',
-        description: error.message,
-        variant: 'destructive',
-      });
+       if (error.code === 'auth/email-already-in-use') {
+        toast({
+          title: 'Error al registrar',
+          description: 'Este correo electrónico ya está registrado. Por favor, intenta con otro.',
+          variant: 'destructive',
+        });
+       } else {
+        toast({
+          title: 'Error al registrar',
+          description: error.message,
+          variant: 'destructive',
+        });
+       }
     }
   }
 
