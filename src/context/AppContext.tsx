@@ -71,7 +71,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const transactions = transactionsData || [];
 
   const propertiesQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'properties')) : null, [firestore]);
-  const { data: properties } = useCollection<Property>(propertiesQuery);
+  const { data: propertiesData } = useCollection<Property>(propertiesQuery);
+  const properties = propertiesData || [];
 
   const balanceDocRef = useMemoFirebase(() => firebaseUser ? doc(firestore, `users/${firebaseUser.uid}/account/balance`) : null, [firestore, firebaseUser]);
   const { data: balanceData } = useDoc<AccountBalance>(balanceDocRef);
@@ -290,9 +291,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isAuthenticated: !!firebaseUser,
     isAuthLoading: isAuthLoading || isFirebaseUserLoading,
     balance,
-    properties: properties || [],
-    transactions: transactions,
-    investments: investments,
+    properties,
+    transactions,
+    investments,
     modals,
     logout,
     login,
