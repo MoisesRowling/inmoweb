@@ -2,50 +2,34 @@
  * @fileoverview Firestore Security Rules for the investment platform.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user-specific data
- * (profile, investments, transactions) and provides public read access to property
- * listings. All write operations are protected by authorization checks based on
- * the authenticated user's UID.
+ * This ruleset enforces a strict user-ownership model for user profiles, investments, and transactions, ensuring that users can only access their own data. Public read access is granted to the /properties collection, but write access is not granted.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile data, with the document ID matching the
- *   Firebase Auth UID.
- * - /users/{userId}/investments/{investmentId}: Stores investment data for each
- *   user, nested under their user document.
- * - /users/{userId}/transactions/{transactionId}: Stores transaction history for
- *   each user, nested under their user document.
- * - /properties/{propertyId}: Stores publicly readable property listing data.
+ * - /users/{userId}: Stores user profile information.
+ * - /users/{userId}/investments/{investmentId}: Stores investment data for each user.
+ * - /users/{userId}/transactions/{transactionId}: Stores transaction history for each user.
+ * - /properties/{propertyId}: Stores information about investment properties.
  *
  * Key Security Decisions:
- * - User data is strictly owned and managed by the respective user.
- * - Property listings are publicly readable but can only be created, updated,
- *   or deleted by an admin (currently emulated by owner-only writes).
- * - User listing is disallowed.
+ * - Users can only read, create, update, and delete their own user documents and associated investments/transactions.
+ * - Public read access is granted for the /properties collection.
+ * - No user listing is allowed at the root level.
  *
  * Denormalization for Authorization:
- * To simplify and optimize security rules, the `userId` is included in the
- * Investment and Transaction documents within the corresponding user's subcollections.
- * This avoids the need for complex queries or `get()` calls to verify ownership.
- *
- * Structural Segregation:
- * Private user data (investments, transactions) is stored in user-specific
- * subcollections, while public property listings are stored in a top-level collection.
- * This segregation simplifies read access control and ensures that listing
- * user-specific data is restricted to the owner.
+ * The `userId` is included in both the investment and transaction documents to allow for fast, simple ownership checks without additional reads.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
+     * @description Enforces access control for user profiles.
      * @path /users/{userId}
-     * @allow (create) User with UID 'user123' can create their own profile document.
-     * @allow (get) User with UID 'user123' can read their own profile document.
-     * @allow (update) User with UID 'user123' can update their own profile document.
-     * @allow (delete) User with UID 'user123' can delete their own profile document.
-     * @deny (create) User with UID 'user456' cannot create a profile document for user 'user123'.
-     * @principle Enforces document ownership for all operations on user profiles.
+     * @allow (create) Signed-in user can create their own profile if the userId matches their auth UID.
+     * @allow (get, update, delete) Signed-in user can get, update, and delete their own profile if the userId matches their auth UID.
+     * @deny (create) User cannot create a profile with a userId that doesn't match their auth UID.
+     * @deny (get, update, delete) User cannot get, update, or delete another user's profile.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
       function isSignedIn() {
@@ -56,22 +40,23 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
       allow get: if isOwner(userId);
-      allow list: if false; // User listing is not allowed.
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to investment documents for a specific user.
+     * @description Enforces access control for user investments.
      * @path /users/{userId}/investments/{investmentId}
-     * @allow (create) User with UID 'user123' can create an investment document under their profile.
-     * @allow (get) User with UID 'user123' can read an investment document under their profile.
-     * @allow (update) User with UID 'user123' can update an investment document under their profile.
-     * @allow (delete) User with UID 'user123' can delete an investment document under their profile.
-     * @deny (create) User with UID 'user456' cannot create an investment document for user 'user123'.
-     * @principle Enforces document ownership for all operations on user investments.
+     * @allow (create, get, list, update, delete) Signed-in user can manage their own investments.
+     * @deny (create, get, list, update, delete) User cannot manage another user's investments.
+     * @principle Restricts access to a user's own investments.
      */
     match /users/{userId}/investments/{investmentId} {
       function isSignedIn() {
@@ -82,22 +67,23 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
       allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && request.auth.uid == userId;
-      allow delete: if isSignedIn() && request.auth.uid == userId;
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to transaction documents for a specific user.
+     * @description Enforces access control for user transactions.
      * @path /users/{userId}/transactions/{transactionId}
-     * @allow (create) User with UID 'user123' can create a transaction document under their profile.
-     * @allow (get) User with UID 'user123' can read a transaction document under their profile.
-     * @allow (update) User with UID 'user123' can update a transaction document under their profile.
-     * @allow (delete) User with UID 'user123' can delete a transaction document under their profile.
-     * @deny (create) User with UID 'user456' cannot create a transaction document for user 'user123'.
-     * @principle Enforces document ownership for all operations on user transactions.
+     * @allow (create, get, list, update, delete) Signed-in user can manage their own transactions.
+     * @deny (create, get, list, update, delete) User cannot manage another user's transactions.
+     * @principle Restricts access to a user's own transactions.
      */
     match /users/{userId}/transactions/{transactionId} {
       function isSignedIn() {
@@ -108,29 +94,27 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
       allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && request.auth.uid == userId;
-      allow delete: if isSignedIn() && request.auth.uid == userId;
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to property listing documents.
+     * @description Grants public read access to property listings, but restricts write access.
      * @path /properties/{propertyId}
-     * @allow (get) Any user can read property listing documents.
-     * @allow (list) Any user can list property listing documents.
-     * @deny (create) Only an admin can create property listing documents. // TODO: Add owner validation once the schema is updated with an ownership field.
-     * @deny (update) Only an admin can update property listing documents. // TODO: Add owner validation once the schema is updated with an ownership field.
-     * @deny (delete) Only an admin can delete property listing documents. // TODO: Add owner validation once the schema is updated with an ownership field.
-     * @principle Allows public read access to property listings while restricting writes to owners.
+     * @allow (get, list) Anyone can view property listings.
+     * @deny (create, update, delete) Only authenticated users can create, update or delete properties.
+     * @principle Allows public read access while restricting write access.
      */
     match /properties/{propertyId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
   }
 }
