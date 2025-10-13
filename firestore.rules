@@ -1,32 +1,3 @@
-/**
- * @fileoverview Firestore Security Rules for the investment platform.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles,
- * investments, and transactions. Only the authenticated user can read and
- * write their own data. Properties are publicly readable but not writable
- * by clients.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profile information.
- * - /users/{userId}/investments/{investmentId}: Stores investment data for each user.
- * - /users/{userId}/transactions/{transactionId}: Stores transaction history for each user.
- * - /properties/{propertyId}: Stores information about investment properties.
- *
- * Key Security Decisions:
- * - Users can only access their own profile data, investments, and transactions.
- * - Property data is publicly readable, but clients cannot create, update, or delete properties.
- * - Data validation is limited to ensuring the consistency of user IDs in paths and documents.
- * - List operations are secured to allow users to list their own resources, and to allow public listing for the properties collection.
- *
- * Denormalization for Authorization:
- * The 'userId' is included in the investment and transaction documents to
- * enable path-based authorization and avoid complex queries.
- *
- * Structural Segregation:
- * User-specific data (investments, transactions) is stored in subcollections
- * under the user's document to ensure data isolation and simplified security rules.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -34,105 +5,81 @@ service cloud.firestore {
     /**
      * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (get, list) if isSignedIn() && isOwner(userId)
-     * @allow (create) if isSignedIn() && isOwner(userId) && request.resource.data.id == request.auth.uid
-     * @allow (update, delete) if isSignedIn() && isExistingOwner(userId) && request.resource.data.id == resource.data.id
-     * @deny (get, list) if !isSignedIn() || !isOwner(userId)
-     * @deny (create, update, delete) if !isSignedIn() || !isOwner(userId)
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     * @allow (create) - Authenticated user creates their own profile.
+     * @allow (get, list, update, delete) - Authenticated user accesses their own profile.
+     * @deny (create) - If the user id does not match the authenticated user id.
+     * @deny (get, list, update, delete) - If the user is not authenticated or the user id does not match the authenticated user id.
+     * @principle Enforces document ownership for reads and writes.
      */
     match /users/{userId} {
-      // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
-      // Helper function to check if the requested user ID matches the authenticated user's ID
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-      // Helper function to check if the requested user ID matches the authenticated user's ID and the document exists
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get, list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == request.auth.uid;
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isSignedIn() && isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false; // Listing users is not permitted.
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Controls access to investment documents within a user's subcollection.
+     * @description Controls access to investment documents for a specific user.
      * @path /users/{userId}/investments/{investmentId}
-     * @allow (get, list) if isSignedIn() && isOwner(userId)
-     * @allow (create) if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId
-     * @allow (update, delete) if isSignedIn() && isExistingOwner(userId) && request.resource.data.userId == userId
-     * @deny (get, list) if !isSignedIn() || !isOwner(userId)
-     * @deny (create, update, delete) if !isSignedIn() || !isOwner(userId)
-     * @principle Enforces document ownership for writes within a user-specific subcollection.
+     * @allow (create, get, list, update, delete) - Authenticated user manages their own investments.
+     * @deny (create, get, list, update, delete) - If the user is not authenticated or the user id does not match the authenticated user id.
+     * @principle Enforces document ownership for reads and writes within a user's data tree.
      */
     match /users/{userId}/investments/{investmentId} {
-      // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
-      // Helper function to check if the requested user ID matches the authenticated user's ID
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-      // Helper function to check if the requested user ID matches the authenticated user's ID and the document exists
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
 
-      allow get, list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.userId == userId;
-      allow delete: if isSignedIn() && isExistingOwner(userId) && request.resource.data.userId == userId;
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Controls access to transaction documents within a user's subcollection.
+     * @description Controls access to transaction documents for a specific user.
      * @path /users/{userId}/transactions/{transactionId}
-     * @allow (get, list) if isSignedIn() && isOwner(userId)
-     * @allow (create) if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId
-     * @allow (update, delete) if isSignedIn() && isExistingOwner(userId) && request.resource.data.userId == userId
-     * @deny (get, list) if !isSignedIn() || !isOwner(userId)
-     * @deny (create, update, delete) if !isSignedIn() || !isOwner(userId)
-     * @principle Enforces document ownership for writes within a user-specific subcollection.
+     * @allow (create, get, list, update, delete) - Authenticated user manages their own transactions.
+     * @deny (create, get, list, update, delete) - If the user is not authenticated or the user id does not match the authenticated user id.
+     * @principle Enforces document ownership for reads and writes within a user's data tree.
      */
     match /users/{userId}/transactions/{transactionId} {
-      // Helper function to check if the user is signed in
       function isSignedIn() {
         return request.auth != null;
       }
 
-      // Helper function to check if the requested user ID matches the authenticated user's ID
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-      // Helper function to check if the requested user ID matches the authenticated user's ID and the document exists
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get, list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.userId == userId;
-      allow delete: if isSignedIn() && isExistingOwner(userId) && request.resource.data.userId == userId;
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Controls access to property documents.  Properties are publicly readable, but not writable by clients.
+     * @description Controls access to property documents.
      * @path /properties/{propertyId}
-     * @allow get, list: if true;
-     * @deny create, update, delete: if true;
-     * @principle Allows public read access to property data but restricts writes.
+     * @allow (get, list) - All users can read property information.
+     * @deny (create, update, delete) - No client-side write access is allowed.
+     * @principle Allows public read access with restricted write access.
      */
     match /properties/{propertyId} {
       allow get, list: if true;
