@@ -8,12 +8,12 @@ import { getFirestore } from 'firebase/firestore';
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 // This function is defined in a special file and is used to initialize
 // the Firebase client SDKs with production services. It is not intended
- to be used with the Firebase Emulator.
-export function initializeFirebase() {
+// to be used with the Firebase Emulator.
+export async function initializeFirebase() {
   if (!getApps().length) {
     let firebaseApp;
     try {
-      firebaseApp = initializeApp();
+      firebaseApp = initializeApp(firebaseConfig);
     } catch (e) {
       if (process.env.NODE_ENV === "production") {
         console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
@@ -25,7 +25,7 @@ export function initializeFirebase() {
   return getSdks(getApp());
 }
 
-export function getSdks(firebaseApp: FirebaseApp) {
+export async function getSdks(firebaseApp: FirebaseApp) {
   return {
     firebaseApp,
     auth: getAuth(firebaseApp),
