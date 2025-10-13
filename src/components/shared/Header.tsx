@@ -114,14 +114,14 @@ export function Header() {
                   <Link href="/login">Iniciar Sesión</Link>
                 </Button>
                 <Button asChild>
-                  <Link href="/register">Crear Cuenta</Button>
+                  <Link href="/register">Crear Cuenta</Link>
                 </Button>
               </>
             )}
           </div>
           <div className="flex items-center md:hidden">
-             {isAuthenticated && <UserMenu />}
-             <MobileNav />
+            {isAuthenticated && <UserMenu />}
+            <MobileNav />
           </div>
         </div>
       </div>
