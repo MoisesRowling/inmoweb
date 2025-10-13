@@ -34,8 +34,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const fetcher = (url: string) => fetch(url).then(res => {
   if (res.status === 401) {
-    // If we get a 401, it means the session is invalid, so we should log out.
-    window.location.href = '/logout';
+    // This is now handled by AppShell's useEffect, but we still need to avoid parsing a 401 response body
+    throw new Error('Not authenticated');
   }
   if (!res.ok) {
     throw new Error('An error occurred while fetching the data.');
@@ -63,13 +63,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isAuthFormLoading, setIsAuthFormLoading] = useState(false);
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
+  // Let SWR handle auth state based on fetcher result.
   const { data, error, isLoading, mutate: revalidateData } = useSWR('/api/data', fetcher, {
-    refreshInterval: 2000 // Re-fetch every 2 seconds
+    refreshInterval: 2000, // Re-fetch every 2 seconds
+    shouldRetryOnError: false, // Don't retry on 401, let the AppShell handle redirect
   });
   
-  const isAuthenticated = !!data && !!data.user;
-  // We consider it loading if there's no data and no error yet.
-  const isAuthLoading = !data && !error;
+  const isAuthenticated = !!data && !error;
+  // isAuthLoading is true only on the initial load.
+  const isAuthLoading = isLoading && !data && !error;
 
   const login = async (email: string, pass: string) => {
     setIsAuthFormLoading(true);
@@ -97,10 +99,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
   
   const logout = useCallback(async () => {
-    // Clear local SWR cache for user data
-    mutate('/api/data', undefined, { revalidate: false });
-    // Call the logout API endpoint to clear the session cookie
+    // Clear local SWR cache for user data without revalidation.
+    await mutate('/api/data', undefined, false);
+    // Call the logout API endpoint to clear the session cookie.
     await fetch('/api/auth/logout', { method: 'POST' });
+    // Use the router to redirect to the login page.
     router.push('/login');
   }, [router]);
 
