@@ -291,8 +291,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isAuthLoading: isAuthLoading || isFirebaseUserLoading,
     balance,
     properties: properties || [],
-    transactions: transactions || [],
-    investments: investments || [],
+    transactions: transactions,
+    investments: investments,
     modals,
     logout,
     login,
@@ -313,6 +313,3 @@ export const useApp = (): AppContextType => {
   }
   return context;
 };
-
-    
-    

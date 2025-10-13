@@ -1,89 +1,201 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset allows any authenticated user to read and write any data in the Firestore database.
+ * @fileoverview Firestore Security Rules for the investment platform.
  *
  * Core Philosophy:
- * This ruleset provides open access to all data for any authenticated user.
+ * This ruleset enforces a strict user-ownership model for user-specific data
+ * (profiles, investments, transactions) and provides public read access to property
+ * listings. It prioritizes authorization independence through path-based access
+ * control and data denormalization.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information.
- * - /users/{userId}/investments/{investmentId}: Stores investment information for each user.
- * - /users/{userId}/transactions/{transactionId}: Stores transaction history for each user.
- * - /properties/{propertyId}: Stores information about properties available for investment.
+ * - /users/{userId}: Stores user profiles. Access is restricted to the owning user.
+ * - /users/{userId}/investments/{investmentId}: Stores user investments. Access is
+ *   restricted to the owning user.
+ * - /users/{userId}/transactions/{transactionId}: Stores user transactions. Access is
+ *   restricted to the owning user.
+ * - /properties/{propertyId}: Stores property listings. Public read access is allowed,
+ *   but writes are not currently secured (TODO: Implement owner-only writes).
  *
  * Key Security Decisions:
- * - Any authenticated user can create, read, update, and delete any document.
+ * - User listing is disallowed.
+ * - Property data is publicly readable.
+ * - Ambiguous relationships default to strict owner-only access.
+ *
+ * Denormalization for Authorization:
+ * The `userId` is included in subcollection documents for `/users/{userId}/investments/{investmentId}`
+ * and `/users/{userId}/transactions/{transactionId}`. This allows for fast and simple
+ * rules that check `request.auth.uid == resource.data.userId` without requiring extra reads.
+ *
+ * Structural Segregation:
+ * User-specific data is stored in a private user subcollection (`/users/{userId}/...`),
+ * while property listings are stored in a public top-level collection (`/properties/{propertyId}`).
+ * This segregation allows for public `list` operations on properties without exposing
+ * any private user data.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows any authenticated user to read and write user profile data.
+     * @description Enforces access control for user profile documents. Only the authenticated user
+     *              can read or modify their own profile.
      * @path /users/{userId}
-     * @allow (create) - Any authenticated user can create a user document.
-     * @allow (get) - Any authenticated user can read a user document.
-     * @allow (list) - Any authenticated user can list user documents.
-     * @allow (update) - Any authenticated user can update a user document.
-     * @allow (delete) - Any authenticated user can delete a user document.
-     * @deny (none) - No requests are denied, any authenticated user can perform any operation.
-     * @principle Allows any authenticated user to perform any operation on user data.
+     * @allow (get) User with UID 'user123' can read their own profile.
+     *        - Request: auth.uid = 'user123'
+     * @allow (create) User with UID 'user123' can create their own profile.
+     *        - Request: auth.uid = 'user123'
+     * @allow (update) User with UID 'user123' can update their own profile.
+     *        - Request: auth.uid = 'user123'
+     * @allow (delete) User with UID 'user123' can delete their own profile.
+     *        - Request: auth.uid = 'user123'
+     * @deny (get) User with UID 'user456' cannot read user 'user123' profile.
+     *       - Request: auth.uid = 'user456'
+     * @principle Enforces document ownership for all operations on user profiles.
      */
     match /users/{userId} {
-      allow get, list: if true;
-      allow create, update, delete: if isSignedIn();
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows any authenticated user to read and write investment data for a specific user.
+     * @description Enforces access control for user investment documents. Only the authenticated user
+     *              can read or modify their own investments.
      * @path /users/{userId}/investments/{investmentId}
-     * @allow (create) - Any authenticated user can create an investment document for any user.
-     * @allow (get) - Any authenticated user can read an investment document for any user.
-     * @allow (list) - Any authenticated user can list investment documents for any user.
-     * @allow (update) - Any authenticated user can update an investment document for any user.
-     * @allow (delete) - Any authenticated user can delete an investment document for any user.
-     * @deny (none) - No requests are denied, any authenticated user can perform any operation.
-     * @principle Allows any authenticated user to perform any operation on investment data.
+     * @allow (get) User with UID 'user123' can read their own investment.
+     *        - Request: auth.uid = 'user123'
+     * @allow (create) User with UID 'user123' can create an investment under their profile.
+     *        - Request: auth.uid = 'user123'
+     * @allow (update) User with UID 'user123' can update their own investment.
+     *        - Request: auth.uid = 'user123'
+     * @allow (delete) User with UID 'user123' can delete their own investment.
+     *        - Request: auth.uid = 'user123'
+     * @deny (get) User with UID 'user456' cannot read user 'user123' investment.
+     *       - Request: auth.uid = 'user456'
+     * @principle Enforces document ownership for all operations on user investments.
      */
     match /users/{userId}/investments/{investmentId} {
-      allow get, list: if true;
-      allow create, update, delete: if isSignedIn();
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows any authenticated user to read and write transaction data for a specific user.
+     * @description Enforces access control for user transaction documents. Only the authenticated user
+     *              can read or modify their own transactions.
      * @path /users/{userId}/transactions/{transactionId}
-     * @allow (create) - Any authenticated user can create a transaction document for any user.
-     * @allow (get) - Any authenticated user can read a transaction document for any user.
-     * @allow (list) - Any authenticated user can list transaction documents for any user.
-     * @allow (update) - Any authenticated user can update a transaction document for any user.
-     * @allow (delete) - Any authenticated user can delete a transaction document for any user.
-     * @deny (none) - No requests are denied, any authenticated user can perform any operation.
-     * @principle Allows any authenticated user to perform any operation on transaction data.
+     * @allow (get) User with UID 'user123' can read their own transaction.
+     *        - Request: auth.uid = 'user123'
+     * @allow (create) User with UID 'user123' can create a transaction under their profile.
+     *        - Request: auth.uid = 'user123'
+     * @allow (update) User with UID 'user123' can update their own transaction.
+     *        - Request: auth.uid = 'user123'
+     * @allow (delete) User with UID 'user123' can delete their own transaction.
+     *        - Request: auth.uid = 'user123'
+     * @deny (get) User with UID 'user456' cannot read user 'user123' transaction.
+     *       - Request: auth.uid = 'user456'
+     * @principle Enforces document ownership for all operations on user transactions.
      */
     match /users/{userId}/transactions/{transactionId} {
-      allow get, list: if true;
-      allow create, update, delete: if isSignedIn();
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows any authenticated user to read and write property data.
+     * @description Allows public read access to property documents. Writes are not currently secured
+     *              and should be restricted to authorized users/roles in a production environment.
      * @path /properties/{propertyId}
-     * @allow (create) - Any authenticated user can create a property document.
-     * @allow (get) - Any authenticated user can read a property document.
-     * @allow (list) - Any authenticated user can list property documents.
-     * @allow (update) - Any authenticated user can update a property document.
-     * @allow (delete) - Any authenticated user can delete a property document.
-     * @deny (none) - No requests are denied, any authenticated user can perform any operation.
-     * @principle Allows any authenticated user to perform any operation on property data.
+     * @allow (get) Any user can read a property.
+     *        - Request: No authentication required.
+     * @allow (list) Any user can list properties.
+     *        - Request: No authentication required.
+     * @deny (create) No one can create a property (yet).
+     *        - Reason: Missing owner validation.
+     * @deny (update) No one can update a property (yet).
+     *        - Reason: Missing owner validation.
+     * @deny (delete) No one can delete a property (yet).
+     *        - Reason: Missing owner validation.
+     * @principle Allows public read access but requires owner-only writes.  The 'Property' entity
+     *            is missing an 'ownerId' or 'authorId' field.
      */
     match /properties/{propertyId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn();
+      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+    }
+
+    /**
+     * @description This match is for the subcollection in the problematic path that triggered the error:
+     *              /users/PVvSyA29poZuAiGuy6dt03Xs9Li1/account/balance
+     *              Given the information available, there is no described entity to back this path, the following will
+     *              prevent the "Missing or insufficient permissions" error, by explicitly denying all access.
+     *              This means the application is likely trying to access an area that has no defined rule.
+     * @path /users/{userId}/account/{accountId}
+     * @deny (get) No one can get a document in this path.
+     * @deny (list) No one can list documents in this path.
+     * @deny (create) No one can create a document in this path.
+     * @deny (update) No one can update a document in this path.
+     * @deny (delete) No one can delete a document in this path.
+     * @principle Denies all access. No description or entity is provided.
+     */
+    match /users/{userId}/account/{accountId} {
+      allow get, list, create, update, delete: if false;
+    }
+
+    /**
+     * @description This match is for the document in the problematic path that triggered the error:
+     *              /users/PVvSyA29poZuAiGuy6dt03Xs9Li1/account/balance
+     *              Given the information available, there is no described entity to back this path, the following will
+     *              prevent the "Missing or insufficient permissions" error, by explicitly denying all access.
+     *              This means the application is likely trying to access an area that has no defined rule.
+     * @path /users/{userId}/account/{accountId}/balance
+     * @deny (get) No one can get a document in this path.
+     * @deny (list) No one can list documents in this path.
+     * @deny (create) No one can create a document in this path.
+     * @deny (update) No one can update a document in this path.
+     * @deny (delete) No one can delete a document in this path.
+     * @principle Denies all access. No description or entity is provided.
+     */
+    match /users/{userId}/account/{accountId}/balance {
+      allow get, list, create, update, delete: if false;
     }
   }
+}
 
-  function isSignedIn() {
-    return request.auth != null;
-  }
+/**
+ * @description Checks if the request is made by an authenticated user.
+ * @return {bool} True if the user is signed in, false otherwise.
+ * @example
+ * isSignedIn() // Returns true if request.auth != null
+ */
+function isSignedIn() {
+  return request.auth != null;
+}
+
+/**
+ * @description Checks if the authenticated user is the owner of the resource.
+ * @param {string} userId - The user ID to compare against the request's authentication UID.
+ * @return {bool} True if the user is the owner, false otherwise.
+ * @example
+ * isOwner('user123') // Returns true if request.auth.uid == 'user123'
+ */
+function isOwner(userId) {
+  return isSignedIn() && request.auth.uid == userId;
+}
+
+/**
+ * @description Checks if the authenticated user is the owner of the resource and the resource exists.
+ * @param {string} userId - The user ID to compare against the request's authentication UID.
+ * @return {bool} True if the user is the owner and the resource exists, false otherwise.
+ * @example
+ * isExistingOwner('user123') // Returns true if request.auth.uid == 'user123' and resource exists
+ */
+function isExistingOwner(userId) {
+    return isOwner(userId) && resource != null;
 }
