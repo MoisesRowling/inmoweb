@@ -63,10 +63,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { data: user } = useDoc<User>(userDocRef);
   
   const investmentsQuery = useMemoFirebase(() => firebaseUser ? query(collection(firestore, `users/${firebaseUser.uid}/investments`), orderBy('investmentDate', 'desc')) : null, [firestore, firebaseUser]);
-  const { data: investments } = useCollection<Investment>(investmentsQuery);
+  const { data: investmentsData } = useCollection<Investment>(investmentsQuery);
+  const investments = investmentsData || [];
 
   const transactionsQuery = useMemoFirebase(() => firebaseUser ? query(collection(firestore, `users/${firebaseUser.uid}/transactions`), orderBy('date', 'desc')) : null, [firestore, firebaseUser]);
-  const { data: transactions } = useCollection<Transaction>(transactionsQuery);
+  const { data: transactionsData } = useCollection<Transaction>(transactionsQuery);
+  const transactions = transactionsData || [];
 
   const propertiesQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'properties')) : null, [firestore]);
   const { data: properties } = useCollection<Property>(propertiesQuery);
@@ -312,4 +314,5 @@ export const useApp = (): AppContextType => {
   return context;
 };
 
+    
     
