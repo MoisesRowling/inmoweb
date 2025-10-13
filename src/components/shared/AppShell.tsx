@@ -12,15 +12,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   
+  const isAuthPage = pathname === '/login' || pathname === '/register';
+
   useEffect(() => {
-    if (!isAuthLoading && !isAuthenticated && pathname !== '/login' && pathname !== '/register') {
+    // If auth state is still loading, do nothing.
+    if (isAuthLoading) return;
+
+    // If user is not authenticated and is not on an auth page, redirect to login.
+    if (!isAuthenticated && !isAuthPage) {
       router.replace('/login');
     }
-  }, [isAuthenticated, isAuthLoading, router, pathname]);
+    
+    // If user IS authenticated and on an auth page, redirect to dashboard.
+    if (isAuthenticated && isAuthPage) {
+        router.replace('/dashboard');
+    }
 
-  // Show skeleton loader while auth state is resolving OR
-  // if user is authenticated but user data hasn't loaded from firestore yet.
-  if (isAuthLoading || (isAuthenticated && !user)) {
+  }, [isAuthenticated, isAuthLoading, isAuthPage, router]);
+
+
+  // Show a skeleton loader while auth state is resolving OR
+  // if the user is authenticated but user data hasn't loaded from Firestore yet.
+  // This prevents content flashing for authenticated users on protected routes.
+  const isLoading = isAuthLoading || (isAuthenticated && !user && !isAuthPage);
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="flex flex-col space-y-3">
@@ -39,14 +55,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If not authenticated and not loading, it's a public page or login/register
-  // This case is handled by the useEffect above which redirects to /login.
-  // The children (e.g. login page) will render while the redirect happens.
+  // If the user is not authenticated, but we're on a public or auth page,
+  // let the page render. The useEffect above will handle redirection if needed.
   if (!isAuthenticated) {
       return children;
   }
 
-  // If authenticated and user data is loaded, show the app shell
+  // If authenticated and user data is loaded, show the app shell for protected routes.
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
@@ -57,3 +72,5 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+    

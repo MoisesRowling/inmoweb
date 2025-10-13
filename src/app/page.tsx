@@ -14,25 +14,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Property } from "@/lib/types";
 
 export default function Home() {
-  const { isAuthenticated, isAuthLoading, properties } = useApp();
+  const { isAuthenticated, isAuthLoading, properties, user } = useApp();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthLoading && isAuthenticated) {
+    // Redirect authenticated users from home to dashboard
+    if (!isAuthLoading && isAuthenticated && user) {
       router.replace('/dashboard');
     }
-  }, [isAuthenticated, isAuthLoading, router]);
+  }, [isAuthenticated, isAuthLoading, user, router]);
 
+  // Show a loading skeleton while we determine auth state, to prevent flashing the landing page.
   if (isAuthLoading || isAuthenticated) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <Header />
         <main className="flex-1 p-8">
             <div className="flex flex-col space-y-3">
-            <Skeleton className="h-[125px] w-full rounded-xl" />
-            <div className="space-y-2">
-                <Skeleton className="h-4 w-[250px]" />
-                <Skeleton className="h-4 w-[200px]" />
+            <Skeleton className="h-40 w-full rounded-xl" />
+            <div className="space-y-2 pt-4">
+                <Skeleton className="h-8 w-1/2" />
+                <Skeleton className="h-6 w-1/3" />
             </div>
             </div>
         </main>
@@ -111,3 +113,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

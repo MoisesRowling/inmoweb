@@ -81,7 +81,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       await signInWithEmailAndPassword(auth, email, pass);
       toast({ title: '¡Bienvenido de vuelta!' });
-      router.push('/dashboard');
+      // Redirection is handled by AppShell or page logic based on auth state
     } catch (error) {
       console.error("Login Error:", error);
       toast({ title: 'Error de inicio de sesión', description: 'Tus credenciales son incorrectas.', variant: 'destructive' });
@@ -91,10 +91,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
   
   const logout = useCallback(() => {
-    signOut(auth).then(() => {
-      router.push('/login');
-    });
-  }, [auth, router]);
+    signOut(auth);
+    // Redirection is handled by AppShell
+  }, [auth]);
 
   const registerAndCreateUser = async (name: string, email: string, password: string) => {
     setIsAuthLoading(true);
@@ -132,8 +131,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         title: '¡Cuenta creada exitosamente!',
         description: 'Bienvenido a InmoSmart.',
       });
-      router.push('/dashboard');
-
+      // Redirection is handled by AppShell
     } catch (error: any) {
         console.error("Registration Error:", error);
         if (error.code === 'auth/email-already-in-use') {
@@ -308,3 +306,5 @@ export const useApp = (): AppContextType => {
   }
   return context;
 };
+
+    
