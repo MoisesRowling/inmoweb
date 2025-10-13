@@ -5,12 +5,19 @@ import { Building2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Property, Investment } from "@/lib/types";
 
+interface DisplayInvestment extends Property {
+    invested: number;
+    initialInvestment: number;
+}
+
 export function ActiveInvestments() {
   const { properties, investments } = useApp();
   
-  const [displayInvestments, setDisplayInvestments] = useState<any[]>([]);
+  const [displayInvestments, setDisplayInvestments] = useState<DisplayInvestment[]>([]);
 
   useEffect(() => {
+    if (!properties || !investments) return;
+
     const investmentMap = investments.reduce((acc, inv) => {
         if (!acc[inv.propertyId]) {
             acc[inv.propertyId] = 0;
@@ -37,7 +44,8 @@ export function ActiveInvestments() {
     const interval = setInterval(() => {
         setDisplayInvestments(prev => 
             prev.map(prop => {
-                const gainPerSecond = (prop.initialInvestment * prop.dailyReturn) / (24 * 60 * 60);
+                const dailyReturn = typeof prop.dailyReturn === 'number' ? prop.dailyReturn : 0;
+                const gainPerSecond = (prop.initialInvestment * dailyReturn) / (24 * 60 * 60);
                 return { ...prop, invested: prop.invested + gainPerSecond };
             })
         );
@@ -72,7 +80,7 @@ export function ActiveInvestments() {
                     {(property.invested || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
                   </p>
                   <p className="text-xs text-green-600">
-                    +{(property.initialInvestment * property.dailyReturn).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}/día
+                    +{(property.initialInvestment * (property.dailyReturn || 0)).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}/día
                   </p>
                 </div>
               </div>

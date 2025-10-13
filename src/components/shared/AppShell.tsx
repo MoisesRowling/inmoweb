@@ -1,40 +1,46 @@
 'use client';
 
 import { useApp } from '@/context/AppContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { Skeleton } from '../ui/skeleton';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, isAuthLoading } = useApp();
   const router = useRouter();
+  const pathname = usePathname();
   
-  // This effect will run on the client after hydration
   useEffect(() => {
-    // We check authentication status only on the client
-    if (!isAuthenticated) {
+    if (!isAuthLoading && !isAuthenticated && pathname !== '/login' && pathname !== '/register') {
       router.replace('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isAuthLoading, router, pathname]);
 
-  // While checking on the client or if not authenticated, show a loading state
-  if (!isAuthenticated) {
+  if (isAuthLoading) {
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="flex flex-col space-y-3">
-          <Skeleton className="h-[125px] w-full rounded-xl" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-[250px]" />
-            <Skeleton className="h-4 w-[200px]" />
+          <Skeleton className="h-16 w-full" />
+          <div className="space-y-2 pt-8">
+            <Skeleton className="h-8 w-1/3" />
+            <Skeleton className="h-4 w-1/2" />
           </div>
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
+                <Skeleton className="h-[125px] w-full rounded-xl" />
+                <Skeleton className="h-[125px] w-full rounded-xl" />
+                <Skeleton className="h-[125px] w-full rounded-xl" />
+           </div>
         </div>
       </div>
     );
   }
 
-  // If authenticated, render the full app shell
+  if (!isAuthenticated) {
+      return children;
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />

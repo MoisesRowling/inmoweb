@@ -189,8 +189,7 @@
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
@@ -200,7 +199,7 @@
     },
     "/users/{userId}/account_balance/{accountBalanceId}": {
         "schema": { "$ref": "#/entities/AccountBalance"},
-        "description": "Stores the account balance for each user. Accessible only by the user themselves. The accountBalanceId should be the same as userId."
+        "description": "Stores the account balance for each user. Accessible only by the user themselves. The accountBalanceId should be a unique id."
     },
     "/users/{userId}/investments/{investmentId}": {
         "schema": { "$ref": "#/entities/Investment"},

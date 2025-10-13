@@ -11,7 +11,7 @@ export function TransactionHistory() {
   const { transactions } = useApp();
   const [showAll, setShowAll] = useState(false);
 
-  const sortedTransactions = transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sortedTransactions = transactions ? [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [];
   const displayedTransactions = showAll ? sortedTransactions : sortedTransactions.slice(0, 5);
 
   const iconMap = {
@@ -27,14 +27,14 @@ export function TransactionHistory() {
             <CardTitle>Transacciones</CardTitle>
             <CardDescription>Tu historial de movimientos</CardDescription>
         </div>
-        {transactions.length > 5 && (
+        {transactions && transactions.length > 5 && (
             <Button variant="ghost" size="sm" onClick={() => setShowAll(!showAll)}>
                 {showAll ? 'Ver menos' : 'Ver todo'}
             </Button>
         )}
       </CardHeader>
       <CardContent>
-        {transactions.length === 0 ? (
+        {!transactions || transactions.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Activity className="w-12 h-12 mx-auto mb-2 opacity-30" />
             <p className="text-sm">Sin transacciones recientes</p>

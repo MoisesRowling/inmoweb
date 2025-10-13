@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import AuthFormWrapper from '@/components/auth/AuthFormWrapper';
-import { useToast } from '@/hooks/use-toast';
 import { useApp } from '@/context/AppContext';
 
 
@@ -24,7 +22,7 @@ const formSchema = z.object({
 });
 
 export default function RegisterPage() {
-  const { registerAndCreateUser } = useApp();
+  const { registerAndCreateUser, isAuthLoading } = useApp();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -66,7 +64,7 @@ export default function RegisterPage() {
               <FormItem>
                 <FormLabel>Correo electrónico</FormLabel>
                 <FormControl>
-                  <Input placeholder="tu@email.com" {...field} />
+                  <Input placeholder="tu@email.com" {...field} type="email"/>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -98,8 +96,8 @@ export default function RegisterPage() {
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full font-semibold !mt-6" disabled={form.formState.isSubmitting}>
-            Crear Cuenta
+          <Button type="submit" className="w-full font-semibold !mt-6" disabled={form.formState.isSubmitting || isAuthLoading}>
+            {isAuthLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
           </Button>
         </form>
       </Form>

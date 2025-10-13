@@ -26,9 +26,9 @@ export function PropertyCard({ property, isGuest = false }: PropertyCardProps) {
     }
   };
   
-  const userInvestment = investments.find(inv => inv.propertyId === property.id);
-  const investedAmount = userInvestment?.investedAmount || 0;
-  const ownedShares = userInvestment?.ownedShares || 0;
+  const userInvestmentsInProp = investments?.filter(inv => inv.propertyId === property.id) || [];
+  const investedAmount = userInvestmentsInProp.reduce((sum, inv) => sum + inv.investedAmount, 0);
+  const ownedShares = userInvestmentsInProp.reduce((sum, inv) => sum + inv.ownedShares, 0);
 
   const potentialDailyEarning = property.minInvestment * property.dailyReturn;
   const potentialWeeklyEarning = potentialDailyEarning * 7;
@@ -94,7 +94,7 @@ export function PropertyCard({ property, isGuest = false }: PropertyCardProps) {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Tus Acciones</span>
-                <span className="font-semibold text-primary">{ownedShares}</span>
+                <span className="font-semibold text-primary">{ownedShares.toFixed(2)}</span>
               </div>
             </>
           )}

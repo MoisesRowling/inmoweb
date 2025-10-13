@@ -14,18 +14,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Property } from "@/lib/types";
 
 export default function Home() {
-  const { isAuthenticated, properties } = useApp();
+  const { isAuthenticated, isAuthLoading, properties } = useApp();
   const router = useRouter();
 
-  // This check is now just for navigation, not for loading data
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isAuthLoading && isAuthenticated) {
       router.replace('/dashboard');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isAuthLoading, router]);
 
-  // If the user becomes authenticated, we show a loader while redirecting
-  if (isAuthenticated) {
+  if (isAuthLoading || isAuthenticated) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <Header />
@@ -43,7 +41,6 @@ export default function Home() {
     )
   }
   
-  // Render the public homepage for unauthenticated users
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
