@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import type { Property, Transaction, User } from '@/lib/types';
 import { propertiesData } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 
 type ModalState = {
   deposit: boolean;
@@ -32,12 +34,10 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Helper to check if the stored properties are outdated
 const arePropertiesOutdated = (storedProperties: Property[]): boolean => {
   if (storedProperties.length !== propertiesData.length) return true;
   for (const propData of propertiesData) {
     const storedProp = storedProperties.find(p => p.id === propData.id);
-    // If a property is missing or its name/image doesn't match, it's outdated
     if (!storedProp || storedProp.name !== propData.name || storedProp.image !== propData.image) {
       return true;
     }
@@ -45,8 +45,9 @@ const arePropertiesOutdated = (storedProperties: Property[]): boolean => {
   return false;
 };
 
-
 export function AppProvider({ children }: { children: ReactNode }) {
+  const { user: firebaseUser, isUserLoading } = useUser();
+  const auth = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [balance, setBalance] = useState(0);
   const [properties, setProperties] = useState<Property[]>(propertiesData);
@@ -58,23 +59,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('inmosmart-user');
-      const storedBalance = localStorage.getItem('inmosmart-balance');
-      const storedPropertiesJSON = localStorage.getItem('inmosmart-properties');
-      const storedTransactions = localStorage.getItem('inmosmart-transactions');
-      const storedInvestmentDate = localStorage.getItem('inmosmart-investmentDate');
+    if (!isUserLoading && firebaseUser) {
+      const appUser: User = {
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuario',
+        email: firebaseUser.email || '',
+      };
+      setUser(appUser);
+      router.push('/dashboard');
+    } else if (!isUserLoading && !firebaseUser) {
+      setUser(null);
+    }
+  }, [firebaseUser, isUserLoading, router]);
 
-      if (storedUser) setUser(JSON.parse(storedUser));
+  useEffect(() => {
+    if (!firebaseUser) {
+      setIsHydrated(true);
+      return;
+    }
+    try {
+      const storedBalance = localStorage.getItem(`inmosmart-balance-${firebaseUser.uid}`);
+      const storedPropertiesJSON = localStorage.getItem(`inmosmart-properties-${firebaseUser.uid}`);
+      const storedTransactions = localStorage.getItem(`inmosmart-transactions-${firebaseUser.uid}`);
+      const storedInvestmentDate = localStorage.getItem(`inmosmart-investmentDate-${firebaseUser.uid}`);
+
       if (storedBalance) setBalance(JSON.parse(storedBalance));
       
       if (storedPropertiesJSON) {
         const storedProperties = JSON.parse(storedPropertiesJSON);
-        // If properties from localStorage are outdated, load fresh data
-        // but keep the user's investment progress.
         if (arePropertiesOutdated(storedProperties)) {
             const updatedProperties = propertiesData.map(freshProp => {
-                const oldProp = storedProperties.find(p => p.id === freshProp.id);
+                const oldProp = storedProperties.find((p: Property) => p.id === freshProp.id);
                 return oldProp ? { ...freshProp, ...{
                     invested: oldProp.invested,
                     initialInvestment: oldProp.initialInvestment,
@@ -86,6 +101,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } else {
             setProperties(storedProperties);
         }
+      } else {
+        setProperties(propertiesData);
       }
 
       if (storedTransactions) setTransactions(JSON.parse(storedTransactions));
@@ -100,21 +117,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsHydrated(true);
     }
-  }, []);
+  }, [firebaseUser, isHydrated]);
   
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated || !firebaseUser) return;
     try {
-      localStorage.setItem('inmosmart-user', JSON.stringify(user));
-      localStorage.setItem('inmosmart-balance', JSON.stringify(balance));
-      localStorage.setItem('inmosmart-properties', JSON.stringify(properties));
-      localStorage.setItem('inmosmart-transactions', JSON.stringify(transactions));
-      localStorage.setItem('inmosmart-investmentDate', JSON.stringify(firstInvestmentDate));
+      localStorage.setItem(`inmosmart-balance-${firebaseUser.uid}`, JSON.stringify(balance));
+      localStorage.setItem(`inmosmart-properties-${firebaseUser.uid}`, JSON.stringify(properties));
+      localStorage.setItem(`inmosmart-transactions-${firebaseUser.uid}`, JSON.stringify(transactions));
+      localStorage.setItem(`inmosmart-investmentDate-${firebaseUser.uid}`, JSON.stringify(firstInvestmentDate));
     } catch (error) {
       console.error("Failed to save state to localStorage", error);
     }
-  }, [user, balance, properties, transactions, firstInvestmentDate, isHydrated]);
-
+  }, [user, balance, properties, transactions, firstInvestmentDate, isHydrated, firebaseUser]);
 
   const addTransaction = useCallback((type: 'deposit' | 'withdraw' | 'investment', amount: number, description: string) => {
     const newTransaction: Transaction = {
@@ -129,19 +144,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = (email: string, name: string) => {
-    const newUserId = Math.floor(10000 + Math.random() * 90000).toString();
-    const newUser: User = { id: newUserId, email, name };
-    setUser(newUser);
-    router.push('/dashboard');
+    // This is now handled by firebase auth state change
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await signOut(auth);
     setUser(null);
     setBalance(0);
-    setProperties(propertiesData); // Reset to default on logout
+    setProperties(propertiesData);
     setTransactions([]);
     setFirstInvestmentDate(null);
-    localStorage.clear();
+    // Clear all localStorage for safety, or selectively clear user data
+    // localStorage.clear();
     router.push('/login');
   };
 
@@ -227,7 +241,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setModals,
   };
 
-  return <AppContext.Provider value={value}>{isHydrated ? children : null}</AppContext.Provider>;
+  return <AppContext.Provider value={value}>{(isHydrated && !isUserLoading) ? children : null}</AppContext.Provider>;
 }
 
 export const useApp = (): AppContextType => {

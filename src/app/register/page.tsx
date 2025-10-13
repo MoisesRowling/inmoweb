@@ -10,6 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import AuthFormWrapper from '@/components/auth/AuthFormWrapper';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/firebase';
+import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
+import { updateProfile } from 'firebase/auth';
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'El nombre debe tener al menos 3 caracteres.' }),
@@ -24,6 +27,7 @@ const formSchema = z.object({
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -34,13 +38,24 @@ export default function RegisterPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log('Registering user:', values.name, values.email);
-    toast({
-      title: '¡Cuenta creada exitosamente!',
-      description: 'Ahora puedes iniciar sesión.',
-    });
-    router.push('/login');
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      initiateEmailSignUp(auth, values.email, values.password);
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName: values.name });
+      }
+      toast({
+        title: '¡Cuenta creada exitosamente!',
+        description: 'Ahora puedes iniciar sesión.',
+      });
+      router.push('/login');
+    } catch (error: any) {
+      toast({
+        title: 'Error al registrar',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   }
 
   return (

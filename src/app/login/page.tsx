@@ -9,6 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useApp } from '@/context/AppContext';
 import AuthFormWrapper from '@/components/auth/AuthFormWrapper';
+import { useAuth } from '@/firebase';
+import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
+import { useToast } from '@/hooks/use-toast';
+
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Por favor ingresa un correo electrónico válido.' }),
@@ -17,6 +21,9 @@ const formSchema = z.object({
 
 export default function LoginPage() {
   const { login } = useApp();
+  const auth = useAuth();
+  const { toast } = useToast();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -25,10 +32,16 @@ export default function LoginPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // For demo purposes, we'll use a mock name.
-    const mockName = values.email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    login(values.email, mockName || "Usuario");
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      initiateEmailSignIn(auth, values.email, values.password);
+    } catch (error: any) {
+      toast({
+        title: 'Error de autenticación',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   }
 
   return (
