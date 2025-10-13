@@ -8,7 +8,7 @@ import { Footer } from './Footer';
 import { Skeleton } from '../ui/skeleton';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isAuthLoading } = useApp();
+  const { isAuthenticated, isAuthLoading, user } = useApp();
   const router = useRouter();
   const pathname = usePathname();
   
@@ -18,7 +18,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, isAuthLoading, router, pathname]);
 
-  if (isAuthLoading) {
+  // Show skeleton loader while auth state is resolving OR
+  // if user is authenticated but user data hasn't loaded from firestore yet.
+  if (isAuthLoading || (isAuthenticated && !user)) {
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="flex flex-col space-y-3">
@@ -37,10 +39,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // If not authenticated and not loading, it's a public page or login/register
   if (!isAuthenticated) {
       return children;
   }
 
+  // If authenticated and user data is loaded, show the app shell
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />

@@ -24,15 +24,9 @@ export default function DashboardPage() {
     return sum + (inv.investedAmount * dailyReturn);
   }, 0);
 
+  // The AppShell now handles the loading state until the user object is ready.
   if (!user) {
-    return (
-      <AppShell>
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Cargando...</h1>
-          <p>Redirigiendo a la página de inicio de sesión.</p>
-        </div>
-      </AppShell>
-    );
+    return null; // Or a more specific loading component if you prefer
   }
   
   return (
