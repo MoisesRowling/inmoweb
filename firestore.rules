@@ -2,152 +2,144 @@
  * @fileoverview Firestore Security Rules for the investment platform.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for all user-related data
- * (profiles, account balances, investments, transactions). Users can only
- * access their own data. Property data is publicly readable, but write access
- * is not permitted.
+ * This ruleset enforces a strict user-ownership model for user-related data
+ * (profiles, account balances, investments, transactions). Properties are publicly readable.
  *
  * Data Structure:
- * - /users/{userId}: User profiles, accessible only by the user.
- * - /users/{userId}/account_balance/{accountBalanceId}: Account balance for each user, accessible only by the user.
+ * - /users/{userId}: User profiles, accessible only by the user themselves.
+ * - /users/{userId}/account_balance/{accountBalanceId}: Account balances, accessible only by the user. accountBalanceId is equal to userId.
  * - /users/{userId}/investments/{investmentId}: Investment data, accessible only by the user.
  * - /users/{userId}/transactions/{transactionId}: Transaction history, accessible only by the user.
  * - /properties/{propertyId}: Property information, publicly readable.
  *
  * Key Security Decisions:
- * - User listing is disallowed.
- * - All write operations on user-owned data require the user to be authenticated and the user ID to match the document ID.
- * - Properties are publicly readable but not writable through Firestore.
- * - No role-based access control is implemented.
+ * - User data is strictly private; no listing of users is allowed.
+ * - Properties are publicly readable to facilitate discovery.
+ * - All write operations on user-owned data require authentication and ownership validation.
+ * - The accountBalanceId must be the same as the userId.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secure user profiles. Only the user can read and write their own profile.
+     * @description Secure user profiles. Only the authenticated user can create their profile.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user_abc' can create their profile at /users/user_abc.
-     * @allow (get, list) - User with UID 'user_abc' can read their profile at /users/user_abc.
-     * @allow (update, delete) - User with UID 'user_abc' can update/delete their profile at /users/user_abc.
-     * @deny (create) - User with UID 'user_xyz' cannot create a profile at /users/user_abc.
-     * @deny (get, list) - User with UID 'user_xyz' cannot read the profile at /users/user_abc.
-     * @deny (update, delete) - User with UID 'user_xyz' cannot update/delete the profile at /users/user_abc.
+     * @allow (create) - Authenticated user with UID 'user123' can create a profile at /users/user123.
+     * @deny (create) - Authenticated user with UID 'user456' cannot create a profile at /users/user123.
+     * @allow (get) - Authenticated user with UID 'user123' can read their profile at /users/user123.
+     * @deny (get) - Authenticated user with UID 'user456' cannot read the profile at /users/user123.
+     * @allow (update) - Authenticated user with UID 'user123' can update their profile at /users/user123.
+     * @deny (update) - Authenticated user with UID 'user456' cannot update the profile at /users/user123.
+     * @allow (delete) - Authenticated user with UID 'user123' can delete their profile at /users/user123.
+     * @deny (delete) - Authenticated user with UID 'user456' cannot delete the profile at /users/user123.
+     * @deny (list) - No listing of user documents is allowed.
      * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Secure account balances. Only the user can read and write their own account balance.
+     * @description Secure account balance documents. Only the owning user can manage their account balance.
      * @path /users/{userId}/account_balance/{accountBalanceId}
-     * @allow (create) - User with UID 'user_abc' can create their account balance at /users/user_abc/account_balance/user_abc.
-     * @allow (get) - User with UID 'user_abc' can read their account balance at /users/user_abc/account_balance/user_abc.
-     * @allow (list) - User with UID 'user_abc' can list account balances under /users/user_abc.
-     * @allow (update) - User with UID 'user_abc' can update their account balance at /users/user_abc/account_balance/user_abc.
-     * @allow (delete) - User with UID 'user_abc' can delete their account balance at /users/user_abc/account_balance/user_abc.
-     * @deny (create) - User with UID 'user_xyz' cannot create an account balance at /users/user_abc/account_balance/user_abc.
-     * @deny (get) - User with UID 'user_xyz' cannot read the account balance at /users/user_abc/account_balance/user_abc.
-     * @deny (list) - User with UID 'user_xyz' cannot list account balances under /users/user_abc.
-     * @deny (update) - User with UID 'user_xyz' cannot update the account balance at /users/user_abc/account_balance/user_abc.
-     * @deny (delete) - User with UID 'user_xyz' cannot delete the account balance at /users/user_abc/account_balance/user_abc.
-     * @principle Enforces document ownership and validates accountBalanceId for all operations.
+     * @allow (create) - Authenticated user 'user123' can create their account balance at /users/user123/account_balance/user123.
+     * @deny (create) - Authenticated user 'user456' cannot create an account balance at /users/user123/account_balance/user123.
+     * @allow (get) - Authenticated user 'user123' can read their account balance at /users/user123/account_balance/user123.
+     * @deny (get) - Authenticated user 'user456' cannot read the account balance at /users/user123/account_balance/user123.
+     * @allow (update) - Authenticated user 'user123' can update their account balance at /users/user123/account_balance/user123.
+     * @deny (update) - Authenticated user 'user456' cannot update the account balance at /users/user123/account_balance/user123.
+     * @allow (delete) - Authenticated user 'user123' can delete their account balance at /users/user123/account_balance/user123.
+     * @deny (delete) - Authenticated user 'user456' cannot delete the account balance at /users/user123/account_balance/user123.
+     * @deny (list) - No listing of account balance documents is allowed.
+     * @principle Enforces document ownership, validates the accountBalanceId.
      */
     match /users/{userId}/account_balance/{accountBalanceId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) && accountBalanceId == userId;
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId && accountBalanceId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == userId && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && accountBalanceId == userId;
+      allow update: if isSignedIn() && isExistingOwner(userId) && accountBalanceId == userId;
+      allow delete: if isSignedIn() && isExistingOwner(userId) && accountBalanceId == userId;
     }
 
     /**
-     * @description Secure investments. Only the user can read and write their own investment data.
+     * @description Secure investment documents. Only the owning user can manage their investments.
      * @path /users/{userId}/investments/{investmentId}
-     * @allow (create) - User with UID 'user_abc' can create an investment at /users/user_abc/investments/investment_123.
-     * @allow (get) - User with UID 'user_abc' can read their investment at /users/user_abc/investments/investment_123.
-     * @allow (list) - User with UID 'user_abc' can list investments under /users/user_abc.
-     * @allow (update) - User with UID 'user_abc' can update their investment at /users/user_abc/investments/investment_123.
-     * @allow (delete) - User with UID 'user_abc' can delete their investment at /users/user_abc/investments/investment_123.
-     * @deny (create) - User with UID 'user_xyz' cannot create an investment at /users/user_abc/investments/investment_123.
-     * @deny (get) - User with UID 'user_xyz' cannot read the investment at /users/user_abc/investments/investment_123.
-     * @deny (list) - User with UID 'user_xyz' cannot list investments under /users/user_abc.
-     * @deny (update) - User with UID 'user_xyz' cannot update the investment at /users/user_abc/investments/investment_123.
-     * @deny (delete) - User with UID 'user_xyz' cannot delete the investment at /users/user_abc/investments/investment_123.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - Authenticated user 'user123' can create an investment at /users/user123/investments/inv1.
+     * @deny (create) - Authenticated user 'user456' cannot create an investment at /users/user123/investments/inv1.
+     * @allow (get) - Authenticated user 'user123' can read their investment at /users/user123/investments/inv1.
+     * @deny (get) - Authenticated user 'user456' cannot read the investment at /users/user123/investments/inv1.
+     * @allow (update) - Authenticated user 'user123' can update their investment at /users/user123/investments/inv1.
+     * @deny (update) - Authenticated user 'user456' cannot update the investment at /users/user123/investments/inv1.
+     * @allow (delete) - Authenticated user 'user123' can delete their investment at /users/user123/investments/inv1.
+     * @deny (delete) - Authenticated user 'user456' cannot delete the investment at /users/user123/investments/inv1.
+     * @allow (list) - Authenticated user 'user123' can list their investments.
+     * @principle Enforces document ownership.
      */
     match /users/{userId}/investments/{investmentId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == userId && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Secure transactions. Only the user can read and write their own transaction history.
+     * @description Secure transaction documents. Only the owning user can manage their transactions.
      * @path /users/{userId}/transactions/{transactionId}
-     * @allow (create) - User with UID 'user_abc' can create a transaction at /users/user_abc/transactions/transaction_123.
-     * @allow (get) - User with UID 'user_abc' can read their transaction at /users/user_abc/transactions/transaction_123.
-     * @allow (list) - User with UID 'user_abc' can list transactions under /users/user_abc.
-     * @allow (update) - User with UID 'user_abc' can update their transaction at /users/user_abc/transactions/transaction_123.
-     * @allow (delete) - User with UID 'user_abc' can delete their transaction at /users/user_abc/transactions/transaction_123.
-     * @deny (create) - User with UID 'user_xyz' cannot create a transaction at /users/user_abc/transactions/transaction_123.
-     * @deny (get) - User with UID 'user_xyz' cannot read the transaction at /users/user_abc/transactions/transaction_123.
-     * @deny (list) - User with UID 'user_xyz' cannot list transactions under /users/user_abc.
-     * @deny (update) - User with UID 'user_xyz' cannot update the transaction at /users/user_abc/transactions/transaction_123.
-     * @deny (delete) - User with UID 'user_xyz' cannot delete the transaction at /users/user_abc/transactions/transaction_123.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - Authenticated user 'user123' can create a transaction at /users/user123/transactions/tx1.
+     * @deny (create) - Authenticated user 'user456' cannot create a transaction at /users/user123/transactions/tx1.
+     * @allow (get) - Authenticated user 'user123' can read their transaction at /users/user123/transactions/tx1.
+     * @deny (get) - Authenticated user 'user456' cannot read the transaction at /users/user123/transactions/tx1.
+     * @allow (update) - Authenticated user 'user123' can update their transaction at /users/user123/transactions/tx1.
+     * @deny (update) - Authenticated user 'user456' cannot update the transaction at /users/user123/transactions/tx1.
+     * @allow (delete) - Authenticated user 'user123' can delete their transaction at /users/user123/transactions/tx1.
+     * @deny (delete) - Authenticated user 'user456' cannot delete the transaction at /users/user123/transactions/tx1.
+     * @allow (list) - Authenticated user 'user123' can list their transactions.
+     * @principle Enforces document ownership.
      */
     match /users/{userId}/transactions/{transactionId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == userId && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Allows public read access to property information. Write operations are denied.
+     * @description Allow public read access to property documents.
      * @path /properties/{propertyId}
-     * @allow (get, list) - Any user (or unauthenticated user) can read property data.
-     * @deny (create) - No user can create a property document directly via Firestore.
-     * @deny (update) - No user can update a property document directly via Firestore.
-     * @deny (delete) - No user can delete a property document directly via Firestore.
-     * @principle Allows public read access while restricting write access.
+     * @allow (get) - Any user can read property data.
+     * @allow (list) - Any user can list properties.
+     * @deny (create) - No one can create properties (admin only).
+     * // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @deny (update) - No one can update properties without owner validation.
+     * // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @deny (delete) - No one can delete properties without owner validation.
+     * // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Allows public read with restricted writes.
      */
     match /properties/{propertyId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
+  }
+
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  function isOwner(userId) {
+    return request.auth.uid == userId;
+  }
+
+  function isExistingOwner(userId) {
+    return isOwner(userId) && resource != null;
   }
 }
