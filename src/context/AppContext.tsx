@@ -6,9 +6,10 @@ import type { Property, Transaction, User, Investment } from '@/lib/types';
 import { propertiesData } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useAuth, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { signOut } from 'firebase/auth';
+import { signOut, updateProfile } from 'firebase/auth';
 import { collection, doc, writeBatch, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
 
 type ModalState = {
   deposit: boolean;
@@ -25,6 +26,7 @@ interface AppContextType {
   investments: Investment[];
   modals: ModalState;
   logout: () => void;
+  registerAndCreateUser: (name: string, email: string, password: string) => void;
   handleDeposit: (amount: number) => void;
   handleWithdraw: (amount: number, clabe: string) => boolean;
   handleInvest: (amount: number, property: Property, term: number) => void;
@@ -101,7 +103,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         email: firebaseUser.email || '',
       };
       setUser(appUser);
-      router.push('/dashboard');
+      if(window.location.pathname === '/login' || window.location.pathname === '/register' || window.location.pathname === '/') {
+        router.push('/dashboard');
+      }
     } else if (!isUserLoading && !firebaseUser) {
       setUser(null);
     }
@@ -125,6 +129,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUser(null);
     router.push('/login');
   };
+
+  const registerAndCreateUser = useCallback(async (name: string, email: string, password: string) => {
+    if (!auth || !firestore) return;
+    
+    // This will trigger onAuthStateChanged, which will set the user
+    initiateEmailSignUp(auth, email, password, async (userCredential) => {
+      // This callback runs on successful user creation in Firebase Auth
+      const fUser = userCredential.user;
+      await updateProfile(fUser, { displayName: name });
+
+      // Now, create the user profile and balance documents in Firestore
+      const userDocRef = doc(firestore, 'users', fUser.uid);
+      const userData = {
+        id: fUser.uid,
+        name: name,
+        email: email
+      };
+      setDocumentNonBlocking(userDocRef, userData, { merge: false });
+
+      const balanceDocRef = doc(firestore, 'users', fUser.uid, 'account_balance', fUser.uid);
+      const balanceData = {
+        userId: fUser.uid,
+        balance: 0,
+      }
+      setDocumentNonBlocking(balanceDocRef, balanceData, { merge: false });
+
+      toast({
+        title: '¡Cuenta creada exitosamente!',
+        description: 'Ahora puedes iniciar sesión.',
+      });
+      router.push('/login');
+    });
+  }, [auth, firestore, router, toast]);
 
   const handleDeposit = (amount: number) => {
     if(!user) return;
@@ -205,6 +242,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     investments: investments || [],
     modals,
     logout,
+    registerAndCreateUser,
     handleDeposit,
     handleWithdraw,
     handleInvest,
@@ -213,7 +251,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const isDataLoading = isUserLoading || isLoadingProperties || isLoadingBalance || isLoadingTransactions || isLoadingInvestments;
 
-  return <AppContext.Provider value={value}>{!isDataLoading ? children : null}</AppContext.Provider>;
+  return <AppContext.Provider value={value}>{isDataLoading && !user ? null : children}</AppContext.Provider>;
 }
 
 export const useApp = (): AppContextType => {
