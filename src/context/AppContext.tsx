@@ -10,6 +10,8 @@ import { signOut, updateProfile } from 'firebase/auth';
 import { collection, doc, writeBatch, serverTimestamp, Timestamp, runTransaction, getDoc } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 type ModalState = {
   deposit: boolean;
@@ -154,47 +156,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
     initiateEmailSignUp(auth, email, password, async (userCredential) => {
       const fUser = userCredential.user;
       await updateProfile(fUser, { displayName: name });
+      
+      const userDocData = { id: fUser.uid, name, email };
 
-      try {
-        await runTransaction(firestore, async (transaction) => {
-          const publicId = await generateUniquePublicId(firestore);
-          
-          const userDocRef = doc(firestore, 'users', fUser.uid);
-          const publicIdDocRef = doc(firestore, 'publicIds', publicId);
-          const balanceDocRef = doc(firestore, 'users', fUser.uid, 'account_balance', fUser.uid);
+      // This is a non-blocking operation. It will run in the background.
+      runTransaction(firestore, async (transaction) => {
+        const publicId = await generateUniquePublicId(firestore);
+        
+        const userDocRef = doc(firestore, 'users', fUser.uid);
+        const publicIdDocRef = doc(firestore, 'publicIds', publicId);
+        const balanceDocRef = doc(firestore, 'users', fUser.uid, 'account_balance', fUser.uid);
 
-          transaction.set(publicIdDocRef, { uid: fUser.uid });
-          
-          transaction.set(userDocRef, {
-            id: fUser.uid,
-            publicId,
-            name,
-            email,
+        transaction.set(publicIdDocRef, { uid: fUser.uid });
+        
+        const finalUserDoc = { ...userDocData, publicId };
+        transaction.set(userDocRef, finalUserDoc);
+
+        transaction.set(balanceDocRef, {
+          userId: fUser.uid,
+          balance: 0,
+        });
+        
+        // Return the data for error reporting context
+        return finalUserDoc;
+      }).then(() => {
+          toast({
+            title: '¡Cuenta creada exitosamente!',
+            description: 'Ahora puedes iniciar sesión.',
           });
-
-          transaction.set(balanceDocRef, {
-            userId: fUser.uid,
-            balance: 0,
+          router.push('/login');
+      }).catch((error) => {
+          // This catch block is crucial for contextual errors.
+          console.log('Transaction failed:', error); // You can keep this for basic debugging if needed.
+          
+          const permissionError = new FirestorePermissionError({
+              path: `users/${fUser.uid}`, // The primary document being created
+              operation: 'create',
+              requestResourceData: userDocData, // Pass the data that was attempted
           });
-        });
+          
+          errorEmitter.emit('permission-error', permissionError);
 
-        toast({
-          title: '¡Cuenta creada exitosamente!',
-          description: 'Ahora puedes iniciar sesión.',
-        });
-        router.push('/login');
+          // We also inform the user that the registration failed at a high level.
+          toast({
+              title: 'Error de registro',
+              description: 'No se pudo crear el perfil de usuario. Inténtalo de nuevo.',
+              variant: 'destructive',
+          });
+          
+          // Optional: Delete the auth user since the DB transaction failed.
+          fUser.delete();
+      });
 
-      } catch (error) {
-        console.error("Error creating user documents in transaction:", error);
-        toast({
-            title: 'Error de registro',
-            description: 'No se pudo crear el perfil de usuario. Inténtalo de nuevo.',
-            variant: 'destructive',
-        });
-        // Optional: delete the just-created Firebase Auth user
-        await fUser.delete();
-      }
-    }, (error) => {
+    }, (error) => { // This is the error handler for initiateEmailSignUp
         if (error.code === 'auth/email-already-in-use') {
             toast({
                 title: 'Correo ya registrado',
@@ -204,7 +218,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } else {
             toast({
                 title: 'Error de registro',
-                description: 'Ocurrió un error inesperado.',
+                description: 'Ocurrió un error inesperado al crear tu cuenta.',
                 variant: 'destructive',
             });
         }
@@ -309,3 +323,5 @@ export const useApp = (): AppContextType => {
   }
   return context;
 };
+
+    
