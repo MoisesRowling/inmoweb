@@ -72,7 +72,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const { data, error, isLoading } = useSWR(userId ? `/api/data?userId=${userId}` : null, fetcher);
 
-  const isAuthLoading = !userId && !data && !error;
   const isAuthenticated = !!data && !!data.user;
 
   const login = async (email: string, pass: string) => {
@@ -81,7 +80,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: { email, password: pass } }),
+        body: JSON.stringify({ email, password: pass }),
       });
 
       if (!res.ok) {
@@ -114,7 +113,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
        const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: { name, email, password } }),
+        body: JSON.stringify({ name, email, password }),
       });
 
       if (!res.ok) {
@@ -188,7 +187,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: AppContextType = {
     user: data?.user || null,
     isAuthenticated,
-    isAuthLoading: isLoading || isAuthLoading || isAuthFormLoading,
+    isAuthLoading: isLoading,
     balance: data?.balance || 0,
     properties: data?.properties || [],
     transactions: data?.transactions || [],

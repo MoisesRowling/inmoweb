@@ -23,8 +23,7 @@ const writeDB = (data: any) => {
 };
 
 export async function POST(request: Request) {
-  const { payload } = await request.json();
-  const { name, email, password } = payload;
+  const { name, email, password } = await request.json();
   
   const db = readDB();
 

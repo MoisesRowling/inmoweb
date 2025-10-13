@@ -15,8 +15,7 @@ const readDB = () => {
 };
 
 export async function POST(request: Request) {
-  const { payload } = await request.json();
-  const { email, password } = payload;
+  const { email, password } = await request.json();
   
   const db = readDB();
   const user = db.users.find((u: any) => u.email === email && u.password === password);
