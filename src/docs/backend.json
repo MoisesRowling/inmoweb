@@ -7,7 +7,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Firebase Auth UID."
+          "description": "Unique local user ID."
         },
         "publicId": {
           "type": "string",
@@ -86,7 +86,7 @@
       "properties": {
         "userId": {
           "type": "string",
-          "description": "Reference to User's Firebase Auth UID."
+          "description": "Reference to local User ID."
         },
         "propertyId": {
           "type": "string",
@@ -126,7 +126,7 @@
       "properties": {
         "userId": {
           "type": "string",
-          "description": "Reference to User's Firebase Auth UID."
+          "description": "Reference to local User ID."
         },
         "type": {
           "type": "string",
@@ -154,68 +154,15 @@
         "description",
         "date"
       ]
-    },
-    "AccountBalance": {
-      "title": "AccountBalance",
-      "type": "object",
-      "description": "Represents the user's account balance.",
-      "properties": {
-        "userId": {
-          "type": "string",
-          "description": "Reference to User's Firebase Auth UID."
-        },
-        "balance": {
-          "type": "number",
-          "description": "Current account balance."
-        }
-      },
-      "required": [
-        "userId",
-        "balance"
-      ]
-    },
-    "PublicId": {
-        "title": "PublicId",
-        "type": "object",
-        "description": "Maps a 5-digit public ID to a Firebase Auth UID to ensure uniqueness.",
-        "properties": {
-            "uid": {
-                "type": "string",
-                "description": "The Firebase Auth UID of the user."
-            }
-        },
-        "required": ["uid"]
     }
   },
   "auth": {
     "providers": [
-      "password"
+      "local"
     ]
   },
-  "firestore": {
-    "/users/{userId}": {
-        "schema": { "$ref": "#/entities/User"},
-        "description": "Stores user profiles. The userId is the Firebase Auth UID."
-    },
-    "/users/{userId}/account/balance": {
-        "schema": { "$ref": "#/entities/AccountBalance"},
-        "description": "Stores the account balance for each user as a single document. Accessible only by the user themselves."
-    },
-    "/users/{userId}/investments/{investmentId}": {
-        "schema": { "$ref": "#/entities/Investment"},
-        "description": "Stores a user's investment data. Accessible only by the user themselves."
-    },
-    "/users/{userId}/transactions/{transactionId}": {
-        "schema": { "$ref": "#/entities/Transaction"},
-        "description": "Stores transaction history for each user. Accessible only by the user themselves."
-    },
-    "/properties/{propertyId}": {
-        "schema": { "$ref": "#/entities/Property"},
-        "description": "Stores property information. Publicly readable."
-    },
-    "/publicIds/{publicId}": {
-        "schema": { "$ref": "#/entities/PublicId"},
-        "description": "Stores a mapping of 5-digit public IDs to ensure uniqueness. The document ID is the 5-digit number."
-    }
+  "datastore": {
+      "type": "local",
+      "description": "The backend is now simulated locally using React Context and state. Data is held in-memory and persists across the session using localStorage. It is not a real database."
   }
 }
