@@ -63,9 +63,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const userDocRef = useMemoFirebase(() => firebaseUser ? doc(firestore, 'users', firebaseUser.uid) : null, [firestore, firebaseUser]);
   const { data: user } = useDoc<User>(userDocRef);
   
-  // Temporarily disable problematic hooks and use empty arrays
-  const investments: Investment[] = [];
-  const transactions: Transaction[] = [];
+  const investmentsQuery = useMemoFirebase(() => firebaseUser ? query(collection(firestore, `users/${firebaseUser.uid}/investments`), orderBy('investmentDate', 'desc')) : null, [firestore, firebaseUser]);
+  const { data: investments } = useCollection<Investment>(investmentsQuery);
+
+  const transactionsQuery = useMemoFirebase(() => firebaseUser ? query(collection(firestore, `users/${firebaseUser.uid}/transactions`), orderBy('date', 'desc')) : null, [firestore, firebaseUser]);
+  const { data: transactions } = useCollection<Transaction>(transactionsQuery);
 
   const propertiesQuery = useMemoFirebase(() => firestore ? collection(firestore, 'properties') : null, [firestore]);
   const { data: properties } = useCollection<Property>(propertiesQuery);
@@ -77,17 +79,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // --- Effects ---
   useEffect(() => {
-    if (!isAuthLoading && firebaseUser) {
-      router.replace('/dashboard');
+    // This effect should only handle redirection after auth state is fully resolved.
+    if (!isAuthLoading) {
+      if (firebaseUser && user) { // Ensure both firebase auth and firestore user doc are loaded
+        // If user is on a public page, redirect to dashboard.
+        if (router.pathname === '/' || router.pathname === '/login' || router.pathname === '/register') {
+          router.replace('/dashboard');
+        }
+      } else if (!firebaseUser) {
+        // If user is not authenticated, redirect to login unless they are on a public page.
+        if (router.pathname !== '/' && router.pathname !== '/login' && router.pathname !== '/register') {
+           router.replace('/login');
+        }
+      }
     }
-  }, [isAuthLoading, firebaseUser, router]);
+  }, [isAuthLoading, firebaseUser, user, router]);
+
 
   // --- Auth Functions ---
   const login = (email: string, pass: string) => {
     initiateEmailSignIn(auth, email, pass, 
       () => {
         toast({ title: '¡Bienvenido de vuelta!'});
-        router.push('/dashboard');
+        // Redirection is handled by the useEffect above
       },
       (error) => {
         toast({ title: 'Error de inicio de sesión', description: 'Tus credenciales son incorrectas.', variant: 'destructive' });
@@ -97,6 +111,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   
   const logout = () => {
     signOut(auth).then(() => {
+      // Clear local state if necessary and redirect
       router.push('/login');
     });
   };
