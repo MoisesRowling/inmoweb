@@ -131,7 +131,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addTransaction = useCallback(async (type: 'deposit' | 'withdraw' | 'investment', amount: number, description: string) => {
     if (!firebaseUser) return;
     const newTransaction = {
-      userId: firebaseUser.id,
+      userId: firebaseUser.uid,
       type,
       amount,
       description,
@@ -204,7 +204,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } else {
             toast({
                 title: 'Error de registro',
-                description: error.message || 'Ocurrió un error inesperado.',
+                description: 'Ocurrió un error inesperado.',
                 variant: 'destructive',
             });
         }

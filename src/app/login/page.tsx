@@ -20,7 +20,6 @@ const formSchema = z.object({
 });
 
 export default function LoginPage() {
-  const { login } = useApp();
   const auth = useAuth();
   const { toast } = useToast();
 
@@ -33,6 +32,7 @@ export default function LoginPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!auth) return;
     initiateEmailSignIn(
       auth, 
       values.email, 
@@ -41,10 +41,18 @@ export default function LoginPage() {
         // Success is handled by the global onAuthStateChanged listener in AppContext
       },
       (error) => {
-        // Handle auth errors (e.g., wrong password, user not found)
+        let description = 'El correo electrónico o la contraseña son incorrectos.';
+        if (error.code === 'auth/user-not-found') {
+          description = 'No se encontró una cuenta con este correo electrónico.';
+        } else if (error.code === 'auth/wrong-password') {
+          description = 'La contraseña es incorrecta. Por favor, inténtalo de nuevo.';
+        } else if (error.code === 'auth/too-many-requests') {
+          description = 'Has intentado iniciar sesión demasiadas veces. Intenta más tarde.';
+        }
+        
         toast({
           title: 'Error de autenticación',
-          description: 'El correo electrónico o la contraseña son incorrectos.',
+          description: description,
           variant: 'destructive',
         });
       }
