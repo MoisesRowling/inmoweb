@@ -34,7 +34,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const fetcher = (url: string) => fetch(url).then(res => {
   if (res.status === 401) {
-    // AppShell handles the redirect. This just signals that there's no user data.
+    // When the API returns 401, it means the user is not logged in.
+    // We return null to signal this to SWR. AppShell will handle the redirect.
     return null;
   }
   if (!res.ok) {
@@ -70,7 +71,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   
   const isAuthenticated = !!data && !error;
-  const isAuthLoading = isLoading && data === undefined && !error;
+  // isAuthLoading is true only on the initial load when data is undefined.
+  const isAuthLoading = isLoading && data === undefined;
 
   const login = async (email: string, pass: string) => {
     setIsAuthFormLoading(true);
@@ -88,11 +90,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       
       const { user } = await res.json();
 
-      // IMPORTANT: Wait for mutation to complete before redirecting
-      await mutate('/api/data', (currentData: any) => ({ ...currentData, user }), true);
+      // Revalidate the data from the server.
+      // SWR will automatically update the `isAuthenticated` state.
+      // AppShell will see the change and handle the redirect.
+      await mutate('/api/data');
       
       toast({ title: '¡Bienvenido de vuelta!' });
-      router.push('/dashboard');
+      // No router.push here. AppShell handles all routing logic.
+
     } catch (err: any) {
       toast({ title: 'Error de inicio de sesión', description: err.message || 'El correo o la contraseña son incorrectos.', variant: 'destructive' });
     } finally {
@@ -101,11 +106,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
   
   const logout = useCallback(async () => {
-    if (typeof window === 'undefined') return;
+    // Tell SWR to clear its cache for '/api/data' immediately
     await mutate('/api/data', null, false);
+    // Call the API to clear the session cookie
     await fetch('/api/auth/logout', { method: 'POST' });
-    router.replace('/login');
-  }, [router]);
+    // AppShell will detect the change in `isAuthenticated` and redirect to /login.
+  }, []);
 
   const registerAndCreateUser = async (name: string, email: string, password: string) => {
     setIsAuthFormLoading(true);
@@ -121,13 +127,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         throw new Error(errorBody.message);
       }
       
-      const { user } = await res.json();
-      
-      // IMPORTANT: Wait for mutation to complete before redirecting
-      await mutate('/api/data', (currentData: any) => ({ ...currentData, user }), true);
+      await mutate('/api/data');
 
       toast({ title: '¡Cuenta creada exitosamente!', description: 'Bienvenido a InmoSmart.' });
-      router.push('/dashboard');
+      // No router.push here. AppShell handles all routing logic.
 
     } catch (err: any) {
         toast({ title: 'Error de registro', description: err.message || 'No se pudo crear la cuenta.', variant: 'destructive' });

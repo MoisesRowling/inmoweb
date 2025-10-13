@@ -7,73 +7,75 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { Skeleton } from '../ui/skeleton';
 
+const FullPageLoader = () => (
+    <div className="min-h-screen bg-background p-8">
+    <div className="flex flex-col space-y-3">
+        <Skeleton className="h-16 w-full" />
+        <div className="space-y-2 pt-8">
+        <Skeleton className="h-8 w-1/3" />
+        <Skeleton className="h-4 w-1/2" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
+            <Skeleton className="h-[125px] w-full rounded-xl" />
+            <Skeleton className="h-[125px] w-full rounded-xl" />
+            <Skeleton className="h-[125px] w-full rounded-xl" />
+        </div>
+    </div>
+    </div>
+);
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isAuthLoading } = useApp();
   const router = useRouter();
   const pathname = usePathname();
   
-  const isAuthPage = pathname === '/login' || pathname === '/register';
+  const publicPages = ['/login', '/register'];
+  // The home page is public, but has special logic, so we exclude it here.
+  const isPublicPage = publicPages.includes(pathname);
 
   useEffect(() => {
-    // Si todavía estamos verificando el estado de autenticación, no hagas nada todavía.
     if (isAuthLoading) {
+      // If we are checking auth, we don't do any redirects yet.
+      // The loader will be shown below.
       return;
     }
 
-    // Si el usuario está en una página de autenticación (login/register) pero ya está autenticado,
-    // lo redirigimos al dashboard.
-    if (isAuthenticated && isAuthPage) {
+    // If user is authenticated and tries to access a public page (login/register)
+    if (isAuthenticated && isPublicPage) {
       router.replace('/dashboard');
     }
 
-    // Si el usuario NO está autenticado y NO está en una página de autenticación,
-    // lo redirigimos a la página de login.
-    if (!isAuthenticated && !isAuthPage) {
-      router.replace('/login');
+    // If user is NOT authenticated and tries to access a protected page
+    if (!isAuthenticated && !isPublicPage && pathname !== '/') {
+        router.replace('/login');
     }
-  }, [isAuthenticated, isAuthLoading, isAuthPage, router, pathname]);
 
-  // Mientras se verifica el estado de la sesión, si estamos en una ruta protegida,
-  // muestra un esqueleto de carga para evitar mostrar contenido incorrecto.
-  if (isAuthLoading && !isAuthPage) {
+  }, [isAuthenticated, isAuthLoading, isPublicPage, router, pathname]);
+
+  // While checking auth, show a full page loader to prevent any content flashing
+  if (isAuthLoading) {
+    return <FullPageLoader />;
+  }
+
+  // If user is authenticated, show the app layout
+  if (isAuthenticated) {
      return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="flex flex-col space-y-3">
-          <Skeleton className="h-16 w-full" />
-          <div className="space-y-2 pt-8">
-            <Skeleton className="h-8 w-1/3" />
-            <Skeleton className="h-4 w-1/2" />
-          </div>
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
-                <Skeleton className="h-[125px] w-full rounded-xl" />
-                <Skeleton className="h-[125px] w-full rounded-xl" />
-                <Skeleton className="h-[125px] w-full rounded-xl" />
-           </div>
+        <div className="min-h-screen flex flex-col bg-background">
+        <Header />
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {children}
+        </main>
+        <Footer />
         </div>
-      </div>
     );
   }
-
-  // Si no está autenticado y está en una página protegida, el useEffect ya lo está redirigiendo.
-  // Renderizar null evita cualquier parpadeo de contenido no autorizado.
-  if (!isAuthenticated && !isAuthPage) {
-      return null;
-  }
   
-  // Si está autenticado y en una página de autenticación, el useEffect lo está redirigiendo.
-  // Renderizar null evita el parpadeo de la página de login/register.
-  if (isAuthenticated && isAuthPage) {
-      return null;
+  // If user is NOT authenticated, only allow access to public pages and the landing page
+  if (!isPublicPage && pathname !== '/') {
+    // While the redirect in useEffect is happening, show a loader
+    return <FullPageLoader />;
   }
 
-  // Si está autenticado, muestra el layout de la aplicación con su contenido
-  return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Header />
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
-      <Footer />
-    </div>
-  );
+  // Render children for public pages (login, register, home)
+  return <>{children}</>;
 }

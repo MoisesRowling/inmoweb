@@ -17,15 +17,8 @@ export default function Home() {
   const { isAuthenticated, isAuthLoading } = useApp();
   const router = useRouter();
 
-  // Redirect authenticated users from home to dashboard
-  useEffect(() => {
-    if (!isAuthLoading && isAuthenticated) {
-      router.replace('/dashboard');
-    }
-  }, [isAuthenticated, isAuthLoading, router]);
-
-  // While checking auth or if the user is authenticated (and about to be redirected),
-  // show a skeleton to prevent the landing page from flashing.
+  // If we are checking auth, or the user is authenticated, we show a loading skeleton.
+  // The AppShell is responsible for redirecting authenticated users away from this page.
   if (isAuthLoading || isAuthenticated) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
