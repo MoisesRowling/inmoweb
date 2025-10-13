@@ -30,34 +30,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
   const publicPages = ['/login', '/register'];
-  // The home page is public, but has special logic, so we exclude it here.
   const isPublicPage = publicPages.includes(pathname);
+  const isHomePage = pathname === '/';
 
   useEffect(() => {
+    // Do nothing while auth status is loading. The loader will be shown below.
     if (isAuthLoading) {
-      // If we are checking auth, we don't do any redirects yet.
-      // The loader will be shown below.
       return;
     }
 
-    // If user is authenticated and tries to access a public page (login/register)
+    // If user is authenticated and tries to access a public page (login/register),
+    // redirect them to the dashboard.
     if (isAuthenticated && isPublicPage) {
       router.replace('/dashboard');
     }
 
     // If user is NOT authenticated and tries to access a protected page
-    if (!isAuthenticated && !isPublicPage && pathname !== '/') {
+    // (any page that is not public and not the home page), redirect to login.
+    if (!isAuthenticated && !isPublicPage && !isHomePage) {
         router.replace('/login');
     }
 
-  }, [isAuthenticated, isAuthLoading, isPublicPage, router, pathname]);
+  }, [isAuthenticated, isAuthLoading, isPublicPage, isHomePage, router]);
 
-  // While checking auth, show a full page loader to prevent any content flashing
+  // While checking auth, show a full page loader to prevent any content flashing.
   if (isAuthLoading) {
     return <FullPageLoader />;
   }
 
-  // If user is authenticated, show the app layout
+  // If the user is authenticated, show the main app layout for any page.
   if (isAuthenticated) {
      return (
         <div className="min-h-screen flex flex-col bg-background">
@@ -70,12 +71,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
   
-  // If user is NOT authenticated, only allow access to public pages and the landing page
-  if (!isPublicPage && pathname !== '/') {
-    // While the redirect in useEffect is happening, show a loader
+  // If user is NOT authenticated, but is trying to access a protected page,
+  // show a loader while the redirect in useEffect is happening.
+  if (!isPublicPage && !isHomePage) {
     return <FullPageLoader />;
   }
 
-  // Render children for public pages (login, register, home)
+  // Render children for public pages (login, register, home) for unauthenticated users.
   return <>{children}</>;
 }

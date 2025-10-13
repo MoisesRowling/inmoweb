@@ -32,17 +32,21 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const fetcher = (url: string) => fetch(url).then(res => {
-  if (res.status === 401) {
-    // When the API returns 401, it means the user is not logged in.
-    // We return null to signal this to SWR. AppShell will handle the redirect.
-    return null;
-  }
-  if (!res.ok) {
-    throw new Error('An error occurred while fetching the data.');
-  }
-  return res.json();
-});
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+
+    // If the server returns a 401, it means the session is invalid.
+    // We return null to signal to SWR that there is no user data.
+    if (res.status === 401) {
+        return null;
+    }
+
+    if (!res.ok) {
+        throw new Error('An error occurred while fetching the data.');
+    }
+
+    return res.json();
+};
 
 const apiUpdater = async (url: string, { arg }: { arg: any }) => {
   const res = await fetch(url, {
@@ -66,12 +70,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const { data, error, isLoading } = useSWR('/api/data', fetcher, {
     refreshInterval: 2000, 
-    shouldRetryOnError: false,
-    revalidateOnFocus: true,
+    shouldRetryOnError: false, // Important to prevent loops on 401
   });
   
+  // isAuthenticated is true ONLY if data is present and there was no error.
   const isAuthenticated = !!data && !error;
-  // isAuthLoading is true only on the initial load when data is undefined.
+  // isAuthLoading is true only on the initial load when data is still undefined.
   const isAuthLoading = isLoading && data === undefined;
 
   const login = async (email: string, pass: string) => {
@@ -89,26 +93,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       
       const { user } = await res.json();
-
-      // Revalidate the data from the server.
-      // SWR will automatically update the `isAuthenticated` state.
-      // AppShell will see the change and handle the redirect.
+      
+      // Trigger a revalidation of the user data.
+      // SWR will fetch the data again, and AppShell will react to the change
+      // in `isAuthenticated` state and handle the redirect.
       await mutate('/api/data');
       
       toast({ title: '¡Bienvenido de vuelta!' });
-      // No router.push here. AppShell handles all routing logic.
+      // DO NOT REDIRECT HERE. AppShell is responsible for all routing logic.
 
     } catch (err: any) {
       toast({ title: 'Error de inicio de sesión', description: err.message || 'El correo o la contraseña son incorrectos.', variant: 'destructive' });
     } finally {
-        setIsAuthFormLoading(false);
+      setIsAuthFormLoading(false);
     }
   };
   
   const logout = useCallback(async () => {
-    // Tell SWR to clear its cache for '/api/data' immediately
+    // Tell SWR to clear its cache for '/api/data' immediately.
+    // This will set `isAuthenticated` to false.
     await mutate('/api/data', null, false);
-    // Call the API to clear the session cookie
+    // Call the API to clear the session cookie.
     await fetch('/api/auth/logout', { method: 'POST' });
     // AppShell will detect the change in `isAuthenticated` and redirect to /login.
   }, []);
@@ -127,10 +132,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         throw new Error(errorBody.message);
       }
       
+      // Revalidate data, AppShell will handle redirect.
       await mutate('/api/data');
 
       toast({ title: '¡Cuenta creada exitosamente!', description: 'Bienvenido a InmoSmart.' });
-      // No router.push here. AppShell handles all routing logic.
 
     } catch (err: any) {
         toast({ title: 'Error de registro', description: err.message || 'No se pudo crear la cuenta.', variant: 'destructive' });
