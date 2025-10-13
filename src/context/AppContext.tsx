@@ -3,15 +3,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Property, Transaction, User, Investment, AccountBalance, PublicId } from '@/lib/types';
-import { propertiesData } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth, useFirebase, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useAuth, useFirestore, useUser, useMemoFirebase } from '@/firebase/provider';
 import { 
   initiateEmailSignUp, 
   initiateEmailSignIn,
-  addDocumentNonBlocking,
-  setDocumentNonBlocking,
-} from '@/firebase';
+} from '@/firebase/non-blocking-login';
 import { 
     doc,
     collection,
@@ -66,8 +63,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
   // --- Firestore Data Hooks ---
-  const userDocRef = useMemoFirebase(() => firebaseUser ? doc(firestore, 'users', firebaseUser.uid) : null, [firestore, firebaseUser]);
-  const { data: userData } = useCollection<User>(userDocRef ? collection(firestore, 'users') : null);
+  const userQuery = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+  const { data: userData } = useCollection<User>(userQuery);
 
   const investmentsQuery = useMemoFirebase(() => firebaseUser ? query(collection(firestore, `users/${firebaseUser.uid}/investments`), orderBy('investmentDate', 'desc')) : null, [firestore, firebaseUser]);
   const { data: investments } = useCollection<Investment>(investmentsQuery);
@@ -75,7 +72,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const transactionsQuery = useMemoFirebase(() => firebaseUser ? query(collection(firestore, `users/${firebaseUser.uid}/transactions`), orderBy('date', 'desc')) : null, [firestore, firebaseUser]);
   const { data: transactions } = useCollection<Transaction>(transactionsQuery);
   
-  const propertiesQuery = useMemoFirebase(() => collection(firestore, 'properties'), [firestore]);
+  const propertiesQuery = useMemoFirebase(() => firestore ? collection(firestore, 'properties') : null, [firestore]);
   const { data: properties } = useCollection<Property>(propertiesQuery);
 
   const balanceQuery = useMemoFirebase(() => firebaseUser ? collection(firestore, `users/${firebaseUser.uid}/account_balance`) : null, [firestore, firebaseUser]);
@@ -120,6 +117,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   
   const logout = () => {
     signOut(auth).then(() => {
+      setUser(null);
       router.push('/login');
     });
   };
@@ -131,8 +129,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       password,
       async (userCredential) => {
         const fUser = userCredential.user;
-        try {
-          await runTransaction(firestore, async (transaction) => {
+        
+        runTransaction(firestore, async (transaction) => {
             const userDocRef = doc(firestore, 'users', fUser.uid);
             
             // Generate a unique 5-digit public ID
@@ -157,22 +155,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
             transaction.set(userDocRef, finalUserDoc);
             transaction.set(publicIdDocRef, { uid: fUser.uid });
             transaction.set(accountBalanceDocRef, { balance: 0, userId: fUser.uid });
-          });
-          
-          toast({
-            title: '¡Cuenta creada exitosamente!',
-            description: 'Ahora puedes iniciar sesión.',
-          });
-          router.push('/login');
-
-        } catch (error: any) {
-            const permissionError = new FirestorePermissionError({
-                path: `users/${fUser.uid}`,
-                operation: 'create',
-                requestResourceData: {name, email},
+          })
+          .then(() => {
+            toast({
+              title: '¡Cuenta creada exitosamente!',
+              description: 'Ahora puedes iniciar sesión.',
             });
-            throw permissionError;
-        }
+            router.push('/login');
+          })
+          .catch((serverError) => {
+             const permissionError = new FirestorePermissionError({
+              path: `users/${fUser.uid}`,
+              operation: 'create',
+              requestResourceData: { name, email },
+          });
+          throw permissionError;
+        });
       },
       (error) => {
         toast({
@@ -185,7 +183,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [auth, firestore, router, toast]);
 
   const handleDeposit = (amount: number) => {
-    if (!firebaseUser) return;
+    if (!firebaseUser || !balanceData || balanceData.length === 0) return;
     const newBalance = (balance || 0) + amount;
     
     const balanceDocRef = doc(firestore, `users/${firebaseUser.uid}/account_balance`, balanceData![0].id);
@@ -194,6 +192,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const batch = writeBatch(firestore);
     batch.update(balanceDocRef, { balance: newBalance });
     batch.set(transactionDocRef, {
+      id: transactionDocRef.id,
       userId: firebaseUser.uid,
       type: 'deposit',
       amount,
@@ -225,7 +224,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
         return false;
     }
-    if(!firebaseUser || !balanceData) return false;
+    if(!firebaseUser || !balanceData || balanceData.length === 0) return false;
 
     const newBalance = balance - amount;
     const balanceDocRef = doc(firestore, `users/${firebaseUser.uid}/account_balance`, balanceData[0].id);
@@ -234,6 +233,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const batch = writeBatch(firestore);
     batch.update(balanceDocRef, { balance: newBalance });
     batch.set(transactionDocRef, {
+      id: transactionDocRef.id,
       userId: firebaseUser.uid,
       type: 'withdraw',
       amount,
@@ -266,7 +266,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toast({ title: `La inversión mínima es de ${property.minInvestment.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}`, variant: "destructive" });
         return;
     }
-    if (!firebaseUser || !balanceData) return;
+    if (!firebaseUser || !balanceData || balanceData.length === 0) return;
 
     const newBalance = balance - amount;
     const balanceDocRef = doc(firestore, `users/${firebaseUser.uid}/account_balance`, balanceData[0].id);
@@ -278,6 +278,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     batch.update(balanceDocRef, { balance: newBalance });
     
     batch.set(investmentDocRef, {
+      id: investmentDocRef.id,
       userId: firebaseUser.uid,
       propertyId: property.id,
       investedAmount: amount,
@@ -287,6 +288,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
     
     batch.set(transactionDocRef, {
+      id: transactionDocRef.id,
       userId: firebaseUser.uid,
       type: 'investment',
       amount,
