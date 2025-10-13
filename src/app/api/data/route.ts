@@ -28,6 +28,23 @@ const writeDB = (data: any) => {
   }
 };
 
+// Function to get current UTC time from an external service
+async function getCurrentTime() {
+    try {
+        const response = await fetch('http://worldtimeapi.org/api/timezone/Etc/UTC');
+        if (!response.ok) {
+            throw new Error('Failed to fetch time');
+        }
+        const data = await response.json();
+        return new Date(data.utc_datetime);
+    } catch (error) {
+        console.error("Could not fetch external time, falling back to server time:", error);
+        // Fallback to server time in case the API fails
+        return new Date();
+    }
+}
+
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
@@ -44,7 +61,7 @@ export async function GET(request: Request) {
   }
 
   // --- Real-time return calculation ---
-  const now = new Date();
+  const now = await getCurrentTime();
   const userBalance = db.balances[userId] || { amount: 0, lastUpdated: now.toISOString() };
   const lastUpdated = new Date(userBalance.lastUpdated);
   const secondsElapsed = (now.getTime() - lastUpdated.getTime()) / 1000;
@@ -98,7 +115,7 @@ export async function POST(request: Request) {
   const { userId } = payload;
 
   // Before any modification, update gains to have the most current balance
-  const now = new Date();
+  const now = await getCurrentTime();
   let userBalance = db.balances[userId] || { amount: 0, lastUpdated: now.toISOString() };
   
   const lastUpdated = new Date(userBalance.lastUpdated);
@@ -140,7 +157,7 @@ export async function POST(request: Request) {
         propertyId: property.id,
         investedAmount: amount,
         ownedShares: amount / property.price * property.totalShares,
-        investmentDate: new Date().toISOString(),
+        investmentDate: now.toISOString(),
         term,
       };
       db.investments.push(newInvestment);
@@ -151,7 +168,7 @@ export async function POST(request: Request) {
         type: 'investment',
         amount,
         description: `Inversión en ${property.name}`,
-        date: new Date().toISOString(),
+        date: now.toISOString(),
       };
       db.transactions.push(newTransaction);
       
@@ -170,7 +187,7 @@ export async function POST(request: Request) {
         type: 'deposit',
         amount,
         description: 'Depósito simulado',
-        date: new Date().toISOString(),
+        date: now.toISOString(),
       };
       db.transactions.push(newTransaction);
       break;
@@ -194,7 +211,7 @@ export async function POST(request: Request) {
         type: 'withdraw',
         amount,
         description: `Retiro a CLABE: ...${clabe.slice(-4)}`,
-        date: new Date().toISOString(),
+        date: now.toISOString(),
       };
       db.transactions.push(newTransaction);
       break;
@@ -205,7 +222,7 @@ export async function POST(request: Request) {
   }
 
   // Update balance and timestamp after action
-  userBalance.lastUpdated = new Date().toISOString();
+  userBalance.lastUpdated = now.toISOString();
   db.balances[userId] = userBalance;
   writeDB(db);
   
