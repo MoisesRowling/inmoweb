@@ -11,37 +11,23 @@ import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
-  const { user, balance, properties, investments, setModals, isAuthLoading } = useApp();
+  const { user, balance, properties, investments, setModals } = useApp();
   
-  // The dashboard page is now responsible for its own loading state.
-  // We show a skeleton if the user object hasn't been loaded from Firestore yet.
-  // isAuthLoading from useApp() can also be used for an initial auth check.
-  if (!user || (isAuthLoading && !user)) {
+  // AppShell now handles the main loading state. We can assume `user` is available here.
+  // We still might want to show skeletons for sub-components if their data arrives later.
+  if (!user) {
+    // This should ideally not be hit if AppShell is working correctly,
+    // but as a fallback, it prevents crashing.
     return (
-      <AppShell>
-        <div className="space-y-8">
-          <div className="flex justify-between items-center">
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-48" />
-              <Skeleton className="h-4 w-72" />
+        <AppShell>
+            <div className="space-y-8">
+                <div className="flex justify-between items-center">
+                    <div className="space-y-2">
+                        <Skeleton className="h-8 w-48" />
+                        <Skeleton className="h-4 w-72" />
+                    </div>
+                </div>
             </div>
-            <Skeleton className="h-10 w-24" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <Skeleton className="h-64 w-full" />
-              <Skeleton className="h-48 w-full" />
-            </div>
-            <div className="lg:col-span-1">
-              <Skeleton className="h-96 w-full" />
-            </div>
-          </div>
-        </div>
       </AppShell>
     );
   }

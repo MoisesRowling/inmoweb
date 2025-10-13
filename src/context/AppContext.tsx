@@ -54,7 +54,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const auth = useFirebaseAuth();
   const firestore = useFirestore();
 
-  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [isAuthFormLoading, setIsAuthFormLoading] = useState(false);
 
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
@@ -81,7 +81,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // --- Auth Functions ---
   const login = async (email: string, pass: string) => {
-    setIsAuthLoading(true);
+    setIsAuthFormLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
       toast({ title: '¡Bienvenido de vuelta!' });
@@ -94,7 +94,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       toast({ title: 'Error de inicio de sesión', description, variant: 'destructive' });
     } finally {
-      setIsAuthLoading(false);
+      setIsAuthFormLoading(false);
     }
   };
   
@@ -104,7 +104,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [auth, router]);
 
   const registerAndCreateUser = async (name: string, email: string, password: string) => {
-    setIsAuthLoading(true);
+    setIsAuthFormLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const fUser = userCredential.user;
@@ -156,7 +156,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             });
         }
     } finally {
-        setIsAuthLoading(false);
+        setIsAuthFormLoading(false);
     }
   };
 
@@ -289,7 +289,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     user,
     firebaseUser,
     isAuthenticated: !!firebaseUser,
-    isAuthLoading: isAuthLoading || isFirebaseUserLoading,
+    isAuthLoading: isAuthFormLoading || isFirebaseUserLoading || (!!firebaseUser && !user),
     balance,
     properties,
     transactions,
