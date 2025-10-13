@@ -33,24 +33,53 @@ interface InvestDialogProps {
 
 const EarningPreview = ({ control, dailyReturn }: { control: any, dailyReturn: number }) => {
     const amount = useWatch({ control, name: 'amount' });
+    const term = useWatch({ control, name: 'term' });
     const parsedAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    const parsedTerm = parseInt(term, 10);
 
     if (!parsedAmount || isNaN(parsedAmount) || parsedAmount <= 0) return null;
 
     const daily = parsedAmount * dailyReturn;
+    const weekly = daily * 7;
     const monthly = daily * 30;
+    const yearly = daily * 365;
+    
+    let relevantEarning = 0;
+    let termLabel = '';
+
+    if (parsedTerm === 7) {
+        relevantEarning = weekly;
+        termLabel = '7 días';
+    } else if (parsedTerm === 30) {
+        relevantEarning = monthly;
+        termLabel = '1 Mes';
+    }
 
     return (
-        <div className="my-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg space-y-2">
-            <h4 className="text-sm font-semibold text-green-900 dark:text-green-200">Ganancias estimadas:</h4>
-             <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                    <span className="text-green-800 dark:text-green-300">Diario:</span>
-                    <span className="font-bold text-green-600 dark:text-green-400">{daily.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
+        <div className="my-4 p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg space-y-3">
+            <h4 className="text-sm font-semibold text-green-900 dark:text-green-200">Ganancias estimadas para tu inversión:</h4>
+             <div className="space-y-1.5 text-sm">
+                {termLabel && (
+                    <div className="flex justify-between font-bold text-base bg-green-100 dark:bg-green-900/80 p-2 rounded-md">
+                        <span className="text-green-800 dark:text-green-200">En {termLabel}:</span>
+                        <span className="text-green-600 dark:text-green-300">{relevantEarning.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
+                    </div>
+                )}
+                <div className="flex justify-between pt-2">
+                    <span className="text-green-800 dark:text-green-400">Diario:</span>
+                    <span className="font-medium text-green-700 dark:text-green-400">{daily.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-green-800 dark:text-green-300">Mensual (30 días):</span>
-                    <span className="font-bold text-green-600 dark:text-green-400">{monthly.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
+                    <span className="text-green-800 dark:text-green-400">Semanal:</span>
+                    <span className="font-medium text-green-700 dark:text-green-400">{weekly.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-green-800 dark:text-green-400">Mensual:</span>
+                    <span className="font-medium text-green-700 dark:text-green-400">{monthly.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
+                </div>
+                 <div className="flex justify-between">
+                    <span className="text-green-800 dark:text-green-400">Anual:</span>
+                    <span className="font-medium text-green-700 dark:text-green-400">{yearly.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
                 </div>
             </div>
         </div>
@@ -105,7 +134,7 @@ export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
                     </div>
                     <div className="flex justify-between">
                         <span className="text-muted-foreground">Rendimiento diario:</span>
-                        <span className="font-bold text-green-600">{(property.dailyReturn * 100)}%</span>
+                        <span className="font-bold text-green-600">{(property.dailyReturn * 100).toFixed(2)}%</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-muted-foreground">Saldo disponible:</span>
@@ -160,7 +189,7 @@ export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
                   <FormControl>
                     <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type="number" placeholder={`${property.minInvestment.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} o más`} min={property.minInvestment} max={balance} className="pl-8" {...field} />
+                        <Input type="number" placeholder={`${property.minInvestment.toLocaleString('es-MX')}`} min={property.minInvestment} max={balance} className="pl-8" {...field} />
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -171,7 +200,7 @@ export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
             <EarningPreview control={form.control} dailyReturn={property.dailyReturn} />
 
             <DialogFooter>
-              <Button type="submit" className="w-full">Confirmar Inversión</Button>
+              <Button type="submit" className="w-full" disabled={!form.formState.isValid}>Confirmar Inversión</Button>
             </DialogFooter>
           </form>
         </Form>

@@ -1,6 +1,6 @@
 'use client';
 import Image from 'next/image';
-import { MapPin, Building2 } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Property } from '@/lib/types';
@@ -28,14 +28,13 @@ export function PropertyCard({ property, isGuest = false }: PropertyCardProps) {
   
   const userInvestmentsInProp = investments?.filter(inv => inv.propertyId === property.id) || [];
   const investedAmount = userInvestmentsInProp.reduce((sum, inv) => sum + inv.investedAmount, 0);
-  const ownedShares = userInvestmentsInProp.reduce((sum, inv) => sum + inv.ownedShares, 0);
 
   const potentialDailyEarning = property.minInvestment * property.dailyReturn;
   const potentialWeeklyEarning = potentialDailyEarning * 7;
   const potentialMonthlyEarning = potentialDailyEarning * 30;
 
   return (
-    <Card className="overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:-translate-y-1 flex flex-col">
+    <Card className="overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:-translate-y-1 flex flex-col group">
       <CardHeader className="p-0 relative">
         {placeholderImage && (
           <Image
@@ -65,7 +64,7 @@ export function PropertyCard({ property, isGuest = false }: PropertyCardProps) {
           </div>
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Retorno Diario</span>
-            <span className="font-semibold text-green-600">{(property.dailyReturn * 100).toFixed(0)}%</span>
+            <span className="font-semibold text-green-600">{(property.dailyReturn * 100).toFixed(2)}%</span>
           </div>
           
            <div className="!mt-4 pt-4 border-t">
@@ -86,17 +85,11 @@ export function PropertyCard({ property, isGuest = false }: PropertyCardProps) {
             </div>
           </div>
         
-          {!isGuest && (
-            <>
-              <div className="flex justify-between items-center pt-4 border-t mt-4">
+          {!isGuest && investedAmount > 0 && (
+            <div className="flex justify-between items-center pt-4 border-t mt-4">
                 <span className="text-muted-foreground">Tu Inversión</span>
                 <span className="font-semibold">{investedAmount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Tus Acciones</span>
-                <span className="font-semibold text-primary">{ownedShares.toFixed(2)}</span>
-              </div>
-            </>
+            </div>
           )}
         </div>
 

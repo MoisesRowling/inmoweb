@@ -8,6 +8,8 @@ import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PropertyCard } from "@/components/properties/PropertyCard";
+import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 
 export default function DashboardPage() {
   const { user, balance, properties, investments, setModals } = useApp();
@@ -91,26 +93,28 @@ export default function DashboardPage() {
             color="accent"
           />
         </div>
-
+        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-             {totalInvested === 0 ? (
-              <div className="bg-card rounded-xl p-12 text-center shadow-sm border">
-                <Building2 className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-                <h4 className="text-xl font-bold text-foreground mb-2 font-headline">Comienza a Invertir</h4>
-                <p className="text-muted-foreground mb-6">Deposita fondos para acceder a propiedades exclusivas.</p>
-                <Button onClick={() => setModals(prev => ({...prev, deposit: true}))}>
-                  Realizar Primer Depósito
-                </Button>
-              </div>
-            ) : (
-                <ActiveInvestments />
-            )}
+            <ActiveInvestments />
           </div>
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 row-start-1 lg:row-start-auto space-y-6">
             <TransactionHistory />
           </div>
         </div>
+
+        <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground font-headline">Propiedades para Invertir</h2>
+              <p className="text-muted-foreground mt-1">Explora oportunidades exclusivas para hacer crecer tu dinero.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {properties.map((property) => (
+                <PropertyCard key={property.id} property={property} />
+              ))}
+            </div>
+        </div>
+
       </div>
     </AppShell>
   );
