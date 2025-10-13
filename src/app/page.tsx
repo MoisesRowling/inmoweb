@@ -8,11 +8,35 @@ import { propertiesData } from "@/lib/data";
 import { PropertyCard } from "@/components/properties/PropertyCard";
 import { Activity, ArrowRight, Building2, Home as HomeIcon } from "lucide-react";
 import type { Property } from "@/lib/types";
+import { useApp } from "@/context/AppContext";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-// The AppShell is now responsible for all redirection logic.
-// This component is now "dumb" and only renders the landing page content.
-// It no longer needs to know about the authentication state.
+
 export default function Home() {
+  const { isAuthenticated, isAuthLoading } = useApp();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isAuthLoading && isAuthenticated) {
+      router.replace('/dashboard');
+    }
+  }, [isAuthenticated, isAuthLoading, router]);
+
+  if (isAuthLoading || (!isAuthLoading && isAuthenticated)) {
+    return (
+       <div className="flex flex-col min-h-screen bg-background animate-pulse">
+        <div className="sticky top-0 z-50 w-full border-b bg-background/95 h-16"></div>
+        <main className="flex-1">
+           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center space-y-4">
+              <div className="h-12 bg-muted rounded-lg w-1/2 mx-auto"></div>
+              <div className="h-8 bg-muted rounded-lg w-3/4 mx-auto"></div>
+              <div className="h-12 bg-muted rounded-lg w-48 mx-auto !mt-8"></div>
+           </div>
+        </main>
+      </div>
+    )
+  }
   
   return (
     <div className="flex flex-col min-h-screen bg-background">

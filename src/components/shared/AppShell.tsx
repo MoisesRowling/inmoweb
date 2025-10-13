@@ -29,43 +29,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   
-  const publicPages = ['/login', '/register'];
+  const publicPages = ['/', '/login', '/register'];
   const isPublicPage = publicPages.includes(pathname);
-  const isHomePage = pathname === '/';
 
   useEffect(() => {
-    // While loading, we don't make any decisions. The loader is shown below.
     if (isAuthLoading) {
       return; 
     }
 
-    // If authenticated, and on a public page (or home), redirect to dashboard
-    if (isAuthenticated && (isPublicPage || isHomePage)) {
+    if (isAuthenticated && isPublicPage && pathname !== '/') {
         router.replace('/dashboard');
     }
 
-    // If not authenticated, and on a protected page, redirect to login
-    if (!isAuthenticated && !isPublicPage && !isHomePage) {
+    if (!isAuthenticated && !isPublicPage) {
         router.replace('/login');
     }
-  }, [isAuthenticated, isAuthLoading, isPublicPage, isHomePage, router, pathname]);
+  }, [isAuthenticated, isAuthLoading, isPublicPage, router, pathname]);
 
-  // While checking auth state, show a full page loader to prevent flickers.
   if (isAuthLoading) {
     return <FullPageLoader />;
   }
 
-  // If user is on a protected route but not authenticated yet, show loader to prevent flicker.
-  if (!isAuthenticated && !isPublicPage && !isHomePage) {
-      return <FullPageLoader />;
-  }
-
-  // If user is authenticated and on a public page, show loader while redirecting.
-  if (isAuthenticated && (isPublicPage || isHomePage)) {
+  if (!isAuthenticated && !isPublicPage) {
       return <FullPageLoader />;
   }
   
-  // If user is authenticated and on a protected page, show the app shell.
   if (isAuthenticated && !isPublicPage) {
      return (
         <div className="min-h-screen flex flex-col bg-background">
@@ -78,6 +66,5 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // For unauthenticated users on public pages (login, register, home), render the children directly.
   return <>{children}</>;
 }

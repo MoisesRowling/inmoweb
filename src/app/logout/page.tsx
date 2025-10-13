@@ -8,9 +8,8 @@ export default function LogoutPage() {
   const { logout } = useApp();
 
   useEffect(() => {
-    // Llama a la función de logout en cuanto el componente se monta.
     logout();
-  }, [logout]); // El efecto se ejecuta cuando la función logout está disponible.
+  }, [logout]); 
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background">
