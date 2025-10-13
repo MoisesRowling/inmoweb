@@ -40,4 +40,5 @@ export type Investment = {
     ownedShares: number;
     investmentDate: string; // ISO String
     term: number; // in days
+    currentValue?: number; // Calculated field for current value
 };

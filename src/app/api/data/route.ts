@@ -31,7 +31,7 @@ const writeDB = (data: any) => {
 // Function to get current UTC time from an external service
 async function getCurrentTime() {
     try {
-        const response = await fetch('http://worldtimeapi.org/api/timezone/Etc/UTC');
+        const response = await fetch('http://worldtimeapi.org/api/timezone/Etc/UTC', { cache: 'no-store' });
         if (!response.ok) {
             throw new Error('Failed to fetch time');
         }
@@ -62,31 +62,30 @@ export async function GET(request: Request) {
 
   // --- Real-time return calculation ---
   const now = await getCurrentTime();
-  const userBalance = db.balances[userId] || { amount: 0, lastUpdated: now.toISOString() };
-  const lastUpdated = new Date(userBalance.lastUpdated);
-  const secondsElapsed = (now.getTime() - lastUpdated.getTime()) / 1000;
-
-  let totalGains = 0;
   const userInvestments: Investment[] = db.investments.filter((i: any) => i.userId === userId);
   const properties: Property[] = db.properties;
 
-  if (secondsElapsed > 0 && userInvestments.length > 0) {
-    userInvestments.forEach(investment => {
-      const property = properties.find(p => p.id === investment.propertyId);
-      if (property && property.dailyReturn > 0) {
-        const dailyReturn = property.dailyReturn; // e.g., 0.1 for 10%
-        const gainPerSecond = (investment.investedAmount * dailyReturn) / 86400; // 86400 seconds in a day
-        totalGains += gainPerSecond * secondsElapsed;
-      }
-    });
-  }
-  
-  if (totalGains > 0) {
-    userBalance.amount += totalGains;
-    userBalance.lastUpdated = now.toISOString();
-    db.balances[userId] = userBalance;
-    writeDB(db);
-  }
+  const updatedInvestments = userInvestments.map(investment => {
+    const property = properties.find(p => p.id === investment.propertyId);
+    if (!property || property.dailyReturn <= 0) {
+      return { ...investment, currentValue: investment.investedAmount };
+    }
+    
+    const investmentDate = new Date(investment.investmentDate);
+    const secondsElapsed = (now.getTime() - investmentDate.getTime()) / 1000;
+    
+    if (secondsElapsed <= 0) {
+        return { ...investment, currentValue: investment.investedAmount };
+    }
+
+    const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400; // 86400 seconds in a day
+    const gains = gainPerSecond * secondsElapsed;
+    
+    return {
+      ...investment,
+      currentValue: investment.investedAmount + gains
+    };
+  });
   // --- End of calculation ---
   
   // We don't want to send the password to the client
@@ -94,9 +93,9 @@ export async function GET(request: Request) {
 
   const userData = {
     user: userSafe,
-    balance: userBalance.amount,
-    investments: userInvestments,
-    transactions: db.transactions.filter((t: any) => t.userId === userId),
+    balance: db.balances[userId]?.amount || 0,
+    investments: updatedInvestments,
+    transactions: db.transactions.filter((t: any) => t.userId === userId).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     properties: db.properties
   };
 
@@ -114,30 +113,10 @@ export async function POST(request: Request) {
   const db = readDB();
   const { userId } = payload;
 
-  // Before any modification, update gains to have the most current balance
   const now = await getCurrentTime();
-  let userBalance = db.balances[userId] || { amount: 0, lastUpdated: now.toISOString() };
+  let userBalance = db.balances[userId] || { amount: 0 };
   
-  const lastUpdated = new Date(userBalance.lastUpdated);
-  const secondsElapsed = (now.getTime() - lastUpdated.getTime()) / 1000;
-  
-  if (secondsElapsed > 0) {
-      let totalGains = 0;
-      const userInvestments: Investment[] = db.investments.filter((i: any) => i.userId === userId);
-      const properties: Property[] = db.properties;
-
-      userInvestments.forEach(investment => {
-          const property = properties.find(p => p.id === investment.propertyId);
-          if (property && property.dailyReturn > 0) {
-              const dailyReturn = property.dailyReturn;
-              const gainPerSecond = (investment.investedAmount * dailyReturn) / 86400;
-              totalGains += gainPerSecond * secondsElapsed;
-          }
-      });
-      userBalance.amount += totalGains;
-  }
-  
-  // Now, apply the requested action
+  // Apply the requested action
   switch(action) {
     case 'invest': {
       const { amount, property, term } = payload;
@@ -151,7 +130,7 @@ export async function POST(request: Request) {
       
       userBalance.amount -= amount;
 
-      const newInvestment = {
+      const newInvestment: Omit<Investment, 'currentValue'> = {
         id: `inv-${Date.now()}`,
         userId,
         propertyId: property.id,
@@ -163,7 +142,7 @@ export async function POST(request: Request) {
       db.investments.push(newInvestment);
 
       const newTransaction = {
-        id: `trans-${Date.now()}`,
+        id: newInvestment.id, // Use same ID for consistency
         userId,
         type: 'investment',
         amount,
@@ -221,23 +200,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Invalid action' }, { status: 400 });
   }
 
-  // Update balance and timestamp after action
-  userBalance.lastUpdated = now.toISOString();
   db.balances[userId] = userBalance;
   writeDB(db);
   
-  // Return the updated state for the specific user
-  const user = db.users.find((u: any) => u.id === payload.userId);
-  const { password, ...userSafe } = user;
-
-  const userData = {
-    user: userSafe,
-    balance: db.balances[payload.userId]?.amount || 0,
-    investments: db.investments.filter((i: any) => i.userId === payload.userId),
-    transactions: db.transactions.filter((t: any) => t.userId === payload.userId),
-    properties: db.properties
-  };
-
-
-  return NextResponse.json({ message: 'Data updated successfully', data: userData }, { status: 200 });
+  // After a successful POST, we don't need to return the full dataset.
+  // The client will re-fetch (revalidate) using SWR.
+  return NextResponse.json({ message: 'Data updated successfully' }, { status: 200 });
 }

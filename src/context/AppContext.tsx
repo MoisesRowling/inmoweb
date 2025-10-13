@@ -39,7 +39,7 @@ const fetcher = (url: string) => fetch(url).then(res => {
   return res.json();
 });
 
-const postUpdater = async (url: string, { arg }: { arg: any }) => {
+const apiUpdater = async (url: string, { arg }: { arg: any }) => {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -69,8 +69,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setUserId(storedUserId);
     }
   }, []);
-
-  const { data, error, isLoading } = useSWR(userId ? `/api/data?userId=${userId}` : null, fetcher);
+  
+  const dataUrl = userId ? `/api/data?userId=${userId}` : null;
+  const { data, error, isLoading, mutate: revalidateData } = useSWR(dataUrl, fetcher, {
+    refreshInterval: 60000 // Re-fetch every 60 seconds
+  });
 
   const isAuthenticated = !!data && !!data.user;
 
@@ -103,7 +106,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem('inmosmart-userid');
     setUserId(null);
-    mutate(key => typeof key === 'string' && key.startsWith('/api/data'), undefined, false); // Clear SWR cache for user data
+    mutate(key => typeof key === 'string' && key.startsWith('/api/data'), undefined, { revalidate: false }); // Clear SWR cache for user data
     router.push('/login');
   }, [router]);
 
@@ -134,28 +137,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const handleDataUpdate = async (action: string, payload: any) => {
+  const handleAction = async (action: string, payload: any) => {
     try {
-      // We optimistically update the local data, then revalidate.
-      // SWR will handle rolling back if the API call fails.
-      const { data: updatedData } = await postUpdater('/api/data', { arg: { action, payload } });
-      mutate(`/api/data?userId=${userId}`, updatedData, false); // Update local cache without re-fetching
+      await apiUpdater('/api/data', { arg: { action, payload } });
+      revalidateData(); // Trigger a re-fetch of the data
       return { success: true };
     } catch (error: any) {
-      // SWR will automatically roll back the optimistic update on error.
+      toast({ title: `Error en la operación: ${action}`, description: error.message, variant: 'destructive' });
       return { success: false, error: error.message };
     }
   }
 
   const handleDeposit = async (amount: number) => {
-    const { success, error } = await handleDataUpdate('deposit', { userId, amount });
+    const { success } = await handleAction('deposit', { userId, amount });
      if (success) {
       toast({
           title: 'Depósito Exitoso',
           description: `Has depositado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.`,
       });
-    } else {
-      toast({ title: 'Error en el depósito', description: error, variant: 'destructive' });
     }
   };
 
@@ -164,14 +163,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toast({ title: 'Saldo insuficiente', description: 'No tienes suficiente saldo para este retiro.', variant: 'destructive' });
         return false;
     }
-    const { success, error } = await handleDataUpdate('withdraw', { userId, amount, clabe });
+    const { success } = await handleAction('withdraw', { userId, amount, clabe });
     if (success) {
       toast({ title: 'Retiro Exitoso', description: `Has retirado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
       return true;
-    } else {
-       toast({ title: 'Error en el retiro', description: error, variant: 'destructive' });
-       return false;
     }
+    return false;
   };
 
   const handleInvest = async (amount: number, property: Property, term: number) => {
@@ -179,18 +176,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast({ title: "Saldo insuficiente", variant: "destructive" });
       return;
     }
-    const { success, error } = await handleDataUpdate('invest', { userId, amount, property, term });
+    const { success } = await handleAction('invest', { userId, amount, property, term });
     if(success) {
       toast({ title: '¡Inversión Exitosa!', description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.` });
-    } else {
-       toast({ title: 'Error en la inversión', description: error, variant: 'destructive' });
     }
   };
   
   const value: AppContextType = {
     user: data?.user || null,
     isAuthenticated,
-    isAuthLoading: isLoading && !data, // Show loading only on initial load
+    isAuthLoading: (isLoading && !data) || isAuthFormLoading,
     balance: data?.balance ?? 0,
     properties: data?.properties || [],
     transactions: data?.transactions || [],

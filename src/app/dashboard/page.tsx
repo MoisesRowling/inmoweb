@@ -12,9 +12,9 @@ import { PropertyCard } from "@/components/properties/PropertyCard";
 import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 
 export default function DashboardPage() {
-  const { user, balance, properties, investments, setModals } = useApp();
+  const { user, balance, properties, investments, setModals, isAuthLoading } = useApp();
   
-  if (!user) {
+  if (isAuthLoading || !user) {
     // AppShell handles the main loading state, so we just show a skeleton here 
     // for the brief moment before user data is available after auth is confirmed.
     return (
@@ -44,7 +44,8 @@ export default function DashboardPage() {
     );
   }
 
-  const totalInvested = investments.reduce((sum, inv) => sum + inv.investedAmount, 0);
+  const totalInvested = investments.reduce((sum, inv) => sum + (inv.currentValue ?? inv.investedAmount), 0);
+  const totalOriginalInvestment = investments.reduce((sum, inv) => sum + inv.investedAmount, 0);
   const totalProperties = [...new Set(investments.map(inv => inv.propertyId))].length;
 
   const dailyGain = investments.reduce((sum, inv) => {
@@ -70,15 +71,15 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatCard
-            title="Saldo Total"
+            title="Saldo Disponible"
             value={balance}
             isCurrency
-            description="Disponible para invertir"
+            description="Listo para invertir"
             icon={DollarSign}
             color="primary"
           />
           <StatCard
-            title="Total Invertido"
+            title="Valor del Portafolio"
             value={totalInvested}
             isCurrency
             description={`+${dailyGain.toLocaleString('es-MX', {style:'currency', currency: 'MXN'})} / día`}
