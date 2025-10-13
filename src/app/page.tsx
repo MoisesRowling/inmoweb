@@ -11,9 +11,10 @@ import { useApp } from "@/context/AppContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Property } from "@/lib/types";
 
 export default function Home() {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, properties } = useApp();
   const router = useRouter();
 
   useEffect(() => {
@@ -67,7 +68,7 @@ export default function Home() {
             <p className="text-center text-muted-foreground mb-12">Invierte desde cualquier cantidad en bienes raíces premium.</p>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {propertiesData.slice(0, 4).map((property) => (
+              {(properties.length > 0 ? properties : propertiesData as Property[]).slice(0, 4).map((property) => (
                 <PropertyCard key={property.id} property={property} isGuest={true} />
               ))}
             </div>

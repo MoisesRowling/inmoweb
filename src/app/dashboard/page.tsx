@@ -8,14 +8,20 @@ import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
 import { Button } from "@/components/ui/button";
 import { PropertyCard } from "@/components/properties/PropertyCard";
+import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 
 export default function DashboardPage() {
-  const { user, balance, properties, setModals } = useApp();
+  const { user, balance, properties, investments, setModals } = useApp();
   
-  const totalInvested = properties.reduce((sum, prop) => sum + prop.initialInvestment, 0);
-  const gananciaDiaria = properties.reduce((sum, prop) => sum + (prop.initialInvestment * prop.dailyReturn), 0);
-  const totalProperties = properties.filter(prop => prop.ownedShares > 0).length;
-  
+  const totalInvested = investments.reduce((sum, inv) => sum + inv.investedAmount, 0);
+  const totalProperties = [...new Set(investments.map(inv => inv.propertyId))].length;
+
+  const dailyGain = investments.reduce((sum, inv) => {
+    const property = properties.find(p => p.id === inv.propertyId);
+    if (!property) return sum;
+    return sum + (inv.investedAmount * property.dailyReturn);
+  }, 0);
+
   if (!user) {
     return null; // AppShell handles redirection
   }
@@ -47,7 +53,7 @@ export default function DashboardPage() {
             title="Total Invertido"
             value={totalInvested}
             isCurrency
-            description={`+${gananciaDiaria.toLocaleString('es-MX', {style:'currency', currency: 'MXN'})} / día`}
+            description={`+${dailyGain.toLocaleString('es-MX', {style:'currency', currency: 'MXN'})} / día`}
             icon={Activity}
             color="green"
           />
@@ -74,12 +80,7 @@ export default function DashboardPage() {
             ) : (
                 <ActiveInvestments />
             )}
-             <div className="space-y-4">
-                <h2 className="text-2xl font-bold text-foreground font-headline">Invierte en Propiedades</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {properties.map(p => <PropertyCard key={p.id} property={p} isGuest={false} />)}
-                </div>
-             </div>
+             <PortfolioSuggestion />
           </div>
           <div className="lg:col-span-1">
             <TransactionHistory />

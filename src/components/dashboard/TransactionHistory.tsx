@@ -5,12 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Activity, ArrowDown, ArrowUp, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 export function TransactionHistory() {
   const { transactions } = useApp();
   const [showAll, setShowAll] = useState(false);
 
-  const displayedTransactions = showAll ? transactions : transactions.slice(0, 5);
+  const sortedTransactions = transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const displayedTransactions = showAll ? sortedTransactions : sortedTransactions.slice(0, 5);
 
   const iconMap = {
     deposit: <ArrowUp className="w-4 h-4 text-green-500" />,
@@ -47,7 +49,7 @@ export function TransactionHistory() {
                    </div>
                    <div>
                      <p className="text-sm font-semibold text-foreground">{trans.description}</p>
-                     <p className="text-xs text-muted-foreground">{trans.timestamp}</p>
+                     <p className="text-xs text-muted-foreground">{format(new Date(trans.date), "dd MMM yyyy, hh:mm a")}</p>
                    </div>
                 </div>
                 <div className={cn("text-right font-bold text-sm", {

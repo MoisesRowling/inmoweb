@@ -1,4 +1,4 @@
-// use server'
+'use server'
 
 /**
  * @fileOverview Investment Portfolio Suggestion Flow.
@@ -25,16 +25,15 @@ const SuggestPortfolioInputSchema = z.object({
     ),
   properties: z.array(
     z.object({
-      id: z.number(),
+      id: z.string(),
       name: z.string(),
       location: z.string(),
       type: z.string(),
       price: z.number(),
       minInvestment: z.number(),
-      invested: z.number(),
       totalShares: z.number(),
-      ownedShares: z.number(),
-      image: z.string()
+      image: z.string(),
+      dailyReturn: z.number(),
     })
   ).describe('Array of available properties for investment'),
 });
@@ -44,7 +43,7 @@ export type SuggestPortfolioInput = z.infer<typeof SuggestPortfolioInputSchema>;
 const SuggestPortfolioOutputSchema = z.object({
   suggestions: z.array(
     z.object({
-      propertyId: z.number().describe('The ID of the suggested property.'),
+      propertyId: z.string().describe('The ID of the suggested property.'),
       investmentPercentage: z
         .number()
         .describe(
@@ -71,10 +70,10 @@ const suggestPortfolioPrompt = ai.definePrompt({
 Given the user's current balance of {{{currentBalance}}} MXN, their risk tolerance of {{{riskTolerance}}}, and the following available properties:
 
 {{#each properties}}
-- Name: {{name}}, Location: {{location}}, Type: {{type}}, Price: {{price}}, Minimum Investment: {{minInvestment}}
+- Name: {{name}}, Location: {{location}}, Type: {{type}}, Price: {{price}}, Minimum Investment: {{minInvestment}}, ID: {{id}}
 {{/each}}
 
-Suggest a diversified investment portfolio.  Provide a reason for each suggested property recommendation.  Consider the minimum investment for each property.
+Suggest a diversified investment portfolio. Provide a reason for each suggested property recommendation. Consider the minimum investment for each property. The final recommendations should only include the propertyId, investmentPercentage, and reason.
 
 Ensure that the investmentPercentage values add up to 100% (or close to it).
 `,

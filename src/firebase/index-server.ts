@@ -1,14 +1,14 @@
-'use client';
+'use server';
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'
+import { getFirestore } from 'firebase/firestore';
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 // This function is defined in a special file and is used to initialize
 // the Firebase client SDKs with production services. It is not intended
-// to be used with the Firebase Emulator.
+ to be used with the Firebase Emulator.
 export function initializeFirebase() {
   if (!getApps().length) {
     let firebaseApp;
@@ -20,10 +20,8 @@ export function initializeFirebase() {
       }
       firebaseApp = initializeApp(firebaseConfig);
     }
-
     return getSdks(firebaseApp);
   }
-
   return getSdks(getApp());
 }
 
@@ -34,12 +32,3 @@ export function getSdks(firebaseApp: FirebaseApp) {
     firestore: getFirestore(firebaseApp)
   };
 }
-
-export * from './provider';
-export * from './client-provider';
-export * from './firestore/use-collection';
-export * from './firestore/use-doc';
-export * from './non-blocking-updates';
-export * from './non-blocking-login';
-export * from './errors';
-export * from './error-emitter';

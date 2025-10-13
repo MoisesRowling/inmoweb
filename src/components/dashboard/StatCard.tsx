@@ -4,7 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 
 interface StatCardProps {
   title: string;
-  value: number;
+  value: number | string;
   description: string;
   icon: LucideIcon;
   isCurrency?: boolean;
@@ -23,6 +23,14 @@ export function StatCard({ title, value, description, icon: Icon, isCurrency = f
      orange: 'text-orange-600 dark:text-orange-500',
   }
 
+  const formatValue = () => {
+    if (typeof value === 'string') return value;
+    if (isCurrency) {
+      return value.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+    }
+    return value.toLocaleString('es-MX');
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -33,7 +41,7 @@ export function StatCard({ title, value, description, icon: Icon, isCurrency = f
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold font-headline">
-          {isCurrency ? value.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }) : value.toLocaleString('es-MX')}
+          {formatValue()}
         </div>
         <p className={cn("text-xs text-muted-foreground", descriptionColorClasses[color as keyof typeof descriptionColorClasses])}>
           {description}

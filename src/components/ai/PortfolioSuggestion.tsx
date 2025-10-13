@@ -39,23 +39,9 @@ export function PortfolioSuggestion() {
     setError(null);
     setSuggestion(null);
 
-    const availableProperties = properties.map(p => ({
-        id: p.id,
-        name: p.name,
-        location: p.location,
-        type: p.type,
-        price: p.price,
-        minInvestment: p.minInvestment,
-        invested: p.invested,
-        totalShares: p.totalShares,
-        ownedShares: p.ownedShares,
-        image: p.image,
-    }));
-
     const result = await getPortfolioSuggestion({
       currentBalance: balance,
       riskTolerance: values.riskTolerance,
-      properties: availableProperties,
     });
     
     setIsLoading(false);

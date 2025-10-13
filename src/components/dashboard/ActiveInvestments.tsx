@@ -3,64 +3,58 @@ import { useApp } from "@/context/AppContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Property } from "@/lib/types";
+import type { Property, Investment } from "@/lib/types";
 
 export function ActiveInvestments() {
-  const { properties, setProperties } = useApp();
-  const activeInvestments = properties.filter(p => p.invested > 0);
+  const { properties, investments } = useApp();
   
-  const [displayInvestments, setDisplayInvestments] = useState(activeInvestments);
+  const [displayInvestments, setDisplayInvestments] = useState<any[]>([]);
 
   useEffect(() => {
-    // Initialize display state when properties change from context
-    setDisplayInvestments(properties.filter(p => p.invested > 0));
-  }, [properties]);
-  
-  useEffect(() => {
-    const activeProps = properties.filter(p => p.invested > 0);
-    if (activeProps.length === 0) return;
+    const investmentMap = investments.reduce((acc, inv) => {
+        if (!acc[inv.propertyId]) {
+            acc[inv.propertyId] = 0;
+        }
+        acc[inv.propertyId] += inv.investedAmount;
+        return acc;
+    }, {} as Record<string, number>);
 
-    // This interval is for visual animation only. It doesn't affect the actual context state.
-    const visualInterval = setInterval(() => {
-      setDisplayInvestments(prevDisplay => {
-        return prevDisplay.map(prop => {
-          // Calculate gain based on the *initial* investment, not the dynamic `invested` value.
-          const gainPerSecond = (prop.initialInvestment * prop.dailyReturn) / (24 * 60 * 60);
-          return { ...prop, invested: prop.invested + gainPerSecond };
-        });
-      });
-    }, 1000);
-    
-    // This interval updates the "real" invested amount in the AppContext less frequently.
-    const stateUpdateInterval = setInterval(() => {
-        setProperties(currentProperties => 
-            currentProperties.map(prop => {
-                if (prop.invested > 0 && prop.initialInvestment > 0) {
-                    // Calculate gain based on the *initial* investment.
-                    const gainPerTenSeconds = (prop.initialInvestment * prop.dailyReturn) / (24 * 60 * 6);
-                    return {...prop, invested: prop.invested + gainPerTenSeconds}
-                }
-                return prop;
+    const activeProps = properties
+        .filter(p => investmentMap[p.id])
+        .map(p => ({
+            ...p,
+            initialInvestment: investmentMap[p.id],
+            invested: investmentMap[p.id] // Start with the initial investment
+        }));
+
+    setDisplayInvestments(activeProps);
+
+  }, [properties, investments]);
+
+  useEffect(() => {
+    if (displayInvestments.length === 0) return;
+
+    const interval = setInterval(() => {
+        setDisplayInvestments(prev => 
+            prev.map(prop => {
+                const gainPerSecond = (prop.initialInvestment * prop.dailyReturn) / (24 * 60 * 60);
+                return { ...prop, invested: prop.invested + gainPerSecond };
             })
-        )
-    }, 10000);
+        );
+    }, 1000);
 
-    return () => {
-      clearInterval(visualInterval);
-      clearInterval(stateUpdateInterval);
-    }
-    // We depend on the number of invested properties and their initial investment values.
-  }, [properties.filter(p => p.invested > 0).map(p => p.id).join(','), setProperties]);
+    return () => clearInterval(interval);
+  }, [displayInvestments]);
 
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Inversiones Activas</CardTitle>
-        <CardDescription>{activeInvestments.length} {activeInvestments.length === 1 ? 'propiedad' : 'propiedades'} en tu portafolio</CardDescription>
+        <CardDescription>{displayInvestments.length} {displayInvestments.length === 1 ? 'propiedad' : 'propiedades'} en tu portafolio</CardDescription>
       </CardHeader>
       <CardContent>
-        {activeInvestments.length === 0 ? (
+        {displayInvestments.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Building2 className="w-12 h-12 mx-auto mb-2 opacity-30" />
             <p>No tienes inversiones activas aún</p>

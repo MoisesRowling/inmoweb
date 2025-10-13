@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -12,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { useApp } from '@/context/AppContext';
 import type { Property } from '@/lib/types';
 import { DollarSign } from 'lucide-react';
-import { useWatch } from 'react-hook-form';
 
 const formSchema = (min: number, max: number) => z.object({
   amount: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
@@ -83,6 +82,8 @@ export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
         form.reset();
     }, 200);
   }
+  
+  if (!property) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>

@@ -1,26 +1,28 @@
 export type Property = {
-  id: number;
+  id: string; // Changed to string for Firestore
   name: string;
   location: string;
   type: string;
   price: number;
   minInvestment: number;
-  invested: number;
-  initialInvestment: number; // Keep track of the original invested amount
   totalShares: number;
-  ownedShares: number;
-  image: string; // This will be the placeholder image id
+  image: string; 
   dailyReturn: number;
-  investmentTerm?: number; // Optional investment term in days
+  
+  // User-specific investment data (denormalized or from a separate investment document)
+  invested?: number;
+  initialInvestment?: number;
+  ownedShares?: number;
+  investmentTerm?: number;
 };
 
 export type Transaction = {
-  id: number;
+  id: string; // Changed to string for Firestore
+  userId: string;
   type: 'deposit' | 'withdraw' | 'investment';
   amount: number;
   description: string;
   date: string; // ISO string
-  timestamp: string; // Localized string
 };
 
 export type User = {
@@ -28,3 +30,18 @@ export type User = {
   name: string;
   email: string;
 };
+
+export type Investment = {
+    id: string;
+    userId: string;
+    propertyId: string;
+    investedAmount: number;
+    ownedShares: number;
+    investmentDate: string; // ISO String
+    term: number; // in days
+};
+
+export type AccountBalance = {
+    balance: number;
+    userId: string;
+}

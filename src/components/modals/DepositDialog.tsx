@@ -14,7 +14,7 @@ interface DepositDialogProps {
 }
 
 export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
-  const { user } = useApp();
+  const { user, handleDeposit } = useApp();
   const { toast } = useToast();
 
   const copyToClipboard = (text: string) => {
@@ -28,6 +28,12 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
         <path d=" M16 .0C7.16 0 0 7.16 0 16s7.16 16 16 16c9.02 0 16-7.16 16-16S24.84 0 16 0zm0 29.5C8.54 29.5 2.5 23.46 2.5 16S8.54 2.5 16 2.5 29.5 8.54 29.5 16 23.46 29.5 16 29.5z" />
     </svg>
   )
+  
+  // This is a simulation. In a real app, this would be a webhook or a manual confirmation.
+  const handleFakeDeposit = () => {
+    handleDeposit(5000); // Simulate a 5000 MXN deposit
+    onClose();
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -60,9 +66,9 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
               <div className="flex justify-between items-center">
                   <div>
                       <p className="text-xs text-muted-foreground">CLABE</p>
-                      <p className="font-mono font-semibold">1234567890</p>
+                      <p className="font-mono font-semibold">123456789012345678</p>
                   </div>
-                  <Button size="icon" variant="ghost" onClick={() => copyToClipboard('1234567890')}>
+                  <Button size="icon" variant="ghost" onClick={() => copyToClipboard('123456789012345678')}>
                       <Copy className="h-4 w-4"/>
                   </Button>
               </div>
@@ -82,6 +88,10 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
                     <WhatsAppIcon />
                     Enviar Comprobante por WhatsApp
                 </Link>
+            </Button>
+            
+            <Button onClick={handleFakeDeposit} className='w-full' variant="secondary">
+                Simular depósito de $5,000 MXN
             </Button>
         </div>
 

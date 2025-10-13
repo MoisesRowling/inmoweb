@@ -2,11 +2,13 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Property, Transaction, User } from '@/lib/types';
+import type { Property, Transaction, User, Investment } from '@/lib/types';
 import { propertiesData } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { collection, doc, writeBatch, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 type ModalState = {
   deposit: boolean;
@@ -20,44 +22,77 @@ interface AppContextType {
   balance: number;
   properties: Property[];
   transactions: Transaction[];
-  firstInvestmentDate: Date | null;
+  investments: Investment[];
   modals: ModalState;
-  login: (email: string, name: string) => void;
   logout: () => void;
-  addTransaction: (type: 'deposit' | 'withdraw' | 'investment', amount: number, description: string) => void;
-  handleDeposit: (amount: number, method: string) => void;
+  handleDeposit: (amount: number) => void;
   handleWithdraw: (amount: number, clabe: string) => boolean;
   handleInvest: (amount: number, property: Property, term: number) => void;
-  setProperties: React.Dispatch<React.SetStateAction<Property[]>>;
   setModals: React.Dispatch<React.SetStateAction<ModalState>>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const arePropertiesOutdated = (storedProperties: Property[]): boolean => {
-  if (storedProperties.length !== propertiesData.length) return true;
-  for (const propData of propertiesData) {
-    const storedProp = storedProperties.find(p => p.id === propData.id);
-    if (!storedProp || storedProp.name !== propData.name || storedProp.image !== propData.image) {
-      return true;
+const seedProperties = async (firestore: ReturnType<typeof useFirestore>) => {
+    const batch = writeBatch(firestore);
+    const propertiesCol = collection(firestore, 'properties');
+    let hasWrites = false;
+
+    for (const prop of propertiesData) {
+        const docRef = doc(propertiesCol, String(prop.id));
+        // For seeding, we'll just add them all. In a real app you might check existence.
+        batch.set(docRef, {
+            id: String(prop.id),
+            name: prop.name,
+            location: prop.location,
+            type: prop.type,
+            price: prop.price,
+            minInvestment: prop.minInvestment,
+            totalShares: prop.totalShares,
+            image: prop.image,
+            dailyReturn: prop.dailyReturn
+        });
+        hasWrites = true;
     }
-  }
-  return false;
+    
+    if (hasWrites) {
+        await batch.commit();
+        console.log("Properties seeded to Firestore.");
+    }
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const { user: firebaseUser, isUserLoading } = useUser();
   const auth = useAuth();
-  const [user, setUser] = useState<User | null>(null);
-  const [balance, setBalance] = useState(0);
-  const [properties, setProperties] = useState<Property[]>(propertiesData);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [firstInvestmentDate, setFirstInvestmentDate] = useState<Date | null>(null);
-  const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
-  const [isHydrated, setIsHydrated] = useState(false);
+  const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
+  const [user, setUser] = useState<User | null>(null);
+  const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
+
+  // === Firestore Data Hooks ===
+  const propertiesQuery = useMemoFirebase(() => collection(firestore, 'properties'), [firestore]);
+  const { data: properties, isLoading: isLoadingProperties } = useCollection<Property>(propertiesQuery);
+  
+  const balanceDocRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.id, 'account_balance', user.id) : null, [user, firestore]);
+  const { data: balanceData, isLoading: isLoadingBalance } = useDoc<{ balance: number }>(balanceDocRef);
+  const balance = balanceData?.balance ?? 0;
+
+  const transactionsQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.id, 'transactions') : null, [user, firestore]);
+  const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Transaction>(transactionsQuery);
+
+  const investmentsQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.id, 'investments') : null, [user, firestore]);
+  const { data: investments, isLoading: isLoadingInvestments } = useCollection<Investment>(investmentsQuery);
+
+  // Seed properties on initial load if not present
+  useEffect(() => {
+    if (firestore && properties && properties.length === 0) {
+        seedProperties(firestore);
+    }
+  }, [firestore, properties]);
+  
+  // Set user state based on Firebase Auth
   useEffect(() => {
     if (!isUserLoading && firebaseUser) {
       const appUser: User = {
@@ -72,99 +107,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [firebaseUser, isUserLoading, router]);
 
-  useEffect(() => {
-    if (!firebaseUser) {
-      setIsHydrated(true);
-      return;
-    }
-    try {
-      const storedBalance = localStorage.getItem(`inmosmart-balance-${firebaseUser.uid}`);
-      const storedPropertiesJSON = localStorage.getItem(`inmosmart-properties-${firebaseUser.uid}`);
-      const storedTransactions = localStorage.getItem(`inmosmart-transactions-${firebaseUser.uid}`);
-      const storedInvestmentDate = localStorage.getItem(`inmosmart-investmentDate-${firebaseUser.uid}`);
-
-      if (storedBalance) setBalance(JSON.parse(storedBalance));
-      
-      if (storedPropertiesJSON) {
-        const storedProperties = JSON.parse(storedPropertiesJSON);
-        if (arePropertiesOutdated(storedProperties)) {
-            const updatedProperties = propertiesData.map(freshProp => {
-                const oldProp = storedProperties.find((p: Property) => p.id === freshProp.id);
-                return oldProp ? { ...freshProp, ...{
-                    invested: oldProp.invested,
-                    initialInvestment: oldProp.initialInvestment,
-                    ownedShares: oldProp.ownedShares,
-                    investmentTerm: oldProp.investmentTerm
-                }} : freshProp;
-            });
-            setProperties(updatedProperties);
-        } else {
-            setProperties(storedProperties);
-        }
-      } else {
-        setProperties(propertiesData);
-      }
-
-      if (storedTransactions) setTransactions(JSON.parse(storedTransactions));
-      if (storedInvestmentDate && storedInvestmentDate !== 'null') {
-        const date = new Date(JSON.parse(storedInvestmentDate));
-        if (!isNaN(date.getTime())) {
-          setFirstInvestmentDate(date);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to hydrate state from localStorage", error);
-    } finally {
-      setIsHydrated(true);
-    }
-  }, [firebaseUser, isHydrated]);
-  
-  useEffect(() => {
-    if (!isHydrated || !firebaseUser) return;
-    try {
-      localStorage.setItem(`inmosmart-balance-${firebaseUser.uid}`, JSON.stringify(balance));
-      localStorage.setItem(`inmosmart-properties-${firebaseUser.uid}`, JSON.stringify(properties));
-      localStorage.setItem(`inmosmart-transactions-${firebaseUser.uid}`, JSON.stringify(transactions));
-      localStorage.setItem(`inmosmart-investmentDate-${firebaseUser.uid}`, JSON.stringify(firstInvestmentDate));
-    } catch (error) {
-      console.error("Failed to save state to localStorage", error);
-    }
-  }, [user, balance, properties, transactions, firstInvestmentDate, isHydrated, firebaseUser]);
-
-  const addTransaction = useCallback((type: 'deposit' | 'withdraw' | 'investment', amount: number, description: string) => {
-    const newTransaction: Transaction = {
-      id: Date.now(),
+  const addTransaction = useCallback(async (type: 'deposit' | 'withdraw' | 'investment', amount: number, description: string) => {
+    if (!user) return;
+    const newTransaction = {
+      userId: user.id,
       type,
       amount,
       description,
       date: new Date().toISOString(),
-      timestamp: new Date().toLocaleString('es-MX'),
     };
-    setTransactions(prev => [newTransaction, ...prev]);
-  }, []);
-
-  const login = (email: string, name: string) => {
-    // This is now handled by firebase auth state change
-  };
+    const transactionsCol = collection(firestore, 'users', user.id, 'transactions');
+    addDocumentNonBlocking(transactionsCol, newTransaction);
+  }, [user, firestore]);
 
   const logout = async () => {
     await signOut(auth);
     setUser(null);
-    setBalance(0);
-    setProperties(propertiesData);
-    setTransactions([]);
-    setFirstInvestmentDate(null);
-    // Clear all localStorage for safety, or selectively clear user data
-    // localStorage.clear();
     router.push('/login');
   };
 
-  const handleDeposit = (amount: number, method: string) => {
-    setBalance(prev => prev + amount);
+  const handleDeposit = (amount: number) => {
+    if(!user) return;
+    const newBalance = balance + amount;
+    const balanceRef = doc(firestore, 'users', user.id, 'account_balance', user.id);
+    setDocumentNonBlocking(balanceRef, { balance: newBalance, userId: user.id }, { merge: true });
+    
     addTransaction('deposit', amount, `Depósito por SPEI`);
     toast({
-      title: 'Depósito Exitoso',
-      description: `Has depositado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.`,
+      title: 'Depósito Registrado',
+      description: `Has depositado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}. El saldo se actualizará en breve.`,
       variant: 'default',
     });
   };
@@ -178,8 +149,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
         return false;
     }
+    if(!user) return false;
 
-    setBalance(prev => prev - amount);
+    const newBalance = balance - amount;
+    const balanceRef = doc(firestore, 'users', user.id, 'account_balance', user.id);
+    setDocumentNonBlocking(balanceRef, { balance: newBalance }, { merge: true });
+
     addTransaction('withdraw', amount, `Retiro a CLABE: ...${clabe.slice(-4)}`);
     toast({
       title: 'Retiro Exitoso',
@@ -197,25 +172,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toast({ title: `La inversión mínima es de ${property.minInvestment.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}`, variant: "destructive" });
         return;
     }
+    if(!user) return;
 
-    if (!firstInvestmentDate) {
-      setFirstInvestmentDate(new Date());
-    }
+    const newBalance = balance - amount;
+    const balanceRef = doc(firestore, 'users', user.id, 'account_balance', user.id);
+    setDocumentNonBlocking(balanceRef, { balance: newBalance }, { merge: true });
 
-    setBalance(prev => prev - amount);
-    setProperties(prevProps =>
-      prevProps.map(p =>
-        p.id === property.id
-          ? { 
-              ...p, 
-              invested: p.invested + amount, 
-              initialInvestment: p.initialInvestment + amount,
-              ownedShares: p.ownedShares + 1,
-              investmentTerm: term,
-            }
-          : p
-      )
-    );
+    const newInvestment = {
+        userId: user.id,
+        propertyId: property.id,
+        investedAmount: amount,
+        ownedShares: 1, // Simplified
+        investmentDate: new Date().toISOString(),
+        term,
+    };
+    const investmentsCol = collection(firestore, 'users', user.id, 'investments');
+    addDocumentNonBlocking(investmentsCol, newInvestment);
+
     addTransaction('investment', amount, `Inversión en ${property.name} (${term} días)`);
     toast({
       title: '¡Inversión Exitosa!',
@@ -226,22 +199,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = {
     user,
     isAuthenticated: !!user,
-    balance,
-    properties,
-    transactions,
-    firstInvestmentDate,
+    balance: balance || 0,
+    properties: properties || [],
+    transactions: transactions || [],
+    investments: investments || [],
     modals,
-    login,
     logout,
-    addTransaction,
     handleDeposit,
     handleWithdraw,
     handleInvest,
-    setProperties,
     setModals,
   };
 
-  return <AppContext.Provider value={value}>{(isHydrated && !isUserLoading) ? children : null}</AppContext.Provider>;
+  const isDataLoading = isUserLoading || isLoadingProperties || isLoadingBalance || isLoadingTransactions || isLoadingInvestments;
+
+  return <AppContext.Provider value={value}>{!isDataLoading ? children : null}</AppContext.Provider>;
 }
 
 export const useApp = (): AppContextType => {

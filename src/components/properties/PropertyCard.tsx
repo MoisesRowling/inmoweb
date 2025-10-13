@@ -14,7 +14,7 @@ interface PropertyCardProps {
 }
 
 export function PropertyCard({ property, isGuest = false }: PropertyCardProps) {
-  const { setModals } = useApp();
+  const { setModals, investments } = useApp();
   const router = useRouter();
   const placeholderImage = PlaceHolderImages.find(img => img.id === property.image);
 
@@ -25,6 +25,10 @@ export function PropertyCard({ property, isGuest = false }: PropertyCardProps) {
       setModals(prev => ({ ...prev, invest: property }));
     }
   };
+  
+  const userInvestment = investments.find(inv => inv.propertyId === property.id);
+  const investedAmount = userInvestment?.investedAmount || 0;
+  const ownedShares = userInvestment?.ownedShares || 0;
 
   const potentialDailyEarning = property.minInvestment * property.dailyReturn;
   const potentialWeeklyEarning = potentialDailyEarning * 7;
@@ -86,11 +90,11 @@ export function PropertyCard({ property, isGuest = false }: PropertyCardProps) {
             <>
               <div className="flex justify-between items-center pt-4 border-t mt-4">
                 <span className="text-muted-foreground">Tu Inversión</span>
-                <span className="font-semibold">{(property.invested || 0).toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
+                <span className="font-semibold">{investedAmount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Tus Acciones</span>
-                <span className="font-semibold text-primary">{property.ownedShares || 0}</span>
+                <span className="font-semibold text-primary">{ownedShares}</span>
               </div>
             </>
           )}
