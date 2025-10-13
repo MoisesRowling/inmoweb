@@ -1,0 +1,285 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the investment platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "User's full name."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "name"
+      ]
+    },
+    "Property": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Property",
+      "type": "object",
+      "description": "Represents an investment property available on the platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the property."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the property."
+        },
+        "location": {
+          "type": "string",
+          "description": "Location of the property."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of property (e.g., House, Loft)."
+        },
+        "price": {
+          "type": "number",
+          "description": "Total price of the property."
+        },
+        "minInvestment": {
+          "type": "number",
+          "description": "Minimum investment amount allowed for this property."
+        },
+        "totalShares": {
+          "type": "number",
+          "description": "Total number of shares available for this property."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "location",
+        "type",
+        "price",
+        "minInvestment",
+        "totalShares"
+      ]
+    },
+    "Investment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Investment",
+      "type": "object",
+      "description": "Represents a user's investment in a specific property.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the investment."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Investment)"
+        },
+        "propertyId": {
+          "type": "string",
+          "description": "Reference to Property. (Relationship: Property 1:N Investment)"
+        },
+        "investedAmount": {
+          "type": "number",
+          "description": "Amount invested by the user in this property."
+        },
+        "ownedShares": {
+          "type": "number",
+          "description": "Number of shares owned by the user for this property."
+        },
+        "investmentDate": {
+          "type": "string",
+          "description": "Date when the investment was made.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "propertyId",
+        "investedAmount",
+        "ownedShares",
+        "investmentDate"
+      ]
+    },
+    "Transaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Transaction",
+      "type": "object",
+      "description": "Represents a financial transaction (deposit, withdrawal, or investment).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the transaction."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Transaction)"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of transaction (deposit, withdrawal, investment)."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount of the transaction."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the transaction."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the transaction.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "type",
+        "amount",
+        "description",
+        "date"
+      ]
+    },
+    "AccountBalance": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AccountBalance",
+      "type": "object",
+      "description": "Represents the user's account balance.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the account balance record."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 AccountBalance)"
+        },
+        "balance": {
+          "type": "number",
+          "description": "Current account balance."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "balance"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Accessible only by the user themselves.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/account_balance/{accountBalanceId}",
+        "definition": {
+          "entityName": "AccountBalance",
+          "schema": {
+            "$ref": "#/backend/entities/AccountBalance"
+          },
+          "description": "Stores the account balance for each user. Accessible only by the user themselves.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "accountBalanceId",
+              "description": "The unique identifier of the account balance record. Always the same as userId to ensure a 1:1 relationship."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/investments/{investmentId}",
+        "definition": {
+          "entityName": "Investment",
+          "schema": {
+            "$ref": "#/backend/entities/Investment"
+          },
+          "description": "Stores user's investment data. Accessible only by the user themselves. Includes denormalized property data for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "investmentId",
+              "description": "The unique identifier of the investment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": {
+            "$ref": "#/backend/entities/Transaction"
+          },
+          "description": "Stores transaction history for each user. Accessible only by the user themselves.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "transactionId",
+              "description": "The unique identifier of the transaction."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/properties/{propertyId}",
+        "definition": {
+          "entityName": "Property",
+          "schema": {
+            "$ref": "#/backend/entities/Property"
+          },
+          "description": "Stores property information. Publicly readable.",
+          "params": [
+            {
+              "name": "propertyId",
+              "description": "The unique identifier of the property."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "This Firestore structure prioritizes security, scalability, and ease of debugging based on the provided application requirements. It utilizes structural segregation and denormalization to achieve authorization independence, which is critical for robust security rules and atomic operations. The structure is designed to support user authentication, property listings, investment tracking, transaction history, and funds management, as well as potential admin moderation.\n\n*   **Authorization Independence:** Each collection incorporates necessary authorization data, avoiding `get()` calls in security rules. For example, the `/users/{userId}/investments/{investmentId}` collection inherently ties investments to specific users, and properties critical for investment rules are denormalized into the investment document itself.\n*   **Structural Segregation:** Data with different access needs is segregated into separate collections. User-specific data is stored under `/users/{userId}`, while public property data is stored under `/properties`. This simplifies security rules by ensuring that all documents within a collection share the same access control requirements.\n*   **Access Modeling:** User-owned data, such as investments and transactions, is stored under hierarchical paths (`/users/{userId}/investments/{investmentId}`, `/users/{userId}/transactions/{transactionId}`). This makes ownership-based security rules straightforward. The `AccountBalance` is also located under the user document, enforcing a 1:1 relationship and clear ownership.\n*   **QAPs Support:** Secure list operations are achieved through structural segregation and path-based ownership. Listing properties is inherently public, while listing investments or transactions requires the user to be authenticated and have access to their specific user path."
+  }
+}

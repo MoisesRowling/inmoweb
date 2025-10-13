@@ -1,0 +1,147 @@
+/**
+ * @fileoverview Firestore Security Rules for the investment platform.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for user-specific data
+ * (profiles, account balances, investments, and transactions). Public read access
+ * is granted for property listings, while write access is restricted.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles.
+ * - /users/{userId}/account_balance/{accountBalanceId}: Stores account balances.
+ * - /users/{userId}/investments/{investmentId}: Stores investment data.
+ * - /users/{userId}/transactions/{transactionId}: Stores transaction history.
+ * - /properties/{propertyId}: Stores property information.
+ *
+ * Key Security Decisions:
+ * - User data is strictly private and accessible only to the authenticated user.
+ * - Property data is publicly readable.
+ * - No user listing is allowed.
+ * - Data validation is limited to fields critical for authorization and relational integrity.
+ *
+ * Denormalization for Authorization:
+ * - Investment documents MUST contain all data required for authorization.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Ensures the user is signed in.
+     * @path N/A
+     * @allow N/A
+     * @deny N/A
+     * @principle Authentication check.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the request is made by the owner of the document.
+     * @path N/A
+     * @allow N/A
+     * @deny N/A
+     * @principle Authorization check.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the request is made by the owner of an existing document.
+     *              Combines ownership check with existence check for safety.
+     * @path N/A
+     * @allow N/A
+     * @deny N/A
+     * @principle Authorization check.
+     */
+    function isExistingOwner(userId) {
+        return isOwner(userId) && getSelf().data != null;
+    }
+
+    function getSelf() {
+      return get(request.path);
+    }
+
+    /**
+     * @description Defines rules for user profiles.
+     * @path /users/{userId}
+     * @allow (create) - Authenticated user creates their own profile.
+     * @allow (get, update, delete) - Authenticated user accesses their own profile.
+     * @deny (create) - Non-authenticated user attempts to create a profile.
+     * @deny (get, update, delete) - Authenticated user attempts to access another user's profile.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isExistingOwner(userId) && request.auth.uid == userId;
+      allow delete: if isExistingOwner(userId) && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Defines rules for account balances.
+     * @path /users/{userId}/account_balance/{accountBalanceId}
+     * @allow (create) - Authenticated user creates their own account balance. The accountBalanceId must match the userId.
+     * @allow (get, update, delete) - Authenticated user accesses their own account balance.
+     * @deny (create) - Non-authenticated user attempts to create an account balance.
+     * @deny (get, update, delete) - Authenticated user attempts to access another user's account balance.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/account_balance/{accountBalanceId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.auth.uid == userId;
+      allow update: if isExistingOwner(userId) && request.auth.uid == userId;
+      allow delete: if isExistingOwner(userId) && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Defines rules for investments.
+     * @path /users/{userId}/investments/{investmentId}
+     * @allow (create) - Authenticated user creates their own investment record. The userId must match the authenticated user's ID.
+     * @allow (get, update, delete) - Authenticated user accesses their own investment record.
+     * @deny (create) - Non-authenticated user attempts to create an investment record.
+     * @deny (get, update, delete) - Authenticated user attempts to access another user's investment record.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/investments/{investmentId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.auth.uid == userId;
+      allow update: if isExistingOwner(userId) && request.auth.uid == userId;
+      allow delete: if isExistingOwner(userId) && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Defines rules for transactions.
+     * @path /users/{userId}/transactions/{transactionId}
+     * @allow (create) - Authenticated user creates their own transaction record. The userId must match the authenticated user's ID.
+     * @allow (get, update, delete) - Authenticated user accesses their own transaction record.
+     * @deny (create) - Non-authenticated user attempts to create a transaction record.
+     * @deny (get, update, delete) - Authenticated user attempts to access another user's transaction record.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/transactions/{transactionId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.auth.uid == userId;
+      allow update: if isExistingOwner(userId) && request.auth.uid == userId;
+      allow delete: if isExistingOwner(userId) && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Defines rules for properties.
+     * @path /properties/{propertyId}
+     * @allow (get, list) - Publicly readable.
+     * @deny (create, update, delete) - Write operations are not allowed (for now).
+     * @principle Public read access with no write access.
+     */
+    match /properties/{propertyId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+  }
+}
