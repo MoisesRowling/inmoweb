@@ -81,7 +81,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       await signInWithEmailAndPassword(auth, email, pass);
       toast({ title: '¡Bienvenido de vuelta!' });
-      // Redirection is handled by AppShell
+      router.push('/dashboard');
     } catch (error) {
       console.error("Login Error:", error);
       toast({ title: 'Error de inicio de sesión', description: 'Tus credenciales son incorrectas.', variant: 'destructive' });
@@ -130,9 +130,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       toast({
         title: '¡Cuenta creada exitosamente!',
-        description: 'Ahora puedes iniciar sesión.',
+        description: 'Bienvenido a InmoSmart.',
       });
-      router.push('/login');
+      router.push('/dashboard');
 
     } catch (error: any) {
         console.error("Registration Error:", error);
