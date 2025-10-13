@@ -35,7 +35,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const fetcher = (url: string) => fetch(url).then(res => {
   if (res.status === 401) {
     // This is now handled by AppShell's useEffect, but we still need to avoid parsing a 401 response body
-    throw new Error('Not authenticated');
+    return null; // Return null for 401 errors, SWR will see this as empty data
   }
   if (!res.ok) {
     throw new Error('An error occurred while fetching the data.');
@@ -66,12 +66,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Let SWR handle auth state based on fetcher result.
   const { data, error, isLoading, mutate: revalidateData } = useSWR('/api/data', fetcher, {
     refreshInterval: 2000, // Re-fetch every 2 seconds
-    shouldRetryOnError: false, // Don't retry on 401, let the AppShell handle redirect
+    shouldRetryOnError: false, // Don't retry on 401
+    revalidateOnFocus: true,
   });
   
   const isAuthenticated = !!data && !error;
   // isAuthLoading is true only on the initial load.
-  const isAuthLoading = isLoading && !data && !error;
+  const isAuthLoading = isLoading && data === undefined && !error;
 
   const login = async (email: string, pass: string) => {
     setIsAuthFormLoading(true);
@@ -87,8 +88,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         throw new Error(errorBody.message || 'Invalid credentials');
       }
       
-      // Revalidate data to get user info after login
-      await revalidateData();
+      const { user } = await res.json();
+
+      // Optimistically update the cache with user data and revalidate in the background
+      // This ensures isAuthenticated becomes true almost instantly
+      await mutate('/api/data', (currentData: any) => ({ ...currentData, user }), true);
+      
       toast({ title: '¡Bienvenido de vuelta!' });
       router.push('/dashboard');
     } catch (err: any) {
@@ -99,12 +104,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
   
   const logout = useCallback(async () => {
+    if (typeof window === 'undefined') return;
     // Clear local SWR cache for user data without revalidation.
-    await mutate('/api/data', undefined, false);
+    await mutate('/api/data', null, false);
     // Call the logout API endpoint to clear the session cookie.
     await fetch('/api/auth/logout', { method: 'POST' });
     // Use the router to redirect to the login page.
-    router.push('/login');
+    router.replace('/login');
   }, [router]);
 
   const registerAndCreateUser = async (name: string, email: string, password: string) => {
@@ -121,8 +127,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         throw new Error(errorBody.message);
       }
       
-      // Revalidate to fetch data for the newly registered user
-      await revalidateData();
+      const { user } = await res.json();
+      // Optimistically update and revalidate to log the user in
+      await mutate('/api/data', (currentData: any) => ({ ...currentData, user }), true);
+
       toast({ title: '¡Cuenta creada exitosamente!', description: 'Bienvenido a InmoSmart.' });
       router.push('/dashboard');
 
