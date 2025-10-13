@@ -32,7 +32,7 @@ interface AppContextType {
   user: User | null;
   firebaseUser: FirebaseUser | null;
   isAuthenticated: boolean;
-  isAuthLoading: boolean; // This will now be managed locally
+  isAuthLoading: boolean; 
   balance: number;
   properties: Property[];
   transactions: Transaction[];
@@ -57,7 +57,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const firestore = useFirestore();
 
-  const [isAuthLoading, setIsAuthLoading] = useState(false); // Local state for login/register process
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
@@ -71,7 +71,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const transactionsQuery = useMemoFirebase(() => firebaseUser ? query(collection(firestore, `users/${firebaseUser.uid}/transactions`), orderBy('date', 'desc')) : null, [firestore, firebaseUser]);
   const { data: transactions } = useCollection<Transaction>(transactionsQuery);
 
-  const propertiesQuery = useMemoFirebase(() => firestore ? collection(firestore, 'properties') : null, [firestore]);
+  const propertiesQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'properties')) : null, [firestore]);
   const { data: properties } = useCollection<Property>(propertiesQuery);
 
   const balanceDocRef = useMemoFirebase(() => firebaseUser ? doc(firestore, `users/${firebaseUser.uid}/account/balance`) : null, [firestore, firebaseUser]);
@@ -80,7 +80,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const balance = balanceData?.balance ?? 0;
 
   // --- Auth Functions ---
-  const login = (email: string, pass: string) => {
+  const login = useCallback((email: string, pass: string) => {
     setIsAuthLoading(true);
     initiateEmailSignIn(auth, email, pass, 
       () => {
@@ -93,13 +93,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsAuthLoading(false);
       }
     );
-  };
+  }, [auth, toast]);
   
-  const logout = () => {
+  const logout = useCallback(() => {
     signOut(auth).then(() => {
       router.push('/login');
     });
-  };
+  }, [auth, router]);
 
   const registerAndCreateUser = useCallback(async (name: string, email: string, password: string) => {
     setIsAuthLoading(true);
@@ -110,48 +110,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
       async (userCredential) => {
         const fUser = userCredential.user;
         
-        runTransaction(firestore, async (transaction) => {
-            const userDocRef = doc(firestore, 'users', fUser.uid);
-            
-            let publicId: string;
-            let publicIdDocRef;
-            let publicIdDoc;
-            do {
-              publicId = Math.floor(10000 + Math.random() * 90000).toString();
-              publicIdDocRef = doc(firestore, 'publicIds', publicId);
-              publicIdDoc = await transaction.get(publicIdDocRef);
-            } while (publicIdDoc.exists());
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const userDocRef = doc(firestore, 'users', fUser.uid);
+                
+                let publicId: string;
+                let publicIdDocRef;
+                let publicIdDoc;
+                do {
+                  publicId = Math.floor(10000 + Math.random() * 90000).toString();
+                  publicIdDocRef = doc(firestore, 'publicIds', publicId);
+                  publicIdDoc = await transaction.get(publicIdDocRef);
+                } while (publicIdDoc.exists());
+    
+                const finalUserDoc: User = {
+                    id: fUser.uid,
+                    name,
+                    email,
+                    publicId
+                };
+                
+                const accountBalanceDocRef = doc(firestore, `users/${fUser.uid}/account`, 'balance');
+                
+                transaction.set(userDocRef, finalUserDoc);
+                transaction.set(publicIdDocRef, { uid: fUser.uid });
+                transaction.set(accountBalanceDocRef, { balance: 0, userId: fUser.uid });
+            });
 
-            const finalUserDoc: User = {
-                id: fUser.uid,
-                name,
-                email,
-                publicId
-            };
-            
-            const accountBalanceDocRef = doc(firestore, `users/${fUser.uid}/account`, 'balance');
-            
-            transaction.set(userDocRef, finalUserDoc);
-            transaction.set(publicIdDocRef, { uid: fUser.uid });
-            transaction.set(accountBalanceDocRef, { balance: 0, userId: fUser.uid });
-        })
-        .then(() => {
-          toast({
-            title: '¡Cuenta creada exitosamente!',
-            description: 'Ahora puedes iniciar sesión.',
-          });
-          setIsAuthLoading(false);
-          router.push('/login');
-        })
-        .catch((serverError) => {
-           setIsAuthLoading(false);
+            toast({
+              title: '¡Cuenta creada exitosamente!',
+              description: 'Ahora puedes iniciar sesión.',
+            });
+            router.push('/login');
+
+        } catch (serverError) {
            const permissionError = new FirestorePermissionError({
             path: `users/${fUser.uid}`,
             operation: 'create',
             requestResourceData: { name, email },
           });
           throw permissionError;
-        });
+        } finally {
+            setIsAuthLoading(false);
+        }
       },
       (error) => {
         setIsAuthLoading(false);
