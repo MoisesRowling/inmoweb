@@ -37,7 +37,7 @@ export function setDocumentNonBlocking(docRef: DocumentReference, data: any, opt
  * Returns the Promise for the new doc ref, but typically not awaited by caller.
  */
 export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
-  addDoc(colRef, data)
+  const promise = addDoc(colRef, data)
     .catch(error => {
       errorEmitter.emit(
         'permission-error',
@@ -48,8 +48,7 @@ export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
         })
       )
     });
-  // Note: The original promise is not returned to enforce a non-blocking pattern.
-  // The caller should rely on UI feedback and not await this operation.
+  return promise;
 }
 
 

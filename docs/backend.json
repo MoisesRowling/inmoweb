@@ -1,30 +1,44 @@
 {
   "entities": {
     "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
       "description": "Represents a user of the investment platform.",
       "properties": {
-        "name": {
+        "id": {
           "type": "string",
-          "description": "User's full name."
+          "description": "Unique identifier for the user entity."
         },
         "email": {
           "type": "string",
           "description": "User's email address.",
           "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "saldoTotal": {
+          "type": "number",
+          "description": "The user's total balance."
         }
       },
-      "required": ["name", "email"]
+      "required": [
+        "id",
+        "email",
+        "name"
+      ]
     },
     "Property": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Property",
       "type": "object",
-      "description": "Represents an investment property available on the platform.",
+      "description": "Represents a property available for investment.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the property."
+          "description": "Unique identifier for the property entity."
         },
         "name": {
           "type": "string",
@@ -36,27 +50,32 @@
         },
         "type": {
           "type": "string",
-          "description": "Type of property (e.g., House, Loft)."
+          "description": "Type of property (e.g., house, loft)."
         },
         "price": {
           "type": "number",
-          "description": "Total price of the property."
+          "description": "Price of the property."
         },
         "minInvestment": {
           "type": "number",
-          "description": "Minimum investment amount allowed for this property."
+          "description": "Minimum investment amount for the property."
+        },
+        "invested": {
+          "type": "number",
+          "description": "Total amount invested in the property."
         },
         "totalShares": {
           "type": "number",
-          "description": "Total number of shares available for this property."
+          "description": "Total shares available for the property."
+        },
+        "ownedShares": {
+          "type": "number",
+          "description": "Number of shares owned by a user."
         },
         "image": {
-            "type": "string",
-            "description": "Placeholder image ID from placeholder-images.json"
-        },
-        "dailyReturn": {
-            "type": "number",
-            "description": "Daily return on investment percentage."
+          "type": "string",
+          "description": "URL of the property image.",
+          "format": "uri"
         }
       },
       "required": [
@@ -65,65 +84,62 @@
         "location",
         "type",
         "price",
-        "minInvestment",
-        "totalShares",
-        "image",
-        "dailyReturn"
+        "minInvestment"
       ]
     },
     "Investment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Investment",
       "type": "object",
-      "description": "Represents a user's investment in a specific property.",
+      "description": "Represents an investment made by a user in a property.",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the investment entity."
+        },
         "userId": {
           "type": "string",
-          "description": "Reference to User."
+          "description": "Reference to User. (Relationship: User 1:N Investment)"
         },
         "propertyId": {
           "type": "string",
-          "description": "Reference to Property."
+          "description": "Reference to Property. (Relationship: Property 1:N Investment)"
         },
-        "investedAmount": {
+        "amount": {
           "type": "number",
-          "description": "Amount invested by the user in this property."
+          "description": "Amount invested in the property."
         },
-        "ownedShares": {
-          "type": "number",
-          "description": "Number of shares owned by the user for this property."
-        },
-        "investmentDate": {
+        "date": {
           "type": "string",
-          "description": "Date when the investment was made.",
+          "description": "Date of the investment.",
           "format": "date-time"
-        },
-        "term": {
-            "type": "number",
-            "description": "Investment term in days."
         }
       },
       "required": [
+        "id",
         "userId",
         "propertyId",
-        "investedAmount",
-        "ownedShares",
-        "investmentDate",
-        "term"
+        "amount",
+        "date"
       ]
     },
     "Transaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Transaction",
       "type": "object",
-      "description": "Represents a financial transaction (deposit, withdrawal, or investment).",
+      "description": "Represents a financial transaction (deposit, withdrawal, investment).",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the transaction entity."
+        },
         "userId": {
           "type": "string",
-          "description": "Reference to User."
+          "description": "Reference to User. (Relationship: User 1:N Transaction)"
         },
         "type": {
           "type": "string",
-          "description": "Type of transaction (deposit, withdrawal, investment).",
-          "enum": ["deposit", "withdrawal", "investment"]
+          "description": "Type of transaction (deposit, withdraw, investment)."
         },
         "amount": {
           "type": "number",
@@ -140,30 +156,11 @@
         }
       },
       "required": [
+        "id",
         "userId",
         "type",
         "amount",
-        "description",
         "date"
-      ]
-    },
-    "AccountBalance": {
-      "title": "AccountBalance",
-      "type": "object",
-      "description": "Represents the user's account balance.",
-      "properties": {
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:1 AccountBalance)"
-        },
-        "balance": {
-          "type": "number",
-          "description": "Current account balance."
-        }
-      },
-      "required": [
-        "userId",
-        "balance"
       ]
     }
   },
@@ -174,25 +171,80 @@
     ]
   },
   "firestore": {
-    "/users/{userId}": {
-        "schema": { "$ref": "#/entities/User"},
-        "description": "Stores user profiles. Accessible only by the user themselves."
-    },
-    "/users/{userId}/account_balance/{accountBalanceId}": {
-        "schema": { "$ref": "#/entities/AccountBalance"},
-        "description": "Stores the account balance for each user. Accessible only by the user themselves. The accountBalanceId should be the same as userId."
-    },
-    "/users/{userId}/investments/{investmentId}": {
-        "schema": { "$ref": "#/entities/Investment"},
-        "description": "Stores a user's investment data. Accessible only by the user themselves."
-    },
-    "/users/{userId}/transactions/{transactionId}": {
-        "schema": { "$ref": "#/entities/Transaction"},
-        "description": "Stores transaction history for each user. Accessible only by the user themselves."
-    },
-    "/properties/{propertyId}": {
-        "schema": { "$ref": "#/entities/Property"},
-        "description": "Stores property information. Publicly readable."
-    }
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information.  Each user has their own document keyed by their unique Firebase Auth ID.  Includes denormalized data for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user, matching their Firebase Auth UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/investments/{investmentId}",
+        "definition": {
+          "entityName": "Investment",
+          "schema": {
+            "$ref": "#/backend/entities/Investment"
+          },
+          "description": "Stores investment information for each user. Each investment document is stored in a subcollection under the user's document, keyed by a unique investment ID. Includes the userId for path-based ownership.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user making the investment."
+            },
+            {
+              "name": "investmentId",
+              "description": "The unique ID of the investment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": {
+            "$ref": "#/backend/entities/Transaction"
+          },
+          "description": "Stores transaction history for each user. Each transaction document is stored in a subcollection under the user's document, keyed by a unique transaction ID. Includes the userId for path-based ownership.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user associated with the transaction."
+            },
+            {
+              "name": "transactionId",
+              "description": "The unique ID of the transaction."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/properties/{propertyId}",
+        "definition": {
+          "entityName": "Property",
+          "schema": {
+            "$ref": "#/backend/entities/Property"
+          },
+          "description": "Stores information about properties available for investment.",
+          "params": [
+            {
+              "name": "propertyId",
+              "description": "The unique ID of the property."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the investment platform's core features, including user authentication, property listings, investment tracking, and transaction history. It prioritizes authorization independence, clarity, and scalability.  User data is stored under `/users/{userId}` with subcollections for investments and transactions to ensure data isolation and simplified security rules. Property data is kept in the `/properties` collection. The design denormalizes data where necessary to avoid complex queries and maintain data integrity. This design supports secure `list` operations by segregating user-specific data into user-owned subcollections. Timestamps are stored in each collection to filter and sort by time."
   }
 }
