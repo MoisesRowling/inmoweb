@@ -5,7 +5,57 @@ import { useRouter } from 'next/navigation';
 import type { Property, Transaction, User, Investment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { propertiesData } from '@/lib/data';
-import dbData from '../../../db.json';
+
+// --- Local Data Simulation ---
+// This replaces the direct import of db.json
+const dbData = {
+  "users": [
+    {
+      "id": "user-1",
+      "publicId": "12345",
+      "name": "Usuario de Prueba",
+      "email": "test@test.com",
+      "password": "password123"
+    }
+  ],
+  "balances": {
+    "user-1": {
+      "amount": 15000,
+      "lastUpdated": "2024-01-01T00:00:00.000Z"
+    }
+  },
+  "investments": [
+    {
+      "id": "inv-1",
+      "userId": "user-1",
+      "propertyId": "1",
+      "investedAmount": 5000,
+      "ownedShares": 16.66,
+      "investmentDate": "2024-05-10T10:00:00.000Z",
+      "term": 30
+    }
+  ],
+  "transactions": [
+     {
+      "id": "trans-1",
+      "userId": "user-1",
+      "type": "deposit" as const,
+      "amount": 20000,
+      "description": "Depósito inicial",
+      "date": "2024-05-01T09:00:00.000Z"
+    },
+    {
+      "id": "trans-2",
+      "userId": "user-1",
+      "type": "investment" as const,
+      "amount": 5000,
+      "description": "Inversión en Hacienda Santorini",
+      "date": "2024-05-10T10:00:00.000Z"
+    }
+  ]
+};
+// --- End of Local Data Simulation ---
+
 
 type ModalState = {
   deposit: boolean;
@@ -23,8 +73,8 @@ interface AppContextType {
   investments: Investment[];
   modals: ModalState;
   logout: () => void;
-  login: (email: string, pass: string) => Promise<void>;
-  registerAndCreateUser: (name: string, email: string, password: string) => Promise<void>;
+  login: (email: string, pass: string) => void;
+  registerAndCreateUser: (name: string, email: string, password: string) => void;
   handleDeposit: (amount: number) => void;
   handleWithdraw: (amount: number, clabe: string) => boolean;
   handleInvest: (amount: number, property: Property, term: number) => void;
@@ -32,20 +82,6 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
-
-
-// Function to get current UTC time from an external service or fallback
-async function getCurrentTime() {
-    try {
-        const response = await fetch('http://worldtimeapi.org/api/timezone/Etc/UTC', { cache: 'no-store' });
-        if (!response.ok) throw new Error('Failed to fetch time');
-        const data = await response.json();
-        return new Date(data.utc_datetime);
-    } catch (error) {
-        console.error("Could not fetch external time, falling back to server time:", error);
-        return new Date();
-    }
-}
 
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -73,7 +109,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const userTransactions = dbData.transactions.filter(t => t.userId === userData.id);
 
         setUser(userData);
-        setBalance(userBalance.amount);
+        setBalance(userBalance?.amount ?? 0);
         setInvestments(userInvestments);
         setTransactions(userTransactions);
       }
@@ -99,8 +135,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user || investments.length === 0) return;
 
     const interval = setInterval(async () => {
-      const now = new Date(); // Use local time for simplicity in this simulation
-      let totalGainsFromStart = 0;
+      const now = new Date(); 
       
       const updatedInvestments = investments.map(investment => {
         const property = properties.find(p => p.id === investment.propertyId);
@@ -129,7 +164,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [user, investments, properties]);
 
 
-  const login = async (email: string, pass: string) => {
+  const login = (email: string, pass: string) => {
     setIsAuthLoading(true);
     const foundUser = dbData.users.find(u => u.email === email && u.password === pass);
     if (foundUser) {
@@ -139,7 +174,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const userTransactions = dbData.transactions.filter(t => t.userId === userSafe.id);
 
         setUser(userSafe);
-        setBalance(userBalance.amount);
+        setBalance(userBalance?.amount ?? 0);
         setInvestments(userInvestments);
         setTransactions(userTransactions);
         
@@ -159,7 +194,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     router.push('/login');
   }, [router]);
 
-  const registerAndCreateUser = async (name: string, email: string, password: string) => {
+  const registerAndCreateUser = (name: string, email: string, password: string) => {
     setIsAuthLoading(true);
     if (dbData.users.find(u => u.email === email)) {
         toast({ title: 'Error de registro', description: 'El correo electrónico ya está en uso.', variant: 'destructive' });
