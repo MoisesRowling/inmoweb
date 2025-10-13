@@ -34,45 +34,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isHomePage = pathname === '/';
 
   useEffect(() => {
-    // Do nothing while auth status is loading. The loader will be shown below.
+    // While auth is loading, we show a loader below, so do nothing here.
     if (isAuthLoading) {
       return;
     }
 
-    // If user is authenticated and tries to access a public page (login/register) or the homepage,
-    // redirect them to the dashboard.
+    // If user is authenticated and on a public page (login/register/home), redirect to dashboard.
     if (isAuthenticated && (isPublicPage || isHomePage)) {
       router.replace('/dashboard');
     }
 
-    // If user is NOT authenticated and tries to access a protected page
-    // (any page that is not public and not the home page), redirect to login.
+    // If user is NOT authenticated and tries to access a protected page, redirect to login.
     if (!isAuthenticated && !isPublicPage && !isHomePage) {
         router.replace('/login');
     }
 
-  }, [isAuthenticated, isAuthLoading, isPublicPage, isHomePage, router]);
+  }, [isAuthenticated, isAuthLoading, isPublicPage, isHomePage, router, pathname]);
 
-  // While checking auth, show a full page loader to prevent any content flashing.
+  // While checking auth state, show a full page loader.
   if (isAuthLoading) {
     return <FullPageLoader />;
   }
 
-  // If user is NOT authenticated, but is trying to access a protected page,
-  // show a loader while the redirect in useEffect is happening.
+  // If we are redirecting, show loader.
+  if (isAuthenticated && (isPublicPage || isHomePage)) {
+    return <FullPageLoader />;
+  }
   if (!isAuthenticated && !isPublicPage && !isHomePage) {
     return <FullPageLoader />;
   }
   
-  // If user is authenticated, but is on a public page, show loader while redirect happens
-  if (isAuthenticated && (isPublicPage || isHomePage)) {
-    return <FullPageLoader />;
-  }
-
-  // If we reach here, we are clear to render the content.
-  // For authenticated users, this will be the app layout.
-  // For unauthenticated users, this will be the public page content (login, register, home).
-   if (isAuthenticated) {
+  // If user is authenticated and on a protected page, show the app shell.
+  if (isAuthenticated && !isPublicPage && !isHomePage) {
      return (
         <div className="min-h-screen flex flex-col bg-background">
         <Header />
@@ -84,6 +77,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Render children for public pages (login, register, home) for unauthenticated users.
+  // For unauthenticated users on public pages (login, register, home), render the children directly.
   return <>{children}</>;
 }
