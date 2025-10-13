@@ -197,9 +197,9 @@
         "schema": { "$ref": "#/entities/User"},
         "description": "Stores user profiles. The userId is the Firebase Auth UID."
     },
-    "/users/{userId}/account_balance/{accountBalanceId}": {
+    "/users/{userId}/account/balance": {
         "schema": { "$ref": "#/entities/AccountBalance"},
-        "description": "Stores the account balance for each user. Accessible only by the user themselves. The accountBalanceId should be a unique id."
+        "description": "Stores the account balance for each user as a single document. Accessible only by the user themselves."
     },
     "/users/{userId}/investments/{investmentId}": {
         "schema": { "$ref": "#/entities/Investment"},

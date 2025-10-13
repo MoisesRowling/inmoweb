@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Property, Transaction, User, Investment, AccountBalance, PublicId } from '@/lib/types';
+import type { Property, Transaction, User, Investment, AccountBalance } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useFirestore, useUser, useMemoFirebase } from '@/firebase/provider';
 import { 
@@ -13,7 +13,6 @@ import {
     doc,
     collection,
     runTransaction,
-    serverTimestamp,
     writeBatch,
     query,
     orderBy,
@@ -54,7 +53,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
   
-  const { user: firebaseUser, isUserLoading: isAuthLoading, userError } = useUser();
+  const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
 
@@ -73,20 +72,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const propertiesQuery = useMemoFirebase(() => firestore ? collection(firestore, 'properties') : null, [firestore]);
   const { data: properties } = useCollection<Property>(propertiesQuery);
 
-  const balanceQuery = useMemoFirebase(() => firebaseUser ? query(collection(firestore, `users/${firebaseUser.uid}/account_balance`)) : null, [firestore, firebaseUser]);
-  const { data: balanceData } = useCollection<AccountBalance>(balanceQuery);
+  const balanceDocRef = useMemoFirebase(() => firebaseUser ? doc(firestore, `users/${firebaseUser.uid}/account/balance`) : null, [firestore, firebaseUser]);
+  const { data: balanceData } = useDoc<AccountBalance>(balanceDocRef);
   
-  const [balance, setBalance] = useState(0);
+  const balance = balanceData?.balance ?? 0;
 
   // --- Effects ---
-  useEffect(() => {
-    if (balanceData && balanceData.length > 0) {
-      setBalance(balanceData[0].balance);
-    } else {
-      setBalance(0);
-    }
-  }, [balanceData]);
-
   useEffect(() => {
     if (!isAuthLoading && firebaseUser) {
       router.replace('/dashboard');
@@ -123,7 +114,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         runTransaction(firestore, async (transaction) => {
             const userDocRef = doc(firestore, 'users', fUser.uid);
             
-            // Generate a unique 5-digit public ID
             let publicId: string;
             let publicIdDocRef;
             let publicIdDoc;
@@ -140,24 +130,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 publicId
             };
             
-            const accountBalanceDocRef = doc(collection(firestore, `users/${fUser.uid}/account_balance`));
+            const accountBalanceDocRef = doc(firestore, `users/${fUser.uid}/account`, 'balance');
             
             transaction.set(userDocRef, finalUserDoc);
             transaction.set(publicIdDocRef, { uid: fUser.uid });
             transaction.set(accountBalanceDocRef, { balance: 0, userId: fUser.uid });
-          })
-          .then(() => {
-            toast({
-              title: '¡Cuenta creada exitosamente!',
-              description: 'Ahora puedes iniciar sesión.',
-            });
-            router.push('/login');
-          })
-          .catch((serverError) => {
-             const permissionError = new FirestorePermissionError({
-              path: `users/${fUser.uid}`,
-              operation: 'create',
-              requestResourceData: { name, email },
+        })
+        .then(() => {
+          toast({
+            title: '¡Cuenta creada exitosamente!',
+            description: 'Ahora puedes iniciar sesión.',
+          });
+          router.push('/login');
+        })
+        .catch((serverError) => {
+           const permissionError = new FirestorePermissionError({
+            path: `users/${fUser.uid}`,
+            operation: 'create',
+            requestResourceData: { name, email },
           });
           throw permissionError;
         });
@@ -173,15 +163,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [auth, firestore, router, toast]);
 
   const handleDeposit = (amount: number) => {
-    if (!firebaseUser || !balanceData || balanceData.length === 0) return;
-    const currentBalanceDoc = balanceData[0];
-    const newBalance = currentBalanceDoc.balance + amount;
+    if (!firebaseUser || !balanceDocRef) return;
+    const newBalance = (balanceData?.balance ?? 0) + amount;
     
-    const balanceDocRef = doc(firestore, `users/${firebaseUser.uid}/account_balance`, currentBalanceDoc.id);
     const transactionDocRef = doc(collection(firestore, `users/${firebaseUser.uid}/transactions`));
     
     const batch = writeBatch(firestore);
-    batch.update(balanceDocRef, { balance: newBalance });
+    batch.set(balanceDocRef, { balance: newBalance, userId: firebaseUser.uid }, { merge: true });
     batch.set(transactionDocRef, {
       id: transactionDocRef.id,
       userId: firebaseUser.uid,
@@ -207,7 +195,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const handleWithdraw = (amount: number, clabe: string): boolean => {
-    if (amount > (balance || 0)) {
+    if (amount > balance) {
         toast({
             title: 'Saldo insuficiente',
             description: 'No tienes suficiente saldo para este retiro.',
@@ -215,10 +203,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
         return false;
     }
-    if(!firebaseUser || !balanceData || balanceData.length === 0) return false;
-    const currentBalanceDoc = balanceData[0];
-    const newBalance = currentBalanceDoc.balance - amount;
-    const balanceDocRef = doc(firestore, `users/${firebaseUser.uid}/account_balance`, currentBalanceDoc.id);
+    if(!firebaseUser || !balanceDocRef) return false;
+    const newBalance = balance - amount;
     const transactionDocRef = doc(collection(firestore, `users/${firebaseUser.uid}/transactions`));
 
     const batch = writeBatch(firestore);
@@ -249,7 +235,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const handleInvest = (amount: number, property: Property, term: number) => {
-     if (amount > (balance || 0)) {
+     if (amount > balance) {
       toast({ title: "Saldo insuficiente", variant: "destructive" });
       return;
     }
@@ -257,10 +243,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toast({ title: `La inversión mínima es de ${property.minInvestment.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}`, variant: "destructive" });
         return;
     }
-    if (!firebaseUser || !balanceData || balanceData.length === 0) return;
-    const currentBalanceDoc = balanceData[0];
-    const newBalance = currentBalanceDoc.balance - amount;
-    const balanceDocRef = doc(firestore, `users/${firebaseUser.uid}/account_balance`, currentBalanceDoc.id);
+    if (!firebaseUser || !balanceDocRef) return;
+    
+    const newBalance = balance - amount;
     const investmentDocRef = doc(collection(firestore, `users/${firebaseUser.uid}/investments`));
     const transactionDocRef = doc(collection(firestore, `users/${firebaseUser.uid}/transactions`));
 
@@ -307,7 +292,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     firebaseUser,
     isAuthenticated: !!firebaseUser,
     isAuthLoading,
-    balance: balance || 0,
+    balance,
     properties: properties || [],
     transactions: transactions || [],
     investments: investments || [],
