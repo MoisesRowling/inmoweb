@@ -62,13 +62,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // --- Firestore Data Hooks ---
   const userDocRef = useMemoFirebase(() => firebaseUser ? doc(firestore, 'users', firebaseUser.uid) : null, [firestore, firebaseUser]);
   const { data: user } = useDoc<User>(userDocRef);
-
-  const investmentsQuery = useMemoFirebase(() => firebaseUser ? query(collection(firestore, `users/${firebaseUser.uid}/investments`), orderBy('investmentDate', 'desc')) : null, [firestore, firebaseUser]);
-  const { data: investments } = useCollection<Investment>(investmentsQuery);
-
-  const transactionsQuery = useMemoFirebase(() => firebaseUser ? query(collection(firestore, `users/${firebaseUser.uid}/transactions`), orderBy('date', 'desc')) : null, [firestore, firebaseUser]);
-  const { data: transactions } = useCollection<Transaction>(transactionsQuery);
   
+  // Temporarily disable problematic hooks and use empty arrays
+  const investments: Investment[] = [];
+  const transactions: Transaction[] = [];
+
   const propertiesQuery = useMemoFirebase(() => firestore ? collection(firestore, 'properties') : null, [firestore]);
   const { data: properties } = useCollection<Property>(propertiesQuery);
 
