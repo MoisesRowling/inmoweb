@@ -33,15 +33,22 @@ export default function LoginPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      initiateEmailSignIn(auth, values.email, values.password);
-    } catch (error: any) {
-      toast({
-        title: 'Error de autenticación',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
+    initiateEmailSignIn(
+      auth, 
+      values.email, 
+      values.password,
+      () => {
+        // Success is handled by the global onAuthStateChanged listener in AppContext
+      },
+      (error) => {
+        // Handle auth errors (e.g., wrong password, user not found)
+        toast({
+          title: 'Error de autenticación',
+          description: 'El correo electrónico o la contraseña son incorrectos.',
+          variant: 'destructive',
+        });
+      }
+    );
   }
 
   return (

@@ -40,7 +40,9 @@ export function initiateEmailSignUp(
 ): void {
   // CRITICAL: Call createUserWithEmailAndPassword directly. Do NOT use 'await createUserWithEmailAndPassword(...)'.
   createUserWithEmailAndPassword(authInstance, email, password)
-    .then(onSuccess)
+    .then(userCredential => {
+        if (onSuccess) onSuccess(userCredential);
+    })
     .catch((error) => {
         if(onError) {
             onError(error);
@@ -59,18 +61,34 @@ export function initiateEmailSignUp(
 }
 
 /** Initiate email/password sign-in (non-blocking). */
-export function initiateEmailSignIn(authInstance: Auth, email: string, password: string): void {
+export function initiateEmailSignIn(
+    authInstance: Auth, 
+    email: string, 
+    password: string,
+    onSuccess?: AuthCallback,
+    onError?: AuthErrorCallback
+): void {
   // CRITICAL: Call signInWithEmailAndPassword directly. Do NOT use 'await signInWithEmailAndPassword(...)'.
   signInWithEmailAndPassword(authInstance, email, password)
+    .then(userCredential => {
+        if (onSuccess) onSuccess(userCredential);
+    })
     .catch((error) => {
-        errorEmitter.emit(
-            'permission-error',
-            new FirestorePermissionError({
-                path: 'email-signin', // Placeholder path
-                operation: 'write',
-                requestResourceData: { email }
-            })
-        )
+        // If an onError callback is provided, use it.
+        // This is for handling standard auth errors like wrong password.
+        if (onError) {
+            onError(error);
+        } else {
+            // Otherwise, assume it's a permissions issue and emit a contextual error.
+            errorEmitter.emit(
+                'permission-error',
+                new FirestorePermissionError({
+                    path: 'email-signin', // Placeholder path for sign-in operation
+                    operation: 'write', // Sign-in is conceptually a 'write' to the auth system
+                    requestResourceData: { email }
+                })
+            )
+        }
     });
   // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
 }
