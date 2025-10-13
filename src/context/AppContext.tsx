@@ -34,6 +34,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const fetcher = async (url: string) => {
     const res = await fetch(url);
+    // If the user is not authenticated, the API will return a 401.
+    // SWR will see this as an error and data will be undefined.
     if (res.status === 401) {
         return null;
     }
@@ -63,9 +65,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isAuthFormLoading, setIsAuthFormLoading] = useState(false);
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
-  const { data, error, isLoading, isValidating, mutate: revalidateData } = useSWR('/api/data', fetcher, {
+  const { data, error, isLoading } = useSWR('/api/data', fetcher, {
     refreshInterval: 2000, 
-    shouldRetryOnError: false, // Important to prevent loops on 401
+    shouldRetryOnError: false, // Important! Prevents retrying on 401.
     revalidateOnFocus: true,
   });
   
@@ -86,12 +88,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         throw new Error(errorBody.message || 'Invalid credentials');
       }
       
-      // Don't get user from response, let SWR handle it to be the single source of truth.
-      // The API sets the cookie, so the next `revalidateData` call will fetch the user session.
-      await revalidateData();
-      
       toast({ title: '¡Bienvenido de vuelta!' });
-      // AppShell is now responsible for ALL routing logic.
+      // Instead of complex client-side state management, we just tell Next.js
+      // to refresh the page. This will re-run the server-side logic (including AppShell)
+      // with the new session cookie. It's the most robust way.
+      router.refresh();
 
     } catch (err: any) {
       toast({ title: 'Error de inicio de sesión', description: err.message || 'El correo o la contraseña son incorrectos.', variant: 'destructive' });
@@ -101,13 +102,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
   
   const logout = useCallback(async () => {
-    // Clear local SWR cache immediately by setting data to null.
-    // The `false` prevents it from revalidating immediately.
-    await revalidateData(null, false);
-    // Call the API to clear the session cookie from the server.
     await fetch('/api/auth/logout', { method: 'POST' });
-    // AppShell will detect the change in `isAuthenticated` and redirect automatically.
-  }, [revalidateData]);
+    // Same as login, refresh to re-run server logic. AppShell will see the user
+    // is logged out and redirect to /login.
+    router.refresh();
+  }, [router]);
 
   const registerAndCreateUser = async (name: string, email: string, password: string) => {
     setIsAuthFormLoading(true);
@@ -123,9 +122,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         throw new Error(errorBody.message);
       }
       
-      await revalidateData();
-
       toast({ title: '¡Cuenta creada exitosamente!', description: 'Bienvenido a InmoSmart.' });
+      router.refresh();
 
     } catch (err: any) {
         toast({ title: 'Error de registro', description: err.message || 'No se pudo crear la cuenta.', variant: 'destructive' });

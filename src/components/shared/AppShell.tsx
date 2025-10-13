@@ -38,16 +38,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return; // Do nothing while loading, the loader will be shown.
     }
 
-    if (isAuthenticated) {
-      // If authenticated, redirect from public pages or home to the dashboard.
-      if (isPublicPage || isHomePage) {
+    // If authenticated, and on a public page (or home), redirect to dashboard
+    if (isAuthenticated && (isPublicPage || isHomePage)) {
         router.replace('/dashboard');
-      }
-    } else {
-      // If not authenticated, redirect from protected pages to login.
-      if (!isPublicPage && !isHomePage) {
+    }
+
+    // If not authenticated, and on a protected page, redirect to login
+    if (!isAuthenticated && !isPublicPage && !isHomePage) {
         router.replace('/login');
-      }
     }
   }, [isAuthenticated, isAuthLoading, isPublicPage, isHomePage, router, pathname]);
 
