@@ -2,9 +2,9 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import useSWR, { mutate } from 'swr';
 import type { Property, Transaction, User, Investment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { propertiesData } from '@/lib/data';
 
 type ModalState = {
   deposit: boolean;
@@ -22,226 +22,176 @@ interface AppContextType {
   investments: Investment[];
   modals: ModalState;
   logout: () => void;
-  login: (email: string, pass: string) => void;
-  registerAndCreateUser: (name: string, email: string, password: string) => void;
-  handleDeposit: (amount: number) => void;
-  handleWithdraw: (amount: number, clabe: string) => boolean;
-  handleInvest: (amount: number, property: Property, term: number) => void;
+  login: (email: string, pass: string) => Promise<void>;
+  registerAndCreateUser: (name: string, email: string, password: string) => Promise<void>;
+  handleDeposit: (amount: number) => Promise<void>;
+  handleWithdraw: (amount: number, clabe: string) => Promise<boolean>;
+  handleInvest: (amount: number, property: Property, term: number) => Promise<void>;
   setModals: React.Dispatch<React.SetStateAction<ModalState>>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// --- Mock Local Database ---
-const mockUsers: User[] = [];
-let mockBalance = 0;
-const mockInvestments: Investment[] = [];
-const mockTransactions: Transaction[] = [];
-let userIdCounter = 1;
+const fetcher = (url: string) => fetch(url).then(res => {
+  if (!res.ok) {
+    throw new Error('An error occurred while fetching the data.');
+  }
+  return res.json();
+});
+
+const postUpdater = async (url: string, { arg }: { arg: any }) => {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(arg),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json();
+    throw new Error(errorBody.message || 'An error occurred while updating the data.');
+  }
+  return res.json();
+}
 
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isAuthFormLoading, setIsAuthFormLoading] = useState(false);
   
-  const [balance, setBalance] = useState(mockBalance);
-  const [investments, setInvestments] = useState(mockInvestments);
-  const [transactions, setTransactions] = useState(mockTransactions);
-  const [properties, setProperties] = useState<Property[]>(propertiesData as Property[]);
-
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
-  
+
+  // Load userId from localStorage on initial load
   useEffect(() => {
-    // Simulate checking for a logged-in user in localStorage
-    const storedUser = localStorage.getItem('inmosmart-user');
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      setBalance(parsedUser.balance || 0);
-      setInvestments(parsedUser.investments || []);
-      setTransactions(parsedUser.transactions || []);
-      setIsAuthenticated(true);
+    const storedUserId = localStorage.getItem('inmosmart-userid');
+    if (storedUserId) {
+      setUserId(storedUserId);
     }
-    // Artificial delay to simulate auth loading
-    setTimeout(() => {
-        setIsAuthLoading(false);
-    }, 500);
   }, []);
 
-  const syncLocalStorage = (userData: User, currentBalance: number, currentInvestments: Investment[], currentTransactions: Transaction[]) => {
-      localStorage.setItem('inmosmart-user', JSON.stringify({
-          ...userData,
-          balance: currentBalance,
-          investments: currentInvestments,
-          transactions: currentTransactions,
-      }));
-  }
+  const { data, error, isLoading } = useSWR(userId ? `/api/data?userId=${userId}` : null, fetcher);
 
-  // --- Auth Functions (Local) ---
-  const login = (email: string, pass: string) => {
+  const isAuthLoading = !userId && !data && !error;
+  const isAuthenticated = !!data && !!data.user;
+
+  const login = async (email: string, pass: string) => {
     setIsAuthFormLoading(true);
-    const foundUser = mockUsers.find(u => u.email === email); // Password check is omitted for simplicity
-    
-    setTimeout(() => { // Simulate network delay
-        if (foundUser) {
-          setUser(foundUser);
-          setIsAuthenticated(true);
-          syncLocalStorage(foundUser, balance, investments, transactions);
-          toast({ title: '¡Bienvenido de vuelta!' });
-          router.push('/dashboard');
-        } else {
-          toast({ title: 'Error de inicio de sesión', description: 'El correo o la contraseña son incorrectos.', variant: 'destructive' });
-        }
-        setIsAuthFormLoading(false);
-    }, 500);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: { email, password: pass } }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Invalid credentials');
+      }
+
+      const { user } = await res.json();
+      localStorage.setItem('inmosmart-userid', user.id);
+      setUserId(user.id);
+      toast({ title: '¡Bienvenido de vuelta!' });
+      router.push('/dashboard');
+    } catch (err) {
+      toast({ title: 'Error de inicio de sesión', description: 'El correo o la contraseña son incorrectos.', variant: 'destructive' });
+    } finally {
+      setIsAuthFormLoading(false);
+    }
   };
   
   const logout = useCallback(() => {
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('inmosmart-user');
+    localStorage.removeItem('inmosmart-userid');
+    setUserId(null);
+    mutate(key => typeof key === 'string' && key.startsWith('/api/data'), undefined, false); // Clear SWR cache for user data
     router.push('/login');
   }, [router]);
 
-  const registerAndCreateUser = (name: string, email: string, password: string) => {
+  const registerAndCreateUser = async (name: string, email: string, password: string) => {
     setIsAuthFormLoading(true);
-    
-    setTimeout(() => {
-        if (mockUsers.find(u => u.email === email)) {
-            toast({ title: 'Error de registro', description: 'El correo electrónico ya está en uso.', variant: 'destructive' });
-            setIsAuthFormLoading(false);
-            return;
-        }
+    try {
+       const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: { name, email, password } }),
+      });
 
-        const newUser: User = {
-            id: `user-${userIdCounter++}`,
-            publicId: Math.floor(10000 + Math.random() * 90000).toString(),
-            name,
-            email,
-        };
+      if (!res.ok) {
+        const errorBody = await res.json();
+        throw new Error(errorBody.message);
+      }
 
-        mockUsers.push(newUser);
-        setUser(newUser);
-        setIsAuthenticated(true);
-        setBalance(0); // Initial balance
-        setInvestments([]);
-        setTransactions([]);
-        syncLocalStorage(newUser, 0, [], []);
+      const { user } = await res.json();
+      localStorage.setItem('inmosmart-userid', user.id);
+      setUserId(user.id);
+      toast({ title: '¡Cuenta creada exitosamente!', description: 'Bienvenido a InmoSmart.' });
+      router.push('/dashboard');
 
-        toast({ title: '¡Cuenta creada exitosamente!', description: 'Bienvenido a InmoSmart.' });
-        router.push('/dashboard');
+    } catch (err: any) {
+        toast({ title: 'Error de registro', description: err.message || 'No se pudo crear la cuenta.', variant: 'destructive' });
+    } finally {
         setIsAuthFormLoading(false);
-    }, 500);
+    }
   };
 
-  // --- Data Functions (Local) ---
-  const handleDeposit = (amount: number) => {
-    if (!user) return;
-    
-    const newBalance = balance + amount;
-    const newTransaction: Transaction = {
-      id: `trans-${Date.now()}`,
-      userId: user.id,
-      type: 'deposit',
-      amount,
-      description: 'Depósito simulado',
-      date: new Date().toISOString(),
-    };
-    const newTransactions = [newTransaction, ...transactions];
+  const handleDataUpdate = async (action: string, payload: any) => {
+    try {
+      const { data: updatedData } = await postUpdater('/api/data', { arg: { action, payload } });
+      mutate(`/api/data?userId=${userId}`, updatedData, false);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
 
-    setBalance(newBalance);
-    setTransactions(newTransactions);
-    syncLocalStorage(user, newBalance, investments, newTransactions);
-    
-    toast({
-        title: 'Depósito Exitoso',
-        description: `Has depositado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.`,
-    });
+  const handleDeposit = async (amount: number) => {
+    const { success, error } = await handleDataUpdate('deposit', { userId, amount });
+     if (success) {
+      toast({
+          title: 'Depósito Exitoso',
+          description: `Has depositado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.`,
+      });
+    } else {
+      toast({ title: 'Error en el depósito', description: error, variant: 'destructive' });
+    }
   };
 
-  const handleWithdraw = (amount: number, clabe: string): boolean => {
-    if (!user) return false;
-
-    if (amount > balance) {
+  const handleWithdraw = async (amount: number, clabe: string): Promise<boolean> => {
+     if (amount > (data?.balance || 0)) {
         toast({ title: 'Saldo insuficiente', description: 'No tienes suficiente saldo para este retiro.', variant: 'destructive' });
         return false;
     }
-
-    const newBalance = balance - amount;
-    const newTransaction: Transaction = {
-      id: `trans-${Date.now()}`,
-      userId: user.id,
-      type: 'withdraw',
-      amount,
-      description: `Retiro a CLABE: ...${clabe.slice(-4)}`,
-      date: new Date().toISOString(),
-    };
-    const newTransactions = [newTransaction, ...transactions];
-
-    setBalance(newBalance);
-    setTransactions(newTransactions);
-    syncLocalStorage(user, newBalance, investments, newTransactions);
-    
-    toast({ title: 'Retiro Exitoso', description: `Has retirado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
-    return true;
+    const { success, error } = await handleDataUpdate('withdraw', { userId, amount, clabe });
+    if (success) {
+      toast({ title: 'Retiro Exitoso', description: `Has retirado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
+      return true;
+    } else {
+       toast({ title: 'Error en el retiro', description: error, variant: 'destructive' });
+       return false;
+    }
   };
 
-  const handleInvest = (amount: number, property: Property, term: number) => {
-    if (!user) return;
-    
-    if (amount > balance) {
+  const handleInvest = async (amount: number, property: Property, term: number) => {
+    if (amount > (data?.balance || 0)) {
       toast({ title: "Saldo insuficiente", variant: "destructive" });
       return;
     }
-    if (amount < property.minInvestment) {
-      toast({ title: `La inversión mínima es de ${property.minInvestment.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}`, variant: "destructive" });
-      return;
+    const { success, error } = await handleDataUpdate('invest', { userId, amount, property, term });
+    if(success) {
+      toast({ title: '¡Inversión Exitosa!', description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.` });
+    } else {
+       toast({ title: 'Error en la inversión', description: error, variant: 'destructive' });
     }
-    
-    const newBalance = balance - amount;
-    
-    const newInvestment: Investment = {
-      id: `inv-${Date.now()}`,
-      userId: user.id,
-      propertyId: property.id,
-      investedAmount: amount,
-      ownedShares: amount / property.price * property.totalShares,
-      investmentDate: new Date().toISOString(),
-      term,
-    };
-    const newInvestments = [newInvestment, ...investments];
-
-    const newTransaction: Transaction = {
-      id: `trans-${Date.now()}-invest`,
-      userId: user.id,
-      type: 'investment',
-      amount,
-      description: `Inversión en ${property.name}`,
-      date: new Date().toISOString(),
-    };
-    const newTransactions = [newTransaction, ...transactions];
-
-    setBalance(newBalance);
-    setInvestments(newInvestments);
-    setTransactions(newTransactions);
-    syncLocalStorage(user, newBalance, newInvestments, newTransactions);
-
-    toast({ title: '¡Inversión Exitosa!', description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.` });
   };
   
   const value: AppContextType = {
-    user,
+    user: data?.user || null,
     isAuthenticated,
-    isAuthLoading: isAuthLoading || isAuthFormLoading,
-    balance,
-    properties,
-    transactions,
-    investments,
+    isAuthLoading: isLoading || isAuthLoading || isAuthFormLoading,
+    balance: data?.balance || 0,
+    properties: data?.properties || [],
+    transactions: data?.transactions || [],
+    investments: data?.investments || [],
     modals,
     logout,
     login,
