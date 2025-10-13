@@ -13,23 +13,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
   const isAuthPage = pathname === '/login' || pathname === '/register';
+  const isPublicPage = isAuthPage || pathname === '/';
 
   useEffect(() => {
-    // If auth state is still loading, do nothing to prevent premature redirects.
     if (isAuthLoading) {
-      return;
+      return; // No hacer nada mientras se verifica la autenticación
     }
 
-    // If the user is NOT authenticated and is trying to access a protected page,
-    // redirect them to the login page.
-    if (!isAuthenticated && !isAuthPage) {
+    // Si no está autenticado y no está en una página pública, redirigir a login
+    if (!isAuthenticated && !isPublicPage) {
       router.replace('/login');
     }
-  }, [isAuthenticated, isAuthLoading, isAuthPage, router]);
 
-  // While checking auth state, show a global loading skeleton.
-  // This prevents flashing content.
-  if (isAuthLoading && !isAuthPage) {
+  }, [isAuthenticated, isAuthLoading, isPublicPage, router]);
+
+  // Si se está autenticando y no es una página pública, mostrar un esqueleto de carga
+  if (isAuthLoading && !isPublicPage) {
      return (
       <div className="min-h-screen bg-background p-8">
         <div className="flex flex-col space-y-3">
@@ -48,14 +47,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If the user is not authenticated, but we're on a public or auth page,
-  // let the page render itself.
-  if (!isAuthenticated) {
+  // Si no está autenticado y está en una página pública, simplemente renderiza el contenido
+  if (!isAuthenticated && isPublicPage) {
       return <>{children}</>;
   }
 
-  // If authenticated, show the main app layout for protected routes.
-  // The child component (e.g., DashboardPage) will be responsible for its own content-specific loading state.
+  // Si no está autenticado y está en una página protegida, el useEffect ya lo redirigió,
+  // podemos retornar null o un loader para evitar renderizar nada
+  if (!isAuthenticated) {
+      return null;
+  }
+
+  // Si está autenticado, muestra el layout de la aplicación
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
