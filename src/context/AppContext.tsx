@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useRouter } from 'next/navigation';
 import type { Property, Transaction, User, Investment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import useSWR, { SWRConfig } from 'swr';
+import useSWR, { SWRConfig, mutate as globalMutate } from 'swr';
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -72,20 +72,22 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem('inmosmart-user');
-    // We don't need to push, AppShell will handle the redirection
-  }, []);
+    globalMutate(() => true, undefined, { revalidate: false }); // Clear all SWR cache
+    router.push('/login');
+  }, [router]);
 
   // Effect to handle loading and error states from SWR
   useEffect(() => {
     if (!user) return; // Don't do anything if there's no user
     if (error) {
       console.error("SWR Error:", error);
-      // If auth error, log out
+      // If auth error (user not found in DB), log out
       if (error.status === 401 || error.status === 404) {
+        toast({ title: 'Error de sesión', description: 'Tu sesión es inválida o ha expirado.', variant: 'destructive'});
         logout();
       }
     }
-  }, [data, error, isLoading, user, logout]);
+  }, [data, error, isLoading, user, logout, toast]);
 
   const login = async (email: string, pass: string) => {
     setIsAuthLoading(true);
@@ -102,7 +104,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       setUser(data.user);
       localStorage.setItem('inmosmart-user', JSON.stringify(data.user));
       toast({ title: '¡Bienvenido de vuelta!' });
-      // AppShell will handle redirection on state change
+      router.push('/dashboard');
     } catch (err: any) {
       toast({ title: 'Error de inicio de sesión', description: err.message, variant: 'destructive' });
     } finally {
@@ -125,6 +127,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         setUser(data.user);
         localStorage.setItem('inmosmart-user', JSON.stringify(data.user));
         toast({ title: '¡Cuenta creada exitosamente!' });
+        router.push('/dashboard');
     } catch (err: any) {
         toast({ title: 'Error de registro', description: err.message, variant: 'destructive' });
     } finally {
