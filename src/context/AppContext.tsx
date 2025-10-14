@@ -163,10 +163,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     try {
         await postAction('withdraw', { amount, clabe, accountHolderName });
         await mutate();
-        toast({ title: 'Retiro Exitoso', description: `Has retirado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
+        toast({ title: 'Solicitud de Retiro Enviada', description: `Tu solicitud para retirar ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} ha sido enviada para aprobación.` });
         return true;
     } catch (err: any) {
-        toast({ title: 'Error en el retiro', description: err.message, variant: 'destructive' });
+        toast({ title: 'Error en la solicitud', description: err.message, variant: 'destructive' });
         return false;
     }
   };

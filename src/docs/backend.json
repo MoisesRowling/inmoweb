@@ -124,6 +124,9 @@
       "type": "object",
       "description": "Represents a financial transaction (deposit, withdrawal, or investment).",
       "properties": {
+        "id": {
+          "type": "string"
+        },
         "userId": {
           "type": "string",
           "description": "Reference to local User ID."
@@ -145,15 +148,39 @@
           "type": "string",
           "description": "Date of the transaction.",
           "format": "date-time"
+        },
+        "clabe": {
+          "type": "string",
+          "description": "CLABE account for withdrawals."
+        },
+        "accountHolderName": {
+          "type": "string",
+          "description": "Name of the CLABE account holder."
         }
       },
       "required": [
+        "id",
         "userId",
         "type",
         "amount",
         "description",
         "date"
       ]
+    },
+    "WithdrawalRequest": {
+        "title": "Withdrawal Request",
+        "type": "object",
+        "description": "Represents a user's request to withdraw funds, pending admin approval.",
+        "properties": {
+            "id": { "type": "string" },
+            "userId": { "type": "string" },
+            "amount": { "type": "number" },
+            "clabe": { "type": "string" },
+            "accountHolderName": { "type": "string" },
+            "date": { "type": "string", "format": "date-time" },
+            "status": { "type": "string", "enum": ["pending", "approved", "rejected"]}
+        },
+        "required": ["id", "userId", "amount", "clabe", "accountHolderName", "date", "status"]
     }
   },
   "auth": {

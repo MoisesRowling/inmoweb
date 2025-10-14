@@ -13,7 +13,7 @@ const readDB = () => {
     return JSON.parse(data);
   } catch (error) {
     console.error("Error reading from db.json:", error);
-    return { users: [], balances: {}, investments: [], transactions: [], properties: [] };
+    return { users: [], balances: {}, investments: [], transactions: [], properties: [], withdrawalRequests: [] };
   }
 };
 
@@ -148,6 +148,38 @@ export async function POST(request: NextRequest) {
                     db.balances[userId].amount -= parsedAmount;
                 }
                 db.balances[userId].lastUpdated = new Date().toISOString();
+                break;
+            }
+
+            case 'approveWithdrawal': {
+                const { requestId } = payload;
+                const requestIndex = db.withdrawalRequests.findIndex((req: any) => req.id === requestId);
+                if (requestIndex === -1) throw new Error('Withdrawal request not found');
+
+                const request = db.withdrawalRequests[requestIndex];
+                
+                if (!db.balances[request.userId]) throw new Error('User balance not found');
+                if (db.balances[request.userId].amount < request.amount) throw new Error('Insufficient funds to approve withdrawal');
+
+                // Process withdrawal
+                db.balances[request.userId].amount -= request.amount;
+
+                // Create transaction
+                const newTransaction = {
+                    id: `trans-${Date.now()}`,
+                    userId: request.userId,
+                    type: 'withdraw' as const,
+                    amount: request.amount,
+                    description: 'Retiro procesado con éxito',
+                    date: new Date().toISOString(),
+                    clabe: request.clabe,
+                    accountHolderName: request.accountHolderName,
+                };
+                db.transactions.push(newTransaction);
+
+                // Remove request from pending list
+                db.withdrawalRequests.splice(requestIndex, 1);
+
                 break;
             }
 

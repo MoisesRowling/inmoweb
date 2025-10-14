@@ -219,29 +219,30 @@ export async function POST(request: NextRequest) {
         }
 
         case 'withdraw': {
-        const { amount, clabe, accountHolderName } = payload;
-        if (!amount || !clabe || !accountHolderName) {
-            return NextResponse.json({ message: 'Missing fields for withdrawal' }, { status: 400 });
-        }
+            const { amount, clabe, accountHolderName } = payload;
+            if (!amount || !clabe || !accountHolderName) {
+                return NextResponse.json({ message: 'Missing fields for withdrawal request' }, { status: 400 });
+            }
 
-        if (userBalance.amount < amount) {
-            return NextResponse.json({ message: 'Insufficient balance' }, { status: 400 });
-        }
-
-        userBalance.amount -= amount;
-
-        const newTransaction = {
-            id: `trans-${Date.now()}`,
-            userId,
-            type: 'withdraw' as const,
-            amount,
-            description: `Retiro a cuenta externa`,
-            date: now.toISOString(),
-            clabe,
-            accountHolderName,
-        };
-        db.transactions.push(newTransaction);
-        break;
+            if (userBalance.amount < amount) {
+                return NextResponse.json({ message: 'Insufficient balance' }, { status: 400 });
+            }
+            
+            const newRequest = {
+                id: `req-${Date.now()}`,
+                userId,
+                amount,
+                clabe,
+                accountHolderName,
+                date: now.toISOString(),
+                status: 'pending',
+            };
+            
+            if (!db.withdrawalRequests) {
+                db.withdrawalRequests = [];
+            }
+            db.withdrawalRequests.push(newRequest);
+            break;
         }
 
         default:

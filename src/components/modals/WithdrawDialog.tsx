@@ -58,13 +58,13 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Retirar Fondos</DialogTitle>
+          <DialogTitle>Solicitar Retiro</DialogTitle>
           <DialogDescription>
-            Tu dinero será transferido a la cuenta CLABE proporcionada.
+            Tu solicitud será revisada por un administrador. Una vez aprobada, el dinero será transferido a la cuenta CLABE proporcionada.
           </DialogDescription>
         </DialogHeader>
         <div className='py-2'>
-            <p className="text-sm text-muted-foreground">Saldo disponible:</p>
+            <p className="text-sm text-muted-foreground">Saldo disponible para retirar:</p>
             <p className="text-2xl font-bold text-foreground mb-4">
                 {balance.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
             </p>
@@ -114,7 +114,7 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
               )}
             />
             <DialogFooter>
-              <Button type="submit" className="w-full" disabled={!form.formState.isValid}>Confirmar Retiro</Button>
+              <Button type="submit" className="w-full" disabled={!form.formState.isValid}>Enviar Solicitud de Retiro</Button>
             </DialogFooter>
           </form>
         </Form>

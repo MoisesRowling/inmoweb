@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Save, Loader2, PlusCircle } from 'lucide-react';
-import type { User, Transaction, Investment, Property } from '@/lib/types';
+import { Trash2, Save, Loader2, PlusCircle, CheckCircle } from 'lucide-react';
+import type { User, Transaction, Investment, Property, WithdrawalRequest } from '@/lib/types';
 import { AppShell } from '@/components/shared/AppShell';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDistanceToNow, addDays } from 'date-fns';
@@ -21,6 +21,7 @@ type DBState = {
     investments: Investment[];
     transactions: Transaction[];
     properties: Property[];
+    withdrawalRequests: WithdrawalRequest[];
 }
 
 export default function CrudPage() {
@@ -146,6 +147,65 @@ export default function CrudPage() {
         <AppShell>
             <div className="space-y-8">
                 <h1 className="text-3xl font-bold">Panel de Administración</h1>
+                
+                {/* Withdrawal Requests Table */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Solicitudes de Retiro Pendientes</CardTitle>
+                        <CardDescription>Aprueba los retiros para que se procesen.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Usuario</TableHead>
+                                    <TableHead>Monto</TableHead>
+                                    <TableHead>Titular</TableHead>
+                                    <TableHead>CLABE</TableHead>
+                                    <TableHead>Fecha Solicitud</TableHead>
+                                    <TableHead>Acciones</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                             <TableBody>
+                                {dbData?.withdrawalRequests && dbData.withdrawalRequests.length > 0 ? (
+                                    dbData.withdrawalRequests.map((req: WithdrawalRequest) => {
+                                        const user = dbData.users.find(u => u.id === req.userId);
+                                        return (
+                                            <TableRow key={req.id}>
+                                                <TableCell>
+                                                    <div>{user?.name}</div>
+                                                    <div className="text-xs text-muted-foreground">{user?.email}</div>
+                                                </TableCell>
+                                                <TableCell>{req.amount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
+                                                <TableCell>{req.accountHolderName}</TableCell>
+                                                <TableCell className="font-mono">{req.clabe}</TableCell>
+                                                <TableCell>{new Date(req.date).toLocaleString()}</TableCell>
+                                                <TableCell>
+                                                    <Button 
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+                                                        onClick={() => apiRequest('approveWithdrawal', { requestId: req.id })}
+                                                        disabled={loading}
+                                                    >
+                                                        <CheckCircle className="mr-2 h-4 w-4" />
+                                                        Aprobar
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    })
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                                            No hay solicitudes de retiro pendientes.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
 
                 {/* Users Table */}
                 <Card>
@@ -204,7 +264,7 @@ export default function CrudPage() {
                  {/* Add Transaction */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Añadir Transacción</CardTitle>
+                        <CardTitle>Añadir Transacción Manual</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -224,7 +284,7 @@ export default function CrudPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="deposit">Depósito</SelectItem>
-                                    <SelectItem value="withdraw">Retiro</SelectItem>
+                                    <SelectItem value="withdraw">Retiro (Directo)</SelectItem>
                                 </SelectContent>
                             </Select>
                             <Input 
@@ -244,20 +304,21 @@ export default function CrudPage() {
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Añadir Transacción
                         </Button>
+                         <p className="text-xs text-muted-foreground">Nota: El retiro manual descuenta el saldo directamente, sin pasar por aprobación.</p>
                     </CardContent>
                 </Card>
                 
                  {/* Transactions Table */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Transacciones</CardTitle>
+                        <CardTitle>Historial de Transacciones</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>ID</TableHead>
-                                    <TableHead>User ID</TableHead>
+                                    <TableHead>Usuario</TableHead>
                                     <TableHead>Tipo</TableHead>
                                     <TableHead>Monto</TableHead>
                                     <TableHead>Descripción</TableHead>
@@ -267,7 +328,7 @@ export default function CrudPage() {
                             </TableHeader>
                             <TableBody>
                                 {dbData?.transactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((t: any) => (
-                                    <TableRow key={t.id}>
+                                     <TableRow key={t.id}>
                                         <TableCell className="font-mono text-xs">{t.id}</TableCell>
                                         <TableCell className="font-mono text-xs">{t.userId}</TableCell>
                                         <TableCell>{t.type}</TableCell>

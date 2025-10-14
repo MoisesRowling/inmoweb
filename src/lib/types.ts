@@ -45,3 +45,13 @@ export type Investment = {
     term: number; // in days
     currentValue?: number; // Calculated field for current value
 };
+
+export type WithdrawalRequest = {
+    id: string;
+    userId: string;
+    amount: number;
+    clabe: string;
+    accountHolderName: string;
+    date: string; // ISO String
+    status: 'pending' | 'approved' | 'rejected';
+}
