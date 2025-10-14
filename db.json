@@ -35,7 +35,7 @@
     },
     "user-1760397877209": {
       "amount": 0,
-      "lastUpdated": "2025-10-14T00:37:41.335Z"
+      "lastUpdated": "2025-10-14T00:40:51.313Z"
     },
     "user-1760400857493": {
       "amount": 0,
@@ -55,6 +55,24 @@
       "amount": 5100,
       "description": "Retiro procesado con éxito",
       "date": "2025-10-14T00:38:11.823Z",
+      "clabe": "018009392838221333",
+      "accountHolderName": "laten"
+    },
+    {
+      "id": "trans-1760402432455",
+      "userId": "user-1760397877209",
+      "type": "deposit",
+      "amount": 5000,
+      "description": "Depósito simulado",
+      "date": "2025-10-14T00:40:32.455Z"
+    },
+    {
+      "id": "trans-1760402526556",
+      "userId": "user-1760397877209",
+      "type": "withdraw",
+      "amount": 5000,
+      "description": "Retiro procesado con éxito",
+      "date": "2025-10-14T00:42:06.556Z",
       "clabe": "018009392838221333",
       "accountHolderName": "laten"
     }
