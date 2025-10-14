@@ -156,7 +156,7 @@ export default function CrudPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>ID</TableHead>
+                                    <TableHead>Public ID</TableHead>
                                     <TableHead>Nombre</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Password</TableHead>
@@ -167,7 +167,7 @@ export default function CrudPage() {
                             <TableBody>
                                 {dbData?.users.map((user: any) => (
                                     <TableRow key={user.id}>
-                                        <TableCell className="font-mono text-xs">{user.id}</TableCell>
+                                        <TableCell className="font-mono text-xs font-bold text-primary">{user.publicId}</TableCell>
                                         <TableCell>
                                             <Input 
                                                 value={editingState[user.id]?.name ?? user.name}
@@ -295,14 +295,13 @@ export default function CrudPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>ID Inversión</TableHead>
                                     <TableHead>Usuario</TableHead>
                                     <TableHead>Propiedad</TableHead>
                                     <TableHead>Monto</TableHead>
                                     <TableHead>Fecha Inversión</TableHead>
-                                    <TableHead>Plazo</TableHead>
                                     <TableHead>Vencimiento</TableHead>
                                     <TableHead>Tiempo Restante</TableHead>
+                                    <TableHead>Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -314,7 +313,6 @@ export default function CrudPage() {
                                     
                                     return (
                                         <TableRow key={inv.id}>
-                                            <TableCell className="font-mono text-xs">{inv.id}</TableCell>
                                             <TableCell>
                                                 <div>{user?.name}</div>
                                                 <div className="text-xs text-muted-foreground">{user?.email}</div>
@@ -322,10 +320,19 @@ export default function CrudPage() {
                                             <TableCell>{property?.name ?? 'N/A'}</TableCell>
                                             <TableCell>{inv.investedAmount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
                                             <TableCell>{investmentDate.toLocaleString()}</TableCell>
-                                            <TableCell>{inv.term} días</TableCell>
                                             <TableCell>{expirationDate.toLocaleString()}</TableCell>
                                             <TableCell>
                                                 {formatDistanceToNow(expirationDate, { addSuffix: true, locale: es })}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Button 
+                                                    size="icon" 
+                                                    variant="destructive" 
+                                                    onClick={() => apiRequest('deleteInvestment', { investmentId: inv.id, userId: inv.userId })}
+                                                    disabled={loading}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     )

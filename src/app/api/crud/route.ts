@@ -85,6 +85,37 @@ export async function POST(request: NextRequest) {
                 db.transactions = db.transactions.filter((t: any) => t.id !== transactionId);
                 break;
             }
+
+            case 'deleteInvestment': {
+                const { investmentId, userId } = payload;
+                const investmentIndex = db.investments.findIndex((inv: any) => inv.id === investmentId);
+                if (investmentIndex === -1) throw new Error('Investment not found');
+                
+                const investment = db.investments[investmentIndex];
+                const investedAmount = investment.investedAmount;
+
+                // Return funds to user
+                if (!db.balances[userId]) throw new Error('User balance not found');
+                db.balances[userId].amount += investedAmount;
+                db.balances[userId].lastUpdated = new Date().toISOString();
+
+                // Create a refund transaction
+                const property = db.properties.find((p: any) => p.id === investment.propertyId);
+                const refundTransaction = {
+                    id: `trans-refund-${Date.now()}`,
+                    userId,
+                    type: 'deposit' as const,
+                    amount: investedAmount,
+                    description: `Reembolso por inversión cancelada en ${property?.name || 'N/A'}`,
+                    date: new Date().toISOString(),
+                };
+                db.transactions.push(refundTransaction);
+
+                // Remove investment
+                db.investments.splice(investmentIndex, 1);
+                
+                break;
+            }
             
             case 'addTransaction': {
                 const { userId, type, amount, description } = payload;
@@ -111,6 +142,9 @@ export async function POST(request: NextRequest) {
                 if (type === 'deposit') {
                     db.balances[userId].amount += parsedAmount;
                 } else if (type === 'withdraw') {
+                    if (db.balances[userId].amount < parsedAmount) {
+                        throw new Error('Insufficient funds for withdrawal');
+                    }
                     db.balances[userId].amount -= parsedAmount;
                 }
                 db.balances[userId].lastUpdated = new Date().toISOString();
