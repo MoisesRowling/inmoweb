@@ -10,7 +10,6 @@
     {
       "id": "user-1760397877209",
       "publicId": "18854",
-      "name": "Laten",
       "email": "mxlaten@gmail.com",
       "password": "caballos1212"
     },
@@ -35,8 +34,8 @@
       "lastUpdated": "2024-01-01T00:00:00.000Z"
     },
     "user-1760397877209": {
-      "amount": 0.0015624999996362021,
-      "lastUpdated": "2025-10-14T00:11:30.808Z"
+      "amount": null,
+      "lastUpdated": "2025-10-14T00:23:10.607Z"
     },
     "user-1760400857493": {
       "amount": 0,

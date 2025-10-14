@@ -85,6 +85,37 @@ export async function POST(request: NextRequest) {
                 db.transactions = db.transactions.filter((t: any) => t.id !== transactionId);
                 break;
             }
+            
+            case 'addTransaction': {
+                const { userId, type, amount, description } = payload;
+                if (!userId || !type || !amount || !description) {
+                    throw new Error('Missing fields for transaction');
+                }
+                const parsedAmount = parseFloat(amount);
+                if (isNaN(parsedAmount)) throw new Error('Invalid amount');
+
+                if (!db.balances[userId]) throw new Error('User balance not found');
+
+                // Create transaction
+                 const newTransaction = {
+                    id: `trans-${Date.now()}`,
+                    userId,
+                    type,
+                    amount: parsedAmount,
+                    description,
+                    date: new Date().toISOString(),
+                };
+                db.transactions.push(newTransaction);
+                
+                // Update balance
+                if (type === 'deposit') {
+                    db.balances[userId].amount += parsedAmount;
+                } else if (type === 'withdraw') {
+                    db.balances[userId].amount -= parsedAmount;
+                }
+                db.balances[userId].lastUpdated = new Date().toISOString();
+                break;
+            }
 
             default:
                 return NextResponse.json({ message: 'Invalid action' }, { status: 400 });

@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Save, Loader2 } from 'lucide-react';
+import { Trash2, Save, Loader2, PlusCircle } from 'lucide-react';
 import type { User, Transaction, Investment } from '@/lib/types';
 import { AppShell } from '@/components/shared/AppShell';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const CRUD_PASSWORD = process.env.NEXT_PUBLIC_CRUD_PASSWORD || "caballos1212";
 
@@ -26,6 +27,14 @@ export default function CrudPage() {
     const [loading, setLoading] = useState(false);
     const [editingState, setEditingState] = useState<{ [key: string]: any }>({});
     const { toast } = useToast();
+    
+    // State for new transaction form
+    const [newTransaction, setNewTransaction] = useState({
+        userId: '',
+        type: 'deposit',
+        amount: '',
+        description: '',
+    });
 
     const handleAuth = () => {
         if (password === CRUD_PASSWORD) {
@@ -81,6 +90,19 @@ export default function CrudPage() {
             ...prev,
             [userId]: { ...prev[userId], [field]: value }
         }));
+    };
+    
+    const handleNewTransactionChange = (field: string, value: any) => {
+        setNewTransaction(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleAddTransaction = () => {
+        if (!newTransaction.userId || !newTransaction.amount || !newTransaction.description) {
+            toast({ title: "Error", description: "Por favor, completa todos los campos de la transacción.", variant: "destructive" });
+            return;
+        }
+        apiRequest('addTransaction', newTransaction);
+        setNewTransaction({ userId: '', type: 'deposit', amount: '', description: '' });
     };
 
     if (!isAuthenticated) {
@@ -173,6 +195,52 @@ export default function CrudPage() {
                                 ))}
                             </TableBody>
                         </Table>
+                    </CardContent>
+                </Card>
+                
+                 {/* Add Transaction */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Añadir Transacción</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                            <Select onValueChange={(value) => handleNewTransactionChange('userId', value)} value={newTransaction.userId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccionar Usuario" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {dbData?.users.map((user) => (
+                                        <SelectItem key={user.id} value={user.id}>{user.name} ({user.email})</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                             <Select onValueChange={(value) => handleNewTransactionChange('type', value)} defaultValue="deposit">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Tipo de transacción" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="deposit">Depósito</SelectItem>
+                                    <SelectItem value="withdraw">Retiro</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input 
+                                type="number"
+                                placeholder="Monto"
+                                value={newTransaction.amount}
+                                onChange={(e) => handleNewTransactionChange('amount', e.target.value)}
+                            />
+                            <Input 
+                                placeholder="Descripción"
+                                value={newTransaction.description}
+                                onChange={(e) => handleNewTransactionChange('description', e.target.value)}
+                                className="md:col-span-2"
+                            />
+                        </div>
+                        <Button onClick={handleAddTransaction} disabled={loading}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Añadir Transacción
+                        </Button>
                     </CardContent>
                 </Card>
                 
