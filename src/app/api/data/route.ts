@@ -46,14 +46,67 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: 'User not found' }, { status: 404 });
   }
 
-  // --- Real-time return calculation ---
   let userBalanceInfo = db.balances[userId] || { amount: 0, lastUpdated: new Date().toISOString() };
-  let userInvestments: Investment[] = db.investments.filter((i: any) => i.userId === userId);
+  let allInvestments: Investment[] = db.investments;
   const properties: Property[] = db.properties;
-
   const now = await getCurrentTime();
   
-  const updatedInvestments = userInvestments.map(investment => {
+  // --- Process Expired Investments ---
+  const userInvestments = allInvestments.filter(inv => inv.userId === userId);
+  const stillActiveInvestments: Investment[] = [];
+  let writeChanges = false;
+
+  for (const investment of userInvestments) {
+      const investmentDate = new Date(investment.investmentDate);
+      const expirationDate = new Date(investmentDate);
+      expirationDate.setDate(expirationDate.getDate() + investment.term);
+
+      if (now >= expirationDate) {
+          // Investment expired
+          const property = properties.find(p => p.id === investment.propertyId);
+          if (!property) continue; // Should not happen
+
+          const secondsElapsedTotal = (expirationDate.getTime() - investmentDate.getTime()) / 1000;
+          const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
+          const investmentTotalGains = gainPerSecond * secondsElapsedTotal;
+          const finalValue = investment.investedAmount + investmentTotalGains;
+
+          // Add final value to balance
+          userBalanceInfo.amount += finalValue;
+          
+          // Create transaction for released investment
+          const releaseTransaction = {
+              id: `trans-release-${investment.id}`,
+              userId,
+              type: 'deposit' as const,
+              amount: finalValue,
+              description: `Liberación de inversión en ${property.name}`,
+              date: now.toISOString(),
+          };
+          db.transactions.push(releaseTransaction);
+          
+          writeChanges = true;
+      } else {
+          // Investment is still active
+          stillActiveInvestments.push(investment);
+      }
+  }
+
+  if (writeChanges) {
+    db.investments = allInvestments.filter(inv => {
+        const isUserInvestment = inv.userId === userId;
+        if (!isUserInvestment) return true; // Keep investments of other users
+        // For the current user, only keep investments that are still active
+        return stillActiveInvestments.some(activeInv => activeInv.id === inv.id);
+    });
+    db.balances[userId] = userBalanceInfo;
+    writeDB(db);
+  }
+  // --- End of processing ---
+
+
+  // --- Real-time return calculation for still active investments ---
+  const updatedInvestments = stillActiveInvestments.map(investment => {
     const property = properties.find(p => p.id === investment.propertyId);
     if (!property || property.dailyReturn <= 0) {
       return { ...investment, currentValue: investment.investedAmount };
