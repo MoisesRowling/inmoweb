@@ -9,18 +9,18 @@ import { Skeleton } from '../ui/skeleton';
 
 const FullPageLoader = () => (
     <div className="min-h-screen bg-background p-8">
-    <div className="flex flex-col space-y-3">
-        <Skeleton className="h-16 w-full" />
-        <div className="space-y-2 pt-8">
-        <Skeleton className="h-8 w-1/3" />
-        <Skeleton className="h-4 w-1/2" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
-            <Skeleton className="h-[125px] w-full rounded-xl" />
-            <Skeleton className="h-[125px] w-full rounded-xl" />
-            <Skeleton className="h-[125px] w-full rounded-xl" />
-        </div>
-    </div>
+      <div className="flex flex-col space-y-3">
+          <Skeleton className="h-16 w-full" />
+          <div className="space-y-2 pt-8">
+          <Skeleton className="h-8 w-1/3" />
+          <Skeleton className="h-4 w-1/2" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
+              <Skeleton className="h-[125px] w-full rounded-xl" />
+              <Skeleton className="h-[125px] w-full rounded-xl" />
+              <Skeleton className="h-[125px] w-full rounded-xl" />
+          </div>
+      </div>
     </div>
 );
 
@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return; 
     }
 
-    if (isAuthenticated && isPublicPage && pathname !== '/') {
+    if (isAuthenticated && isPublicPage) {
         router.replace('/dashboard');
     }
 
@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, isAuthLoading, isPublicPage, router, pathname]);
 
-  if (isAuthLoading) {
+  if (isAuthLoading && !isPublicPage) {
     return <FullPageLoader />;
   }
 
@@ -54,7 +54,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return <FullPageLoader />;
   }
   
-  if (isAuthenticated && !isPublicPage) {
+  if (isAuthenticated && isPublicPage) {
+      return <FullPageLoader />;
+  }
+
+  const renderShell = !isPublicPage || isAuthenticated;
+  
+  if (renderShell) {
      return (
         <div className="min-h-screen flex flex-col bg-background">
         <Header />

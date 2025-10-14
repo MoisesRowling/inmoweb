@@ -26,9 +26,9 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} font-body antialiased`}>
         <AppProvider>
-          {children}
-          <Toaster />
-          <GlobalModals />
+            {children}
+            <Toaster />
+            <GlobalModals />
         </AppProvider>
       </body>
     </html>

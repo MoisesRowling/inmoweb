@@ -1,10 +1,7 @@
-// IMPORTANT: This file is a work-in-progress and is not fully implemented.
 import { NextResponse, type NextRequest } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import type { Investment, Property, User } from '@/lib/types';
-import { jwtVerify } from 'jose';
-import { cookies } from 'next/headers';
+import type { Investment, Property, Transaction, User } from '@/lib/types';
 
 // Helper to get the full path to db.json
 const dbPath = path.join(process.cwd(), 'db.json');
@@ -30,53 +27,22 @@ const writeDB = (data: any) => {
   }
 };
 
-// Function to get current UTC time from an external service
 async function getCurrentTime() {
-    try {
-        const response = await fetch('http://worldtimeapi.org/api/timezone/Etc/UTC', { cache: 'no-store' });
-        if (!response.ok) {
-            throw new Error('Failed to fetch time');
-        }
-        const data = await response.json();
-        return new Date(data.utc_datetime);
-    } catch (error) {
-        console.error("Could not fetch external time, falling back to server time:", error);
-        // Fallback to server time in case the API fails
-        return new Date();
-    }
+    return new Date();
 }
-
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-super-secret-key-that-is-at-least-32-bytes-long');
-
-async function getUserIdFromSession(): Promise<string | null> {
-    const sessionToken = cookies().get('session')?.value;
-    if (!sessionToken) {
-        return null;
-    }
-    try {
-        const { payload } = await jwtVerify(sessionToken, JWT_SECRET);
-        return payload.userId as string;
-    } catch (error) {
-        console.error("Failed to verify JWT:", error);
-        return null;
-    }
-}
-
 
 export async function GET(request: NextRequest) {
-  const userId = await getUserIdFromSession();
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get('userId');
 
   if (!userId) {
-    return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
+    return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
   }
 
   const db = readDB();
   
   const user = db.users.find((u: any) => u.id === userId);
   if (!user) {
-    // This case might happen if user was deleted but session is still valid
-    // We should clear the cookie
-    cookies().delete('session');
     return NextResponse.json({ message: 'User not found' }, { status: 404 });
   }
 
@@ -86,10 +52,6 @@ export async function GET(request: NextRequest) {
   const properties: Property[] = db.properties;
 
   const now = await getCurrentTime();
-  const lastUpdate = new Date(userBalanceInfo.lastUpdated);
-  const secondsSinceLastUpdate = (now.getTime() - lastUpdate.getTime()) / 1000;
-  
-  let totalGains = 0;
   
   const updatedInvestments = userInvestments.map(investment => {
     const property = properties.find(p => p.id === investment.propertyId);
@@ -97,7 +59,6 @@ export async function GET(request: NextRequest) {
       return { ...investment, currentValue: investment.investedAmount };
     }
     
-    // This calculates gains from the investment's start date until now
     const investmentDate = new Date(investment.investmentDate);
     const secondsElapsedTotal = (now.getTime() - investmentDate.getTime()) / 1000;
     
@@ -115,7 +76,7 @@ export async function GET(request: NextRequest) {
   });
   // --- End of calculation ---
   
-  // We don't want to send the password to the client
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { password, ...userSafe } = user;
 
   const userData = {
@@ -130,113 +91,112 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const userId = await getUserIdFromSession();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
     if (!userId) {
-        return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
+        return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
     }
 
-  const body = await request.json();
-  const { action, payload } = body;
-  
-  if (!action || !payload) {
-    return NextResponse.json({ message: 'Action and payload are required' }, { status: 400 });
-  }
-
-  const db = readDB();
-
-  const now = await getCurrentTime();
-  let userBalance = db.balances[userId] || { amount: 0, lastUpdated: new Date().toISOString() };
-  
-  // Apply the requested action
-  switch(action) {
-    case 'invest': {
-      const { amount, property, term } = payload;
-      if (!amount || !property || !term) {
-        return NextResponse.json({ message: 'Missing fields for investment' }, { status: 400 });
-      }
-
-      if (userBalance.amount < amount) {
-        return NextResponse.json({ message: 'Insufficient balance' }, { status: 400 });
-      }
-      
-      userBalance.amount -= amount;
-
-      const newInvestment: Omit<Investment, 'currentValue'> = {
-        id: `inv-${Date.now()}`,
-        userId,
-        propertyId: property.id,
-        investedAmount: amount,
-        ownedShares: amount / property.price * property.totalShares,
-        investmentDate: now.toISOString(),
-        term,
-      };
-      db.investments.push(newInvestment);
-
-      const newTransaction = {
-        id: newInvestment.id, // Use same ID for consistency
-        userId,
-        type: 'investment',
-        amount,
-        description: `Inversión en ${property.name}`,
-        date: now.toISOString(),
-      };
-      db.transactions.push(newTransaction);
-      
-      break;
+    const body = await request.json();
+    const { action, payload } = body;
+    
+    if (!action || !payload) {
+        return NextResponse.json({ message: 'Action and payload are required' }, { status: 400 });
     }
 
-    case 'deposit': {
-      const { amount } = payload;
-      if (!amount) {
-        return NextResponse.json({ message: 'Missing fields for deposit' }, { status: 400 });
-      }
-      userBalance.amount += amount;
-       const newTransaction = {
-        id: `trans-${Date.now()}`,
-        userId,
-        type: 'deposit',
-        amount,
-        description: 'Depósito simulado',
-        date: now.toISOString(),
-      };
-      db.transactions.push(newTransaction);
-      break;
+    const db = readDB();
+
+    const now = await getCurrentTime();
+    let userBalance = db.balances[userId] || { amount: 0, lastUpdated: new Date().toISOString() };
+    
+    switch(action) {
+        case 'invest': {
+        const { amount, property, term } = payload;
+        if (!amount || !property || !term) {
+            return NextResponse.json({ message: 'Missing fields for investment' }, { status: 400 });
+        }
+
+        if (userBalance.amount < amount) {
+            return NextResponse.json({ message: 'Insufficient balance' }, { status: 400 });
+        }
+        
+        userBalance.amount -= amount;
+
+        const newInvestment: Omit<Investment, 'currentValue'> = {
+            id: `inv-${Date.now()}`,
+            userId,
+            propertyId: property.id,
+            investedAmount: amount,
+            ownedShares: amount / property.price * property.totalShares,
+            investmentDate: now.toISOString(),
+            term,
+        };
+        db.investments.push(newInvestment);
+
+        const newTransaction = {
+            id: newInvestment.id,
+            userId,
+            type: 'investment' as const,
+            amount,
+            description: `Inversión en ${property.name}`,
+            date: now.toISOString(),
+        };
+        db.transactions.push(newTransaction);
+        
+        break;
+        }
+
+        case 'deposit': {
+        const { amount } = payload;
+        if (!amount) {
+            return NextResponse.json({ message: 'Missing fields for deposit' }, { status: 400 });
+        }
+        userBalance.amount += amount;
+        const newTransaction = {
+            id: `trans-${Date.now()}`,
+            userId,
+            type: 'deposit' as const,
+            amount,
+            description: 'Depósito simulado',
+            date: now.toISOString(),
+        };
+        db.transactions.push(newTransaction);
+        break;
+        }
+
+        case 'withdraw': {
+        const { amount, clabe } = payload;
+        if (!amount || !clabe) {
+            return NextResponse.json({ message: 'Missing fields for withdrawal' }, { status: 400 });
+        }
+
+        if (userBalance.amount < amount) {
+            return NextResponse.json({ message: 'Insufficient balance' }, { status: 400 });
+        }
+
+        userBalance.amount -= amount;
+
+        const newTransaction = {
+            id: `trans-${Date.now()}`,
+            userId,
+            type: 'withdraw' as const,
+            amount,
+            description: `Retiro a CLABE: ...${clabe.slice(-4)}`,
+            date: now.toISOString(),
+        };
+        db.transactions.push(newTransaction);
+        break;
+        }
+
+        default:
+        return NextResponse.json({ message: 'Invalid action' }, { status: 400 });
     }
 
-    case 'withdraw': {
-       const { amount, clabe } = payload;
-       if (!amount || !clabe) {
-        return NextResponse.json({ message: 'Missing fields for withdrawal' }, { status: 400 });
-      }
-
-      if (userBalance.amount < amount) {
-        return NextResponse.json({ message: 'Insufficient balance' }, { status: 400 });
-      }
-
-      userBalance.amount -= amount;
-
-      const newTransaction = {
-        id: `trans-${Date.now()}`,
-        userId,
-        type: 'withdraw',
-        amount,
-        description: `Retiro a CLABE: ...${clabe.slice(-4)}`,
-        date: now.toISOString(),
-      };
-      db.transactions.push(newTransaction);
-      break;
-    }
-
-    default:
-      return NextResponse.json({ message: 'Invalid action' }, { status: 400 });
-  }
-
-  userBalance.lastUpdated = now.toISOString();
-  db.balances[userId] = userBalance;
-  writeDB(db);
-  
-  // After a successful POST, we return the full updated dataset.
-  // This helps SWR's `populateCache` to work correctly.
-  const updatedData = await GET(request);
-  return updatedData;
+    userBalance.lastUpdated = now.toISOString();
+    db.balances[userId] = userBalance;
+    writeDB(db);
+    
+    // After a successful POST, we can return just a success message
+    return NextResponse.json({ success: true, message: `${action} successful.` }, { status: 200 });
 }

@@ -4,57 +4,19 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useRouter } from 'next/navigation';
 import type { Property, Transaction, User, Investment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { propertiesData } from '@/lib/data';
+import useSWR, { SWRConfig } from 'swr';
 
-// --- Local Data Simulation ---
-// This replaces the direct import of db.json
-const dbData = {
-  "users": [
-    {
-      "id": "user-1",
-      "publicId": "12345",
-      "name": "Usuario de Prueba",
-      "email": "test@test.com",
-      "password": "password123"
-    }
-  ],
-  "balances": {
-    "user-1": {
-      "amount": 15000,
-      "lastUpdated": "2024-01-01T00:00:00.000Z"
-    }
-  },
-  "investments": [
-    {
-      "id": "inv-1",
-      "userId": "user-1",
-      "propertyId": "1",
-      "investedAmount": 5000,
-      "ownedShares": 16.66,
-      "investmentDate": "2024-05-10T10:00:00.000Z",
-      "term": 30
-    }
-  ],
-  "transactions": [
-     {
-      "id": "trans-1",
-      "userId": "user-1",
-      "type": "deposit" as const,
-      "amount": 20000,
-      "description": "Depósito inicial",
-      "date": "2024-05-01T09:00:00.000Z"
-    },
-    {
-      "id": "trans-2",
-      "userId": "user-1",
-      "type": "investment" as const,
-      "amount": 5000,
-      "description": "Inversión en Hacienda Santorini",
-      "date": "2024-05-10T10:00:00.000Z"
-    }
-  ]
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const error = new Error('An error occurred while fetching the data.');
+    // Attach extra info to the error object.
+    error.info = await res.json();
+    error.status = res.status;
+    throw error;
+  }
+  return res.json();
 };
-// --- End of Local Data Simulation ---
 
 
 type ModalState = {
@@ -73,237 +35,155 @@ interface AppContextType {
   investments: Investment[];
   modals: ModalState;
   logout: () => void;
-  login: (email: string, pass: string) => void;
-  registerAndCreateUser: (name: string, email: string, password: string) => void;
-  handleDeposit: (amount: number) => void;
-  handleWithdraw: (amount: number, clabe: string) => boolean;
-  handleInvest: (amount: number, property: Property, term: number) => void;
+  login: (email: string, pass: string) => Promise<void>;
+  registerAndCreateUser: (name: string, email: string, password: string) => Promise<void>;
+  handleDeposit: (amount: number) => Promise<void>;
+  handleWithdraw: (amount: number, clabe: string) => Promise<boolean>;
+  handleInvest: (amount: number, property: Property, term: number) => Promise<void>;
   setModals: React.Dispatch<React.SetStateAction<ModalState>>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-
-export function AppProvider({ children }: { children: ReactNode }) {
+function AppProviderContent({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
 
-  // Local state for the whole app
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
-  const [balance, setBalance] = useState(0);
-  const [investments, setInvestments] = useState<Investment[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [properties, setProperties] = useState<Property[]>(propertiesData);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
+  // SWR will fetch data and keep it up to date
+  const { data, error, mutate, isLoading } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      refreshInterval: 5000, // refresh data every 5 seconds
+  });
 
-  // Load user from localStorage on initial render
+  // Effect to load user from localStorage on initial mount
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('inmosmart-user');
-      if (storedUser) {
-        const userData: User = JSON.parse(storedUser);
-        const userBalance = dbData.balances[userData.id as keyof typeof dbData.balances];
-        const userInvestments = dbData.investments.filter(inv => inv.userId === userData.id);
-        const userTransactions = dbData.transactions.filter(t => t.userId === userData.id);
-
-        setUser(userData);
-        setBalance(userBalance?.amount ?? 0);
-        setInvestments(userInvestments);
-        setTransactions(userTransactions);
-      }
-    } catch (e) {
-      console.error("Failed to parse user from localStorage", e);
-      localStorage.removeItem('inmosmart-user');
-    } finally {
-      setIsAuthLoading(false);
-    }
-  }, []);
-
-  // Update localStorage when user changes
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('inmosmart-user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('inmosmart-user');
-    }
-  }, [user]);
-  
-  // Real-time investment calculation effect
-  useEffect(() => {
-    if (!user || investments.length === 0) return;
-
-    const interval = setInterval(async () => {
-      const now = new Date(); 
-      
-      const updatedInvestments = investments.map(investment => {
-        const property = properties.find(p => p.id === investment.propertyId);
-        if (!property) return { ...investment, currentValue: investment.investedAmount };
-        
-        const investmentDate = new Date(investment.investmentDate);
-        const secondsElapsed = (now.getTime() - investmentDate.getTime()) / 1000;
-        
-        if (secondsElapsed <= 0) {
-            return { ...investment, currentValue: investment.investedAmount };
-        }
-        
-        const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400; // 86400 seconds
-        const investmentTotalGains = gainPerSecond * secondsElapsed;
-        
-        return {
-          ...investment,
-          currentValue: investment.investedAmount + investmentTotalGains
-        };
-      });
-      setInvestments(updatedInvestments);
-
-    }, 2000); // Recalculate every 2 seconds
-
-    return () => clearInterval(interval);
-  }, [user, investments, properties]);
-
-
-  const login = (email: string, pass: string) => {
-    setIsAuthLoading(true);
-    const foundUser = dbData.users.find(u => u.email === email && u.password === pass);
-    if (foundUser) {
-        const { password, ...userSafe } = foundUser;
-        const userBalance = dbData.balances[userSafe.id as keyof typeof dbData.balances];
-        const userInvestments = dbData.investments.filter(inv => inv.userId === userSafe.id);
-        const userTransactions = dbData.transactions.filter(t => t.userId === userSafe.id);
-
-        setUser(userSafe);
-        setBalance(userBalance?.amount ?? 0);
-        setInvestments(userInvestments);
-        setTransactions(userTransactions);
-        
-        toast({ title: '¡Bienvenido de vuelta!' });
-        router.push('/dashboard');
-    } else {
-        toast({ title: 'Error de inicio de sesión', description: 'El correo o la contraseña son incorrectos.', variant: 'destructive' });
+    const storedUser = localStorage.getItem('inmosmart-user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
     }
     setIsAuthLoading(false);
+  }, []);
+
+  // Effect to handle loading and error states from SWR
+  useEffect(() => {
+    if (!user) return; // Don't do anything if there's no user
+    if (error) {
+      console.error("SWR Error:", error);
+      // If auth error, log out
+      if (error.status === 401 || error.status === 404) {
+        logout();
+      }
+    }
+  }, [data, error, isLoading, user]);
+
+  const login = async (email: string, pass: string) => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Error al iniciar sesión');
+      }
+      setUser(data.user);
+      localStorage.setItem('inmosmart-user', JSON.stringify(data.user));
+      toast({ title: '¡Bienvenido de vuelta!' });
+      await mutate(); // Re-fetch data for the new user
+      router.push('/dashboard');
+    } catch (err: any) {
+      toast({ title: 'Error de inicio de sesión', description: err.message, variant: 'destructive' });
+    }
   };
-  
+
+  const registerAndCreateUser = async (name: string, email: string, password: string) => {
+    try {
+        const res = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.message || 'Error al registrarse');
+        }
+        setUser(data.user);
+        localStorage.setItem('inmosmart-user', JSON.stringify(data.user));
+        toast({ title: '¡Cuenta creada exitosamente!' });
+        await mutate(); // Re-fetch data for the new user
+        router.push('/dashboard');
+    } catch (err: any) {
+        toast({ title: 'Error de registro', description: err.message, variant: 'destructive' });
+    }
+  };
+
   const logout = useCallback(() => {
     setUser(null);
-    setBalance(0);
-    setInvestments([]);
-    setTransactions([]);
+    localStorage.removeItem('inmosmart-user');
+    // No need to call API if session is client-side
     router.push('/login');
   }, [router]);
 
-  const registerAndCreateUser = (name: string, email: string, password: string) => {
-    setIsAuthLoading(true);
-    if (dbData.users.find(u => u.email === email)) {
-        toast({ title: 'Error de registro', description: 'El correo electrónico ya está en uso.', variant: 'destructive' });
-        setIsAuthLoading(false);
-        return;
+  const postAction = async (action: string, payload: any) => {
+      if (!user) throw new Error("User not authenticated");
+      const res = await fetch(`/api/data?userId=${user.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, payload })
+      });
+      if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'La acción falló');
+      }
+      return res.json();
+  }
+
+  const handleDeposit = async (amount: number) => {
+    try {
+      await postAction('deposit', { amount });
+      await mutate(); // Re-fetch data
+      toast({ title: 'Depósito Exitoso', description: `Has depositado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
+    } catch (err: any) {
+      toast({ title: 'Error en el depósito', description: err.message, variant: 'destructive' });
     }
-
-    const newUser: User = {
-        id: `user-${Date.now()}`,
-        publicId: Math.floor(10000 + Math.random() * 90000).toString(),
-        name,
-        email,
-    };
-    
-    setUser(newUser);
-    setBalance(0);
-    setInvestments([]);
-    setTransactions([]);
-
-    toast({ title: '¡Cuenta creada exitosamente!', description: 'Bienvenido a InmoSmart.' });
-    router.push('/dashboard');
-    setIsAuthLoading(false);
   };
 
-  const handleDeposit = (amount: number) => {
-    if (!user) return;
-    const newBalance = balance + amount;
-    setBalance(newBalance);
-    
-    const newTransaction: Transaction = {
-        id: `trans-${Date.now()}`,
-        userId: user.id,
-        type: 'deposit',
-        amount,
-        description: 'Depósito simulado',
-        date: new Date().toISOString(),
-      };
-    setTransactions(prev => [newTransaction, ...prev]);
-
-    toast({
-        title: 'Depósito Exitoso',
-        description: `Has depositado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.`,
-    });
-  };
-
-  const handleWithdraw = (amount: number, clabe: string): boolean => {
-     if (amount > balance) {
-        toast({ title: 'Saldo insuficiente', description: 'No tienes suficiente saldo para este retiro.', variant: 'destructive' });
+  const handleWithdraw = async (amount: number, clabe: string): Promise<boolean> => {
+    try {
+        await postAction('withdraw', { amount, clabe });
+        await mutate();
+        toast({ title: 'Retiro Exitoso', description: `Has retirado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
+        return true;
+    } catch (err: any) {
+        toast({ title: 'Error en el retiro', description: err.message, variant: 'destructive' });
         return false;
     }
-    if (!user) return false;
-
-    setBalance(prev => prev - amount);
-
-    const newTransaction: Transaction = {
-      id: `trans-${Date.now()}`,
-      userId: user.id,
-      type: 'withdraw',
-      amount,
-      description: `Retiro a CLABE: ...${clabe.slice(-4)}`,
-      date: new Date().toISOString(),
-    };
-    setTransactions(prev => [newTransaction, ...prev]);
-
-    toast({ title: 'Retiro Exitoso', description: `Has retirado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
-    return true;
   };
 
-  const handleInvest = (amount: number, property: Property, term: number) => {
-    if (amount > balance) {
-      toast({ title: "Saldo insuficiente", variant: "destructive" });
-      return;
+  const handleInvest = async (amount: number, property: Property, term: number) => {
+    try {
+        await postAction('invest', { amount, property, term });
+        await mutate();
+        toast({ title: '¡Inversión Exitosa!', description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.` });
+    } catch (err: any) {
+        toast({ title: 'Error en la inversión', description: err.message, variant: 'destructive' });
     }
-    if (!user) return;
-
-    setBalance(prev => prev - amount);
-
-    const newInvestment: Investment = {
-        id: `inv-${Date.now()}`,
-        userId: user.id,
-        propertyId: property.id,
-        investedAmount: amount,
-        ownedShares: amount / property.price * property.totalShares,
-        investmentDate: new Date().toISOString(),
-        term,
-    };
-    setInvestments(prev => [...prev, newInvestment]);
-
-    const newTransaction: Transaction = {
-        id: newInvestment.id, // Use same ID for consistency
-        userId: user.id,
-        type: 'investment',
-        amount,
-        description: `Inversión en ${property.name}`,
-        date: new Date().toISOString(),
-    };
-    setTransactions(prev => [newTransaction, ...prev]);
-
-    toast({ title: '¡Inversión Exitosa!', description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.` });
   };
-  
+
   const value: AppContextType = {
-    user,
-    isAuthenticated: !!user,
-    isAuthLoading,
-    balance,
-    properties,
-    transactions,
-    investments,
+    user: data?.user || user,
+    isAuthenticated: !!data && !error,
+    isAuthLoading: (user && isLoading) || isAuthLoading,
+    balance: data?.balance ?? 0,
+    properties: data?.properties ?? [],
+    transactions: data?.transactions ?? [],
+    investments: data?.investments ?? [],
     modals,
     logout,
     login,
@@ -315,6 +195,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+export function AppProvider({ children }: { children: ReactNode }) {
+    return (
+        <SWRConfig>
+            <AppProviderContent>{children}</AppProviderContent>
+        </SWRConfig>
+    );
 }
 
 export const useApp = (): AppContextType => {

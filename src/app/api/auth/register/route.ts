@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { SignJWT } from 'jose';
-import { cookies } from 'next/headers';
 
 const dbPath = path.join(process.cwd(), 'db.json');
 
@@ -23,8 +21,6 @@ const writeDB = (data: any) => {
         console.error("Error writing to db.json:", error);
     }
 };
-
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-super-secret-key-that-is-at-least-32-bytes-long');
 
 export async function POST(request: Request) {
   const { name, email, password } = await request.json();
@@ -52,22 +48,8 @@ export async function POST(request: Request) {
 
   writeDB(db);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { password: _, ...userSafe } = newUser;
-
-  // Create JWT
-  const token = await new SignJWT({ userId: newUser.id })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime('10m')
-      .sign(JWT_SECRET);
-  
-  // Set cookie
-  cookies().set('session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 10, // 10 minutes
-      path: '/',
-  });
 
   return NextResponse.json({ user: userSafe }, { status: 201 });
 }
