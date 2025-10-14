@@ -2,22 +2,12 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import useSWR, { mutate } from 'swr';
 import type { Property, Transaction, User, Investment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import useSWR, { SWRConfig, mutate as globalMutate } from 'swr';
 
-const fetcher = async (url: string) => {
-  const res = await fetch(url);
-  if (!res.ok) {
-    const error = new Error('An error occurred while fetching the data.');
-    // Attach extra info to the error object.
-    error.info = await res.json();
-    error.status = res.status;
-    throw error;
-  }
-  return res.json();
-};
-
+// Helper function to fetch data
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 type ModalState = {
   deposit: boolean;
@@ -33,158 +23,165 @@ interface AppContextType {
   properties: Property[];
   transactions: Transaction[];
   investments: Investment[];
-  modals: ModalState;
   logout: () => void;
   login: (email: string, pass: string) => Promise<void>;
   registerAndCreateUser: (name: string, email: string, password: string) => Promise<void>;
   handleDeposit: (amount: number) => Promise<void>;
   handleWithdraw: (amount: number, clabe: string, accountHolderName: string) => Promise<boolean>;
   handleInvest: (amount: number, property: Property, term: number) => Promise<void>;
+  modals: ModalState;
   setModals: React.Dispatch<React.SetStateAction<ModalState>>;
+  refreshData: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Local storage for the user session
+const getFromLocalStorage = <T,>(key: string, defaultValue: T): T => {
+    if (typeof window === 'undefined') return defaultValue;
+    try {
+        const item = window.localStorage.getItem(key);
+        return item ? JSON.parse(item) : defaultValue;
+    } catch (error) {
+        return defaultValue;
+    }
+};
+
+const setInLocalStorage = <T,>(key: string, value: T) => {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+        console.error(`Error writing to localStorage`);
+    }
+};
+
 function AppProviderContent({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
-
-  const [user, setUser] = useState<User | null>(null);
-  const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
+  
+  const [currentUser, setCurrentUser] = useState<User | null>(() => getFromLocalStorage('inmosmart-user', null));
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
-  // SWR will fetch data and keep it up to date
-  const { data, error, mutate, isLoading } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-      refreshInterval: 5000, // refresh data every 5 seconds
-  });
-
-  // Effect to load user from localStorage on initial mount
+  // Set user to local storage on change
   useEffect(() => {
-    const storedUser = localStorage.getItem('inmosmart-user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    setInLocalStorage('inmosmart-user', currentUser);
     setIsAuthLoading(false);
-  }, []);
-
-  const logout = useCallback(() => {
-    setUser(null);
-    localStorage.removeItem('inmosmart-user');
-    globalMutate(() => true, undefined, { revalidate: false }); // Clear all SWR cache
-    router.push('/login');
-  }, [router]);
-
-  // Effect to handle loading and error states from SWR
-  useEffect(() => {
-    if (!user) return; // Don't do anything if there's no user
-    if (error) {
-      console.error("SWR Error:", error);
-      // If auth error (user not found in DB), log out
-      if (error.status === 401 || error.status === 404) {
-        toast({ title: 'Error de sesión', description: 'Tu sesión es inválida o ha expirado.', variant: 'destructive'});
-        logout();
-      }
+  }, [currentUser]);
+  
+  // Use SWR to fetch user data if authenticated
+  const { data, error } = useSWR(currentUser ? `/api/data?userId=${currentUser.id}` : null, fetcher, {
+    refreshInterval: 5000, // Refresh data every 5 seconds
+  });
+  
+  const refreshData = useCallback(() => {
+    if (currentUser) {
+      mutate(`/api/data?userId=${currentUser.id}`);
     }
-  }, [data, error, isLoading, user, logout, toast]);
+  }, [currentUser]);
+
 
   const login = async (email: string, pass: string) => {
     setIsAuthLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pass }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al iniciar sesión');
-      }
-      setUser(data.user);
-      localStorage.setItem('inmosmart-user', JSON.stringify(data.user));
-      toast({ title: '¡Bienvenido de vuelta!' });
-      router.push('/dashboard');
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password: pass }),
+        });
+        const result = await response.json();
+        if (response.ok && result.user) {
+            setCurrentUser(result.user);
+            toast({ title: '¡Bienvenido de vuelta!' });
+            router.push('/dashboard');
+        } else {
+            throw new Error(result.message || 'Credenciales inválidas');
+        }
     } catch (err: any) {
-      toast({ title: 'Error de inicio de sesión', description: err.message, variant: 'destructive' });
+        toast({ title: 'Error de inicio de sesión', description: err.message, variant: 'destructive' });
     } finally {
         setIsAuthLoading(false);
     }
   };
 
   const registerAndCreateUser = async (name: string, email: string, password: string) => {
-    setIsAuthLoading(true);
-    try {
-        const res = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, password }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-            throw new Error(data.message || 'Error al registrarse');
-        }
-        setUser(data.user);
-        localStorage.setItem('inmosmart-user', JSON.stringify(data.user));
-        toast({ title: '¡Cuenta creada exitosamente!' });
-        router.push('/dashboard');
-    } catch (err: any) {
-        toast({ title: 'Error de registro', description: err.message, variant: 'destructive' });
-    } finally {
+      setIsAuthLoading(true);
+      try {
+          const response = await fetch('/api/auth/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name, email, password }),
+          });
+          const result = await response.json();
+          if (response.ok && result.user) {
+              setCurrentUser(result.user);
+              toast({ title: '¡Cuenta creada exitosamente!' });
+              router.push('/dashboard');
+          } else {
+              throw new Error(result.message || 'Error al registrarse');
+          }
+      } catch (err: any) {
+           toast({ title: 'Error de registro', description: err.message, variant: 'destructive' });
+      } finally {
         setIsAuthLoading(false);
-    }
+      }
+  };
+  
+  const logout = useCallback(async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setCurrentUser(null);
+    // Clear all SWR cache on logout
+    mutate(() => true, undefined, { revalidate: false });
+    router.push('/login');
+  }, [router]);
+
+  const apiAction = async (action: string, payload: any) => {
+      if (!currentUser) return;
+      try {
+          const response = await fetch(`/api/data?userId=${currentUser.id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action, payload }),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.message);
+          refreshData(); // Re-fetch data to update UI
+          return result;
+      } catch (err: any) {
+          toast({ title: `Error en ${action}`, description: err.message, variant: 'destructive' });
+          throw err;
+      }
   };
 
-  const postAction = async (action: string, payload: any) => {
-      if (!user) throw new Error("User not authenticated");
-      const res = await fetch(`/api/data?userId=${user.id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, payload })
-      });
-      if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || 'La acción falló');
-      }
-      return res.json();
-  }
-
   const handleDeposit = async (amount: number) => {
-    try {
-      await postAction('deposit', { amount });
-      await mutate(); // Re-fetch data
-      toast({ title: 'Depósito Exitoso', description: `Has depositado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
-    } catch (err: any) {
-      toast({ title: 'Error en el depósito', description: err.message, variant: 'destructive' });
-    }
+    await apiAction('deposit', { amount });
+    toast({ title: 'Depósito Exitoso', description: `Has simulado un depósito de ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
   };
 
   const handleWithdraw = async (amount: number, clabe: string, accountHolderName: string): Promise<boolean> => {
-    try {
-        await postAction('withdraw', { amount, clabe, accountHolderName });
-        await mutate(); // Re-fetch data to show retained balance
-        toast({ title: 'Solicitud de Retiro Enviada', description: `Tu solicitud para retirar ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} ha sido enviada para aprobación.` });
+     try {
+        await apiAction('withdraw', { amount, clabe, accountHolderName });
+        toast({ title: 'Solicitud de Retiro Enviada', description: `Tu solicitud para retirar ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} ha sido enviada.` });
         return true;
-    } catch (err: any) {
-        toast({ title: 'Error en la solicitud', description: err.message, variant: 'destructive' });
+     } catch (e) {
         return false;
-    }
+     }
   };
-
+  
   const handleInvest = async (amount: number, property: Property, term: number) => {
     try {
-        await postAction('invest', { amount, property, term });
-        await mutate();
+        await apiAction('invest', { amount, property, term });
         toast({ title: '¡Inversión Exitosa!', description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.` });
-    } catch (err: any) {
-        toast({ title: 'Error en la inversión', description: err.message, variant: 'destructive' });
+    } catch (e) {
+        // Error is already handled by apiAction
     }
   };
 
   const value: AppContextType = {
-    user,
-    isAuthenticated: !!user,
-    isAuthLoading: isAuthLoading || (!!user && isLoading),
+    user: data?.user || currentUser,
+    isAuthenticated: !!currentUser,
+    isAuthLoading,
     balance: data?.balance ?? 0,
     properties: data?.properties ?? [],
     transactions: data?.transactions ?? [],
@@ -197,17 +194,15 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     handleWithdraw,
     handleInvest,
     setModals,
+    refreshData,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
+
 export function AppProvider({ children }: { children: ReactNode }) {
-    return (
-        <SWRConfig>
-            <AppProviderContent>{children}</AppProviderContent>
-        </SWRConfig>
-    );
+    return <AppProviderContent>{children}</AppProviderContent>;
 }
 
 export const useApp = (): AppContextType => {
