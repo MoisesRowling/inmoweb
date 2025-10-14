@@ -26,6 +26,13 @@
       "name": "juan perez",
       "email": "juan@gmail.com",
       "password": "caballos1212"
+    },
+    {
+      "id": "user-1760402675529",
+      "publicId": "60532",
+      "name": "david martinez",
+      "email": "martinez@gmail.com",
+      "password": "caballos1212"
     }
   ],
   "balances": {
@@ -44,6 +51,10 @@
     "user-1760400966249": {
       "amount": 0,
       "lastUpdated": "2025-10-14T00:16:06.249Z"
+    },
+    "user-1760402675529": {
+      "amount": 0,
+      "lastUpdated": "2025-10-14T00:44:35.529Z"
     }
   },
   "investments": [],
