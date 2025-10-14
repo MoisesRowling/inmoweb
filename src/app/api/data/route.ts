@@ -219,8 +219,8 @@ export async function POST(request: NextRequest) {
         }
 
         case 'withdraw': {
-        const { amount, clabe } = payload;
-        if (!amount || !clabe) {
+        const { amount, clabe, accountHolderName } = payload;
+        if (!amount || !clabe || !accountHolderName) {
             return NextResponse.json({ message: 'Missing fields for withdrawal' }, { status: 400 });
         }
 
@@ -235,8 +235,10 @@ export async function POST(request: NextRequest) {
             userId,
             type: 'withdraw' as const,
             amount,
-            description: `Retiro a CLABE: ...${clabe.slice(-4)}`,
+            description: `Retiro a cuenta externa`,
             date: now.toISOString(),
+            clabe,
+            accountHolderName,
         };
         db.transactions.push(newTransaction);
         break;

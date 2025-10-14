@@ -38,7 +38,7 @@ interface AppContextType {
   login: (email: string, pass: string) => Promise<void>;
   registerAndCreateUser: (name: string, email: string, password: string) => Promise<void>;
   handleDeposit: (amount: number) => Promise<void>;
-  handleWithdraw: (amount: number, clabe: string) => Promise<boolean>;
+  handleWithdraw: (amount: number, clabe: string, accountHolderName: string) => Promise<boolean>;
   handleInvest: (amount: number, property: Property, term: number) => Promise<void>;
   setModals: React.Dispatch<React.SetStateAction<ModalState>>;
 }
@@ -69,6 +69,12 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     setIsAuthLoading(false);
   }, []);
 
+  const logout = useCallback(() => {
+    setUser(null);
+    localStorage.removeItem('inmosmart-user');
+    // We don't need to push, AppShell will handle the redirection
+  }, []);
+
   // Effect to handle loading and error states from SWR
   useEffect(() => {
     if (!user) return; // Don't do anything if there's no user
@@ -79,9 +85,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         logout();
       }
     }
-  }, [data, error, isLoading, user]);
+  }, [data, error, isLoading, user, logout]);
 
   const login = async (email: string, pass: string) => {
+    setIsAuthLoading(true);
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -95,14 +102,16 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       setUser(data.user);
       localStorage.setItem('inmosmart-user', JSON.stringify(data.user));
       toast({ title: '¡Bienvenido de vuelta!' });
-      await mutate(); // Re-fetch data for the new user
-      router.push('/dashboard');
+      // AppShell will handle redirection on state change
     } catch (err: any) {
       toast({ title: 'Error de inicio de sesión', description: err.message, variant: 'destructive' });
+    } finally {
+        setIsAuthLoading(false);
     }
   };
 
   const registerAndCreateUser = async (name: string, email: string, password: string) => {
+    setIsAuthLoading(true);
     try {
         const res = await fetch('/api/auth/register', {
             method: 'POST',
@@ -116,19 +125,12 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         setUser(data.user);
         localStorage.setItem('inmosmart-user', JSON.stringify(data.user));
         toast({ title: '¡Cuenta creada exitosamente!' });
-        await mutate(); // Re-fetch data for the new user
-        router.push('/dashboard');
     } catch (err: any) {
         toast({ title: 'Error de registro', description: err.message, variant: 'destructive' });
+    } finally {
+        setIsAuthLoading(false);
     }
   };
-
-  const logout = useCallback(() => {
-    setUser(null);
-    localStorage.removeItem('inmosmart-user');
-    // No need to call API if session is client-side
-    router.push('/login');
-  }, [router]);
 
   const postAction = async (action: string, payload: any) => {
       if (!user) throw new Error("User not authenticated");
@@ -154,9 +156,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     }
   };
 
-  const handleWithdraw = async (amount: number, clabe: string): Promise<boolean> => {
+  const handleWithdraw = async (amount: number, clabe: string, accountHolderName: string): Promise<boolean> => {
     try {
-        await postAction('withdraw', { amount, clabe });
+        await postAction('withdraw', { amount, clabe, accountHolderName });
         await mutate();
         toast({ title: 'Retiro Exitoso', description: `Has retirado ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
         return true;
@@ -177,9 +179,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const value: AppContextType = {
-    user: data?.user || user,
-    isAuthenticated: !!data && !error,
-    isAuthLoading: (user && isLoading) || isAuthLoading,
+    user,
+    isAuthenticated: !!user,
+    isAuthLoading: isAuthLoading || (!!user && isLoading),
     balance: data?.balance ?? 0,
     properties: data?.properties ?? [],
     transactions: data?.transactions ?? [],

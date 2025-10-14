@@ -21,8 +21,8 @@
       "lastUpdated": "2024-01-01T00:00:00.000Z"
     },
     "user-1760397877209": {
-      "amount": 0.9815624999999999,
-      "lastUpdated": "2025-10-13T23:34:57.417Z"
+      "amount": 0.0015624999999999112,
+      "lastUpdated": "2025-10-14T00:07:30.163Z"
     }
   },
   "investments": [
@@ -52,6 +52,14 @@
       "amount": 5000,
       "description": "Inversión en Hacienda Santorini",
       "date": "2025-10-13T23:32:07.803Z"
+    },
+    {
+      "id": "trans-1760400450163",
+      "userId": "user-1760397877209",
+      "type": "withdraw",
+      "amount": 0.98,
+      "description": "Retiro a CLABE: ...1111",
+      "date": "2025-10-14T00:07:30.163Z"
     }
   ],
   "properties": [

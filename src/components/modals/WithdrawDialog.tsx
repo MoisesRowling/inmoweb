@@ -8,12 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useApp } from '@/context/AppContext';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, DollarSign } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 
-const formSchema = z.object({
-  amount: z.coerce.number().positive({ message: 'La cantidad debe ser mayor a $0.' }),
+const formSchema = (maxBalance: number) => z.object({
+  amount: z.coerce
+    .number()
+    .positive({ message: 'La cantidad debe ser mayor a $0.' })
+    .max(maxBalance, { message: `No puedes retirar más de tu saldo disponible.` }),
   clabe: z.string().length(18, { message: 'La CLABE debe tener 18 dígitos.' }).regex(/^\d+$/, { message: 'La CLABE solo debe contener números.' }),
+  accountHolderName: z.string().min(3, { message: 'El nombre debe tener al menos 3 caracteres.' }),
 });
 
 interface WithdrawDialogProps {
@@ -23,17 +26,21 @@ interface WithdrawDialogProps {
 
 export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
   const { balance, handleWithdraw } = useApp();
+  
+  const currentFormSchema = formSchema(balance);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<z.infer<typeof currentFormSchema>>({
+    resolver: zodResolver(currentFormSchema),
     defaultValues: {
       amount: '' as any,
       clabe: '',
+      accountHolderName: '',
     },
+    mode: 'onTouched'
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    const success = handleWithdraw(values.amount, values.clabe);
+  function onSubmit(values: z.infer<typeof currentFormSchema>) {
+    const success = handleWithdraw(values.amount, values.clabe, values.accountHolderName);
     if(success) {
       onClose();
       form.reset();
@@ -66,6 +73,19 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
+              name="accountHolderName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre del titular de la cuenta</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Juan Pérez" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
               name="clabe"
               render={({ field }) => (
                 <FormItem>
@@ -94,7 +114,7 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
               )}
             />
             <DialogFooter>
-              <Button type="submit" className="w-full">Confirmar Retiro</Button>
+              <Button type="submit" className="w-full" disabled={!form.formState.isValid}>Confirmar Retiro</Button>
             </DialogFooter>
           </form>
         </Form>

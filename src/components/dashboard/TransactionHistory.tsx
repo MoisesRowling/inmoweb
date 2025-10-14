@@ -2,10 +2,16 @@
 import { useState } from 'react';
 import { useApp } from "@/context/AppContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, ArrowDown, ArrowUp, ShoppingCart } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, ShoppingCart, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export function TransactionHistory() {
   const { transactions } = useApp();
@@ -40,6 +46,7 @@ export function TransactionHistory() {
             <p className="text-sm">Sin transacciones recientes</p>
           </div>
         ) : (
+         <TooltipProvider>
           <div className="space-y-4">
             {displayedTransactions.map((trans) => (
               <div key={trans.id} className="flex items-start justify-between">
@@ -48,7 +55,20 @@ export function TransactionHistory() {
                      {iconMap[trans.type]}
                    </div>
                    <div>
-                     <p className="text-sm font-semibold text-foreground">{trans.description}</p>
+                     <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                        {trans.description}
+                        {trans.type === 'withdraw' && trans.clabe && (
+                           <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-4 w-4 text-muted-foreground cursor-pointer"/>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Titular: {trans.accountHolderName}</p>
+                                <p>CLABE: {trans.clabe}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                        )}
+                     </p>
                      <p className="text-xs text-muted-foreground">{format(new Date(trans.date), "dd MMM yyyy, hh:mm a")}</p>
                    </div>
                 </div>
@@ -63,6 +83,7 @@ export function TransactionHistory() {
               </div>
             ))}
           </div>
+         </TooltipProvider>
         )}
       </CardContent>
     </Card>

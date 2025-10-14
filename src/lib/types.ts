@@ -23,6 +23,9 @@ export type Transaction = {
   amount: number;
   description: string;
   date: string; // ISO string
+  // Optional fields for withdrawal details
+  clabe?: string;
+  accountHolderName?: string;
 };
 
 export type User = {
