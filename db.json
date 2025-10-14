@@ -34,8 +34,8 @@
       "lastUpdated": "2024-01-01T00:00:00.000Z"
     },
     "user-1760397877209": {
-      "amount": null,
-      "lastUpdated": "2025-10-14T00:23:10.607Z"
+      "amount": 100,
+      "lastUpdated": "2025-10-14T00:25:09.293Z"
     },
     "user-1760400857493": {
       "amount": 0,
@@ -99,6 +99,14 @@
       "date": "2025-10-14T00:11:30.808Z",
       "clabe": "111111111111111111",
       "accountHolderName": "laten"
+    },
+    {
+      "id": "trans-1760401509293",
+      "userId": "user-1760397877209",
+      "type": "deposit",
+      "amount": 100,
+      "description": "Deposito",
+      "date": "2025-10-14T00:25:09.293Z"
     }
   ],
   "properties": [

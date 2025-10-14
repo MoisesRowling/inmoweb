@@ -6,18 +6,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Save, Loader2, PlusCircle } from 'lucide-react';
-import type { User, Transaction, Investment } from '@/lib/types';
+import type { User, Transaction, Investment, Property } from '@/lib/types';
 import { AppShell } from '@/components/shared/AppShell';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatDistanceToNow, addDays } from 'date-fns';
+import { es } from 'date-fns/locale';
+
 
 const CRUD_PASSWORD = process.env.NEXT_PUBLIC_CRUD_PASSWORD || "caballos1212";
 
 type DBState = {
-    users: any[];
+    users: User[];
     balances: { [key: string]: { amount: number; lastUpdated: string; } };
-    investments: any[];
-    transactions: any[];
-    properties: any[];
+    investments: Investment[];
+    transactions: Transaction[];
+    properties: Property[];
 }
 
 export default function CrudPage() {
@@ -283,7 +286,58 @@ export default function CrudPage() {
                     </CardContent>
                 </Card>
 
+                 {/* Investments Table */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Inversiones Activas</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>ID Inversión</TableHead>
+                                    <TableHead>Usuario</TableHead>
+                                    <TableHead>Propiedad</TableHead>
+                                    <TableHead>Monto</TableHead>
+                                    <TableHead>Fecha Inversión</TableHead>
+                                    <TableHead>Plazo</TableHead>
+                                    <TableHead>Vencimiento</TableHead>
+                                    <TableHead>Tiempo Restante</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {dbData?.investments.map((inv: Investment) => {
+                                    const user = dbData.users.find(u => u.id === inv.userId);
+                                    const property = dbData.properties.find(p => p.id === inv.propertyId);
+                                    const investmentDate = new Date(inv.investmentDate);
+                                    const expirationDate = addDays(investmentDate, inv.term);
+                                    
+                                    return (
+                                        <TableRow key={inv.id}>
+                                            <TableCell className="font-mono text-xs">{inv.id}</TableCell>
+                                            <TableCell>
+                                                <div>{user?.name}</div>
+                                                <div className="text-xs text-muted-foreground">{user?.email}</div>
+                                            </TableCell>
+                                            <TableCell>{property?.name ?? 'N/A'}</TableCell>
+                                            <TableCell>{inv.investedAmount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
+                                            <TableCell>{investmentDate.toLocaleString()}</TableCell>
+                                            <TableCell>{inv.term} días</TableCell>
+                                            <TableCell>{expirationDate.toLocaleString()}</TableCell>
+                                            <TableCell>
+                                                {formatDistanceToNow(expirationDate, { addSuffix: true, locale: es })}
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+
             </div>
         </AppShell>
     );
 }
+
+    
