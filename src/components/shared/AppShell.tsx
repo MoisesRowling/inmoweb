@@ -29,10 +29,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   
-  const publicPages = ['/', '/login', '/register'];
+  // Add '/crudos' to the list of public pages to bypass user auth logic
+  const publicPages = ['/', '/login', '/register', '/crudos'];
   const isPublicPage = publicPages.includes(pathname);
+  const isCrudPage = pathname === '/crudos';
 
   useEffect(() => {
+    // Do not run auth logic on the CRUD page
+    if (isCrudPage) return;
+
     if (isAuthLoading) {
       return; 
     }
@@ -44,14 +49,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated && !isPublicPage) {
         router.replace('/login');
     }
-  }, [isAuthenticated, isAuthLoading, isPublicPage, router, pathname]);
-
-  if (isAuthLoading && !isPublicPage) {
-    return <FullPageLoader />;
+  }, [isAuthenticated, isAuthLoading, isPublicPage, router, pathname, isCrudPage]);
+  
+  if (isCrudPage) {
+      return <>{children}</>;
   }
 
-  if (!isAuthenticated && !isPublicPage) {
-      return <FullPageLoader />;
+  if ((isAuthLoading || !isAuthenticated) && !isPublicPage) {
+    return <FullPageLoader />;
   }
   
   if (isAuthenticated && isPublicPage) {
