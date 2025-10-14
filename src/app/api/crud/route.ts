@@ -157,14 +157,8 @@ export async function POST(request: NextRequest) {
                 if (requestIndex === -1) throw new Error('Withdrawal request not found');
 
                 const request = db.withdrawalRequests[requestIndex];
-                
-                if (!db.balances[request.userId]) throw new Error('User balance not found');
-                if (db.balances[request.userId].amount < request.amount) throw new Error('Insufficient funds to approve withdrawal');
 
-                // Process withdrawal
-                db.balances[request.userId].amount -= request.amount;
-
-                // Create transaction
+                // Create transaction. Balance was already subtracted at time of request.
                 const newTransaction = {
                     id: `trans-${Date.now()}`,
                     userId: request.userId,
@@ -180,6 +174,24 @@ export async function POST(request: NextRequest) {
                 // Remove request from pending list
                 db.withdrawalRequests.splice(requestIndex, 1);
 
+                break;
+            }
+
+            case 'rejectWithdrawal': {
+                 const { requestId } = payload;
+                const requestIndex = db.withdrawalRequests.findIndex((req: any) => req.id === requestId);
+                if (requestIndex === -1) throw new Error('Withdrawal request not found');
+
+                const request = db.withdrawalRequests[requestIndex];
+
+                // Refund the retained amount to the user's balance
+                if (!db.balances[request.userId]) throw new Error('User balance not found');
+                db.balances[request.userId].amount += request.amount;
+                db.balances[request.userId].lastUpdated = new Date().toISOString();
+
+                // Remove request from pending list
+                db.withdrawalRequests.splice(requestIndex, 1);
+                
                 break;
             }
 

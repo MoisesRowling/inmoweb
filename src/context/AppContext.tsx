@@ -162,7 +162,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const handleWithdraw = async (amount: number, clabe: string, accountHolderName: string): Promise<boolean> => {
     try {
         await postAction('withdraw', { amount, clabe, accountHolderName });
-        await mutate();
+        await mutate(); // Re-fetch data to show retained balance
         toast({ title: 'Solicitud de Retiro Enviada', description: `Tu solicitud para retirar ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} ha sido enviada para aprobación.` });
         return true;
     } catch (err: any) {

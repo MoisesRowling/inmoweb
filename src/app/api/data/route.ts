@@ -223,15 +223,19 @@ export async function POST(request: NextRequest) {
             if (!amount || !clabe || !accountHolderName) {
                 return NextResponse.json({ message: 'Missing fields for withdrawal request' }, { status: 400 });
             }
+            const parsedAmount = parseFloat(amount);
 
-            if (userBalance.amount < amount) {
-                return NextResponse.json({ message: 'Insufficient balance' }, { status: 400 });
+            if (userBalance.amount < parsedAmount) {
+                return NextResponse.json({ message: 'Insufficient balance for withdrawal request' }, { status: 400 });
             }
+
+            // Retain funds from balance
+            userBalance.amount -= parsedAmount;
             
             const newRequest = {
                 id: `req-${Date.now()}`,
                 userId,
-                amount,
+                amount: parsedAmount,
                 clabe,
                 accountHolderName,
                 date: now.toISOString(),

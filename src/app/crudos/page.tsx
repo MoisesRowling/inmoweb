@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Save, Loader2, PlusCircle, CheckCircle } from 'lucide-react';
+import { Trash2, Save, Loader2, PlusCircle, CheckCircle, XCircle } from 'lucide-react';
 import type { User, Transaction, Investment, Property, WithdrawalRequest } from '@/lib/types';
 import { AppShell } from '@/components/shared/AppShell';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -152,7 +152,7 @@ export default function CrudPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Solicitudes de Retiro Pendientes</CardTitle>
-                        <CardDescription>Aprueba los retiros para que se procesen.</CardDescription>
+                        <CardDescription>Aprueba o rechaza los retiros para que se procesen.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -180,7 +180,7 @@ export default function CrudPage() {
                                                 <TableCell>{req.accountHolderName}</TableCell>
                                                 <TableCell className="font-mono">{req.clabe}</TableCell>
                                                 <TableCell>{new Date(req.date).toLocaleString()}</TableCell>
-                                                <TableCell>
+                                                <TableCell className="flex gap-2">
                                                     <Button 
                                                         size="sm"
                                                         variant="outline"
@@ -190,6 +190,16 @@ export default function CrudPage() {
                                                     >
                                                         <CheckCircle className="mr-2 h-4 w-4" />
                                                         Aprobar
+                                                    </Button>
+                                                     <Button 
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                        onClick={() => apiRequest('rejectWithdrawal', { requestId: req.id })}
+                                                        disabled={loading}
+                                                    >
+                                                        <XCircle className="mr-2 h-4 w-4" />
+                                                        Rechazar
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
@@ -407,5 +417,3 @@ export default function CrudPage() {
         </AppShell>
     );
 }
-
-    

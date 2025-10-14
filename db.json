@@ -34,8 +34,8 @@
       "lastUpdated": "2024-01-01T00:00:00.000Z"
     },
     "user-1760397877209": {
-      "amount": 5100,
-      "lastUpdated": "2025-10-14T00:30:27.562Z"
+      "amount": 0,
+      "lastUpdated": "2025-10-14T00:37:41.335Z"
     },
     "user-1760400857493": {
       "amount": 0,
@@ -49,62 +49,14 @@
   "investments": [],
   "transactions": [
     {
-      "id": "trans-1760398317346",
-      "userId": "user-1760397877209",
-      "type": "deposit",
-      "amount": 5000,
-      "description": "Depósito simulado",
-      "date": "2025-10-13T23:31:57.322Z"
-    },
-    {
-      "id": "trans-1760398327820",
-      "userId": "user-1760397877209",
-      "type": "investment",
-      "amount": 5000,
-      "description": "Inversión en Hacienda Santorini",
-      "date": "2025-10-13T23:32:07.803Z"
-    },
-    {
-      "id": "trans-1760400450163",
+      "id": "trans-1760402291823",
       "userId": "user-1760397877209",
       "type": "withdraw",
-      "amount": 0.98,
-      "description": "Retiro a CLABE: ...1111",
-      "date": "2025-10-14T00:07:30.163Z"
-    },
-    {
-      "id": "trans-1760400666350",
-      "userId": "user-1760397877209",
-      "type": "deposit",
-      "amount": 5000,
-      "description": "Depósito simulado",
-      "date": "2025-10-14T00:11:06.349Z"
-    },
-    {
-      "id": "trans-1760400690808",
-      "userId": "user-1760397877209",
-      "type": "withdraw",
-      "amount": 5000,
-      "description": "Retiro a cuenta externa",
-      "date": "2025-10-14T00:11:30.808Z",
-      "clabe": "111111111111111111",
+      "amount": 5100,
+      "description": "Retiro procesado con éxito",
+      "date": "2025-10-14T00:38:11.823Z",
+      "clabe": "018009392838221333",
       "accountHolderName": "laten"
-    },
-    {
-      "id": "trans-1760401509293",
-      "userId": "user-1760397877209",
-      "type": "deposit",
-      "amount": 100,
-      "description": "Deposito",
-      "date": "2025-10-14T00:25:09.293Z"
-    },
-    {
-      "id": "trans-refund-1760401827562",
-      "userId": "user-1760397877209",
-      "type": "deposit",
-      "amount": 5000,
-      "description": "Reembolso por inversión cancelada en Hacienda Santorini",
-      "date": "2025-10-14T00:30:27.562Z"
     }
   ],
   "properties": [
