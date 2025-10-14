@@ -34,8 +34,8 @@
       "lastUpdated": "2024-01-01T00:00:00.000Z"
     },
     "user-1760397877209": {
-      "amount": 100,
-      "lastUpdated": "2025-10-14T00:25:09.293Z"
+      "amount": 5100,
+      "lastUpdated": "2025-10-14T00:30:27.562Z"
     },
     "user-1760400857493": {
       "amount": 0,
@@ -46,17 +46,7 @@
       "lastUpdated": "2025-10-14T00:16:06.249Z"
     }
   },
-  "investments": [
-    {
-      "id": "inv-1760398327820",
-      "userId": "user-1760397877209",
-      "propertyId": "1",
-      "investedAmount": 5000,
-      "ownedShares": 16.666666666666668,
-      "investmentDate": "2025-10-13T23:32:07.803Z",
-      "term": 7
-    }
-  ],
+  "investments": [],
   "transactions": [
     {
       "id": "trans-1760398317346",
@@ -107,6 +97,14 @@
       "amount": 100,
       "description": "Deposito",
       "date": "2025-10-14T00:25:09.293Z"
+    },
+    {
+      "id": "trans-refund-1760401827562",
+      "userId": "user-1760397877209",
+      "type": "deposit",
+      "amount": 5000,
+      "description": "Reembolso por inversión cancelada en Hacienda Santorini",
+      "date": "2025-10-14T00:30:27.562Z"
     }
   ],
   "properties": [

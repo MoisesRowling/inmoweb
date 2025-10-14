@@ -60,7 +60,7 @@ export default function DashboardPage() {
       <div className="space-y-8">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground font-headline">Bienvenido, {user.name.split(' ')[0]}</h1>
+            <h1 className="text-3xl font-bold text-foreground font-headline">Bienvenido, {(user.name || user.email).split(' ')[0]}</h1>
             <p className="text-muted-foreground mt-1">Aquí está el resumen de tu portafolio de inversiones.</p>
           </div>
           <div className="text-right">
