@@ -15,7 +15,7 @@ const readDB = async () => {
 
 // This function now writes the DB via the new CRUD API route
 const writeDB = async (data: any) => {
-  const response = await fetch(`${API__URL}/api/crud`, {
+  const response = await fetch(`${API_URL}/api/crud`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
