@@ -1,26 +1,53 @@
 /**
- * @description This ruleset enforces a strict user-ownership model for investments and transactions, while allowing public read access to property listings.
+ * @description This ruleset enforces a strict user-ownership model for user data and allows public read access to property data.
  * @dataStructure
- *  - /properties/{propertyId}: Publicly readable property listings.
- *  - /investments/{userId}/userInvestments/{investmentId}: Investments owned by a specific user.
- *  - /transactions/{userId}/userTransactions/{transactionId}: Transactions associated with a specific user.
+ * - /users/{userId}: Stores individual user profiles. Only the authenticated user can read or write their own profile.
+ * - /properties/{propertyId}: Stores publicly accessible property listings.
+ * - /users/{userId}/investments/{investmentId}: Stores investment data for a specific user. Only the authenticated user can read or write their own investment data.
+ * - /users/{userId}/transactions/{transactionId}: Stores transaction history for a specific user. Only the authenticated user can read or write their own transaction data.
  * @keySecurityDecisions
- *  - Users can only manage their own investments and transactions.
- *  - Property listings are publicly readable but not writable through the client.
- *  - Listing of investments is restricted to the owning user to protect privacy.
- * @denormalizationForAuthorization
- *  - Investment documents include the userId to simplify ownership checks without requiring additional reads.
+ * - Users can only access their own data (profile, investments, transactions). Listing other users is disallowed.
+ * - Property data is publicly readable but cannot be created, updated, or deleted through the client.
+ * - All write operations require authentication.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows public read access to property listings. Write access is denied to the client.
+     * @description Controls access to user profile data.
+     * @path /users/{userId}
+     * @allow (get) Authenticated user can read their own profile.
+     * @allow (create) Authenticated user can create their own profile, but only if the userId matches the authenticated user's ID.
+     * @allow (update) Authenticated user can update their own profile.
+     * @allow (delete) Authenticated user can delete their own profile.
+     * @deny  (get) Authenticated user cannot read another user's profile.
+     * @deny  (create) Unauthenticated user cannot create a profile.
+     * @deny  (create) Authenticated user cannot create a profile for another user.
+     * @deny  (update) Authenticated user cannot update another user's profile.
+     * @deny  (delete) Authenticated user cannot delete another user's profile.
+     * @principle Enforces document ownership for user profiles.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && resource.data.id == userId;
+      allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Controls access to property data.
      * @path /properties/{propertyId}
-     * @allow (get, list) Allow any user (signed in or not) to read property details.
-     * @deny (create, update, delete) Prevent any client-side creation, modification, or deletion of properties.
-     * @principle Properties are considered public read-only data.
+     * @allow (get) Any user can read property data.
+     * @allow (list) Any user can list property data.
+     * @deny (create) No user can create property data through the client.
+     * @deny (update) No user can update property data through the client.
+     * @deny (delete) No user can delete property data through the client.
+     * @principle Allows public read access to property data but restricts write access.
      */
     match /properties/{propertyId} {
       allow get, list: if true;
@@ -28,51 +55,51 @@ service cloud.firestore {
     }
 
     /**
-     * @description Enforces user-ownership for investments. Only the user can create, read, update, or delete their investments.
-     * @path /investments/{userId}/userInvestments/{investmentId}
-     * @allow (create) Allow a user to create an investment if the userId matches their auth.uid.
-     * @allow (get, list) Allow a user to read their own investments.
-     * @allow (update) Allow a user to update their existing investment if the userId matches their auth.uid and the document exists.
-     * @allow (delete) Allow a user to delete their existing investment if the userId matches their auth.uid and the document exists.
-     * @deny (create) Deny a user from creating an investment for another user.
-     * @deny (update, delete) Deny a user from updating or deleting an investment that doesn't exist.
-     * @principle Enforces document ownership for writes.
+     * @description Controls access to user investment data.
+     * @path /users/{userId}/investments/{investmentId}
+     * @allow (get) Authenticated user can read their own investment data.
+     * @allow (create) Authenticated user can create investment data under their own user ID.
+     * @allow (update) Authenticated user can update their own investment data.
+     * @allow (delete) Authenticated user can delete their own investment data.
+     * @deny (get) Authenticated user cannot read another user's investment data.
+     * @deny (create) Authenticated user cannot create investment data under another user's ID.
+     * @deny (update) Authenticated user cannot update another user's investment data.
+     * @deny (delete) Authenticated user cannot delete another user's investment data.
+     * @principle Enforces document ownership for user investment data.
      */
-    match /investments/{userId}/userInvestments/{investmentId} {
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == request.auth.uid;
-      allow get, list: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+    match /users/{userId}/investments/{investmentId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId) && resource.data.userId == userId && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Enforces user-ownership for transactions. Only the user can create, read, update, or delete their transactions.
-     * @path /transactions/{userId}/userTransactions/{transactionId}
-     * @allow (create) Allow a user to create a transaction if the userId matches their auth.uid.
-     * @allow (get, list) Allow a user to read their own transactions.
-     * @allow (update) Allow a user to update their existing transaction if the userId matches their auth.uid and the document exists.
-     * @allow (delete) Allow a user to delete their existing transaction if the userId matches their auth.uid and the document exists.
-     * @deny (create) Deny a user from creating a transaction for another user.
-     * @deny (update, delete) Deny a user from updating or deleting a transaction that doesn't exist.
-     * @principle Enforces document ownership for writes.
+     * @description Controls access to user transaction data.
+     * @path /users/{userId}/transactions/{transactionId}
+     * @allow (get) Authenticated user can read their own transaction data.
+     * @allow (create) Authenticated user can create transaction data under their own user ID.
+     * @allow (update) Authenticated user can update their own transaction data.
+     * @allow (delete) Authenticated user can delete their own transaction data.
+     * @deny (get) Authenticated user cannot read another user's transaction data.
+     * @deny (create) Authenticated user cannot create transaction data under another user's ID.
+     * @deny (update) Authenticated user cannot update another user's transaction data.
+     * @deny (delete) Authenticated user cannot delete another user's transaction data.
+     * @principle Enforces document ownership for user transaction data.
      */
-    match /transactions/{userId}/userTransactions/{transactionId} {
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == request.auth.uid;
-      allow get, list: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isSignedIn() && isExistingOwner(userId);
-    }
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+    match /users/{userId}/transactions/{transactionId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId) && resource.data.userId == userId && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
     }
   }
 }
