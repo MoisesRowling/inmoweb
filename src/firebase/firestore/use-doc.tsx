@@ -1,11 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { onSnapshot, type DocumentReference, type DocumentData } from 'firebase/firestore';
-import { useSWRConfig } from 'swr';
-
 
 export function useDoc<T extends DocumentData>(ref: DocumentReference<T> | null) {
-  const { mutate } = useSWRConfig();
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -19,18 +16,15 @@ export function useDoc<T extends DocumentData>(ref: DocumentReference<T> | null)
       return;
     }
     
+    // The ref object identity can change on re-renders.
+    // To prevent re-running the effect, we use the path string as a dependency.
     const unsubscribe = onSnapshot(
-      // The ref object identity can change on re-renders, so we can't use it in the dependency array.
-      // We can use the path string instead.
       ref!,
       (doc) => {
         if (doc.exists()) {
-          const docData = { uid: doc.id, ...doc.data() } as T;
-          setData(docData);
-          mutate(docPath, docData, false); // Update SWR cache
+          setData({ id: doc.id, ...doc.data() } as T);
         } else {
           setData(null);
-          mutate(docPath, null, false);
         }
         setIsLoading(false);
       },
@@ -42,7 +36,24 @@ export function useDoc<T extends DocumentData>(ref: DocumentReference<T> | null)
     );
 
     return () => unsubscribe();
-  }, [docPath, mutate, ref]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docPath]);
 
-  return { data, isLoading, error, mutate: (newData: any) => mutate(docPath, newData, false) };
+  // Manual mutate function to allow for optimistic updates or refreshes
+  const mutate = () => {
+    if (!ref) return;
+    setIsLoading(true);
+    ref.firestore.app.INTERNAL.getToken().then(() => {
+       onSnapshot(ref, (doc) => {
+         if (doc.exists()) {
+            setData({ id: doc.id, ...doc.data() } as T);
+          } else {
+            setData(null);
+          }
+          setIsLoading(false);
+       });
+    });
+  }
+
+  return { data, isLoading, error, mutate };
 }

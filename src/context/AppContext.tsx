@@ -48,23 +48,29 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const { user: authUser, isLoading: isAuthLoading, error: authError } = useUser();
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
+  const userDocRef = authUser ? doc(firestore, 'users', authUser.uid) : null;
+  const balanceDocRef = authUser ? doc(firestore, 'balances', authUser.uid) : null;
+  const investmentsColRef = authUser ? collection(firestore, 'investments', authUser.uid, 'userInvestments') : null;
+  const transactionsColRef = authUser ? collection(firestore, 'transactions', authUser.uid, 'userTransactions') : null;
+
   // Fetch user profile
-  const { data: user, mutate: mutateUser } = useDoc<User>(authUser ? doc(firestore, 'users', authUser.uid) : null);
+  const { data: user, mutate: mutateUser } = useDoc<User>(userDocRef);
   
   // Fetch balance
-  const { data: balanceData, mutate: mutateBalance } = useDoc<UserBalance>(authUser ? doc(firestore, 'balances', authUser.uid) : null);
+  const { data: balanceData, mutate: mutateBalance } = useDoc<UserBalance>(balanceDocRef);
 
   // Fetch properties, investments, and transactions
   const { data: properties } = useCollection<Property>(collection(firestore, 'properties'));
-  const { data: investments, mutate: mutateInvestments } = useCollection<Investment>(authUser ? collection(firestore, 'investments', authUser.uid, 'userInvestments') : null);
-  const { data: transactions, mutate: mutateTransactions } = useCollection<Transaction>(authUser ? collection(firestore, 'transactions', authUser.uid, 'userTransactions') : null);
+  const { data: investments, mutate: mutateInvestments } = useCollection<Investment>(investmentsColRef);
+  const { data: transactions, mutate: mutateTransactions } = useCollection<Transaction>(transactionsColRef);
   
   const refreshData = useCallback(() => {
+    if (!authUser) return;
     mutateUser();
     mutateBalance();
     mutateInvestments();
     mutateTransactions();
-  }, [mutateUser, mutateBalance, mutateInvestments, mutateTransactions]);
+  }, [authUser, mutateUser, mutateBalance, mutateInvestments, mutateTransactions]);
 
   // Handle Auth errors
   useEffect(() => {
@@ -245,7 +251,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const value: AppContextType = {
-    user,
+    user: user ?? null,
     authUser,
     isAuthenticated: !!authUser,
     isAuthLoading,
