@@ -27,6 +27,8 @@ export async function POST(request: Request) {
     };
 
     db.users.push(newUser);
+    
+    // THE FIX: Ensure db.balances object exists before assigning to it.
     if (!db.balances) {
         db.balances = {};
     }
