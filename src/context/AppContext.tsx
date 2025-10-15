@@ -9,6 +9,9 @@ import { useCollection, useDoc } from '@/firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { collection, doc, serverTimestamp, writeBatch, type Timestamp } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
 
 const { auth, firestore } = initializeFirebase();
 
@@ -91,37 +94,46 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const registerAndCreateUser = async (name: string, email: string, password: string) => {
-      try {
-          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          const firebaseUser = userCredential.user;
-
-          const batch = writeBatch(firestore);
-
-          // Create user profile document
-          const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-          const newUser: Omit<User, 'id'> = {
-              uid: firebaseUser.uid,
-              publicId: Math.floor(10000 + Math.random() * 90000).toString(),
-              name,
-              email: firebaseUser.email!,
-          };
-          batch.set(userDocRef, newUser);
-          
-          // Create initial balance document
-          const balanceDocRef = doc(firestore, 'balances', firebaseUser.uid);
-          const newBalance: UserBalance = {
-              amount: 0,
-              lastUpdated: serverTimestamp() as Timestamp
-          };
-          batch.set(balanceDocRef, newBalance);
-
-          await batch.commit();
-          
-          toast({ title: '¡Cuenta creada exitosamente!' });
-          router.push('/dashboard');
-      } catch (err: any) {
-           toast({ title: 'Error de registro', description: err.message, variant: 'destructive' });
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+  
+      const batch = writeBatch(firestore);
+  
+      const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+      const newUser: Omit<User, 'id'> = {
+        uid: firebaseUser.uid,
+        publicId: Math.floor(10000 + Math.random() * 90000).toString(),
+        name,
+        email: firebaseUser.email!,
+      };
+      batch.set(userDocRef, newUser);
+  
+      const balanceDocRef = doc(firestore, 'balances', firebaseUser.uid);
+      const newBalance: UserBalance = {
+        amount: 0,
+        lastUpdated: serverTimestamp() as Timestamp
+      };
+      batch.set(balanceDocRef, newBalance);
+  
+      await batch.commit();
+  
+      toast({ title: '¡Cuenta creada exitosamente!' });
+      router.push('/dashboard');
+    } catch (err: any) {
+      // Check for permission denied error and emit a contextual error
+      if (err.code === 'permission-denied') {
+        const permissionError = new FirestorePermissionError({
+          path: `/users/{userId} or /balances/{userId}`,
+          operation: 'create',
+          // Can't know which one failed, but context is still useful
+          requestResourceData: { name, email },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      } else {
+        toast({ title: 'Error de registro', description: err.message, variant: 'destructive' });
       }
+    }
   };
   
   const logout = useCallback(async () => {
@@ -136,26 +148,36 @@ function AppProviderContent({ children }: { children: ReactNode }) {
      const balanceRef = doc(firestore, 'balances', authUser.uid);
      const transactionRef = doc(collection(firestore, 'transactions', authUser.uid, 'userTransactions'));
      
-     batch.update(balanceRef, {
-         amount: (balanceData?.amount || 0) + amount,
-         lastUpdated: serverTimestamp()
-     });
-
-     batch.set(transactionRef, {
+     const newBalanceAmount = (balanceData?.amount || 0) + amount;
+     const transactionData = {
          userId: authUser.uid,
          type: 'deposit',
          amount,
          description: 'Depósito simulado',
          date: serverTimestamp()
+     };
+
+     batch.update(balanceRef, {
+         amount: newBalanceAmount,
+         lastUpdated: serverTimestamp()
      });
 
-     try {
-        await batch.commit();
+     batch.set(transactionRef, transactionData);
+
+     batch.commit()
+      .then(() => {
         toast({ title: 'Depósito Exitoso', description: `Has simulado un depósito de ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
         refreshData();
-     } catch(e: any) {
-         toast({ title: 'Error en depósito', description: e.message, variant: 'destructive'});
-     }
+      })
+      .catch((err: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: `${balanceRef.path} or ${transactionRef.path}`,
+          operation: 'write',
+          requestResourceData: { balanceUpdate: { amount: newBalanceAmount }, transaction: transactionData },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ title: 'Error en depósito', description: 'No se pudo completar el depósito por un problema de permisos.', variant: 'destructive'});
+      });
   };
 
   const handleWithdraw = async (amount: number, clabe: string, accountHolderName: string): Promise<boolean> => {
@@ -169,31 +191,40 @@ function AppProviderContent({ children }: { children: ReactNode }) {
      const balanceRef = doc(firestore, 'balances', authUser.uid);
      const requestRef = doc(collection(firestore, 'withdrawalRequests'));
 
-     // Retain funds
-     batch.update(balanceRef, {
-         amount: (balanceData?.amount || 0) - amount,
-         lastUpdated: serverTimestamp()
-     });
-
-     // Create request
-     batch.set(requestRef, {
+     const newBalanceAmount = (balanceData?.amount || 0) - amount;
+     const requestData = {
          userId: authUser.uid,
          amount,
          clabe,
          accountHolderName,
          date: serverTimestamp(),
          status: 'pending'
+     };
+
+     batch.update(balanceRef, {
+         amount: newBalanceAmount,
+         lastUpdated: serverTimestamp()
      });
 
+     batch.set(requestRef, requestData);
+
      try {
-        await batch.commit();
+        await batch.commit()
+          .catch((err: any) => {
+              const permissionError = new FirestorePermissionError({
+                  path: `${balanceRef.path} or ${requestRef.path}`,
+                  operation: 'write',
+                  requestResourceData: { balanceUpdate: { amount: newBalanceAmount }, withdrawalRequest: requestData },
+              });
+              errorEmitter.emit('permission-error', permissionError);
+              throw err; // Re-throw to be caught by outer catch
+          });
+
         toast({ title: 'Solicitud de Retiro Enviada', description: `Tu solicitud para retirar ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} ha sido enviada.` });
         refreshData();
         return true;
      } catch (e: any) {
-        toast({ title: 'Error en solicitud', description: e.message, variant: 'destructive'});
-        // Ideally, you'd have a mechanism to refund the retained amount if the request creation fails.
-        // For simplicity, we'll assume this commit is atomic.
+        toast({ title: 'Error en solicitud', description: 'No se pudo enviar la solicitud por un problema de permisos.', variant: 'destructive'});
         return false;
      }
   };
@@ -214,14 +245,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const expirationDate = new Date(investmentDate);
     expirationDate.setDate(expirationDate.getDate() + term);
 
-    // 1. Debit balance
-    batch.update(balanceRef, {
-        amount: (balanceData?.amount || 0) - amount,
-        lastUpdated: serverTimestamp()
-    });
-
-    // 2. Create investment
-    batch.set(investmentRef, {
+    const newBalanceAmount = (balanceData?.amount || 0) - amount;
+    const investmentData = {
         userId: authUser.uid,
         propertyId: property.id,
         investedAmount: amount,
@@ -230,24 +255,36 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         term,
         status: 'active',
         expirationDate,
-    });
-
-    // 3. Create transaction
-    batch.set(transactionRef, {
+    };
+    const transactionData = {
         userId: authUser.uid,
-        type: 'investment',
+        type: 'investment' as const,
         amount,
         description: `Inversión en ${property.name}`,
         date: serverTimestamp()
-    });
+    };
     
-    try {
-        await batch.commit();
+    batch.update(balanceRef, {
+        amount: newBalanceAmount,
+        lastUpdated: serverTimestamp()
+    });
+    batch.set(investmentRef, investmentData);
+    batch.set(transactionRef, transactionData);
+    
+    batch.commit()
+      .then(() => {
         toast({ title: '¡Inversión Exitosa!', description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.` });
         refreshData();
-    } catch (e: any) {
-        toast({ title: 'Error en inversión', description: e.message, variant: 'destructive'});
-    }
+      })
+      .catch((err: any) => {
+         const permissionError = new FirestorePermissionError({
+          path: `${balanceRef.path}, ${investmentRef.path}, or ${transactionRef.path}`,
+          operation: 'write',
+          requestResourceData: { balanceUpdate: {amount: newBalanceAmount}, investment: investmentData, transaction: transactionData },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ title: 'Error en inversión', description: 'No se pudo completar la inversión por un problema de permisos.', variant: 'destructive'});
+      });
   };
 
   const value: AppContextType = {
