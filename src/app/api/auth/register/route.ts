@@ -27,6 +27,9 @@ export async function POST(request: Request) {
     };
 
     db.users.push(newUser);
+    if (!db.balances) {
+        db.balances = {};
+    }
     db.balances[newUserId] = newBalance;
 
     await writeDB(db);
