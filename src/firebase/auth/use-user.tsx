@@ -1,7 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-import { auth } from '@/firebase/config';
+import { initializeFirebase } from '@/firebase';
+
+const { auth } = initializeFirebase();
 
 interface AuthState {
   user: FirebaseUser | null;

@@ -6,9 +6,11 @@ import type { Property, Transaction, User, Investment, UserBalance } from '@/lib
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection, useDoc } from '@/firebase/firestore';
-import { auth, firestore } from '@/firebase/config';
+import { initializeFirebase } from '@/firebase';
 import { collection, doc, serverTimestamp, writeBatch, type Timestamp } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+
+const { auth, firestore } = initializeFirebase();
 
 type ModalState = {
   deposit: boolean;
@@ -91,7 +93,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
           // Create user profile document
           const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-          const newUser: User = {
+          const newUser: Omit<User, 'id'> = {
               uid: firebaseUser.uid,
               publicId: Math.floor(10000 + Math.random() * 90000).toString(),
               name,
