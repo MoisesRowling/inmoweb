@@ -1,3 +1,5 @@
+import type { Timestamp } from 'firebase/firestore';
+
 export type Property = {
   id: string; 
   name: string;
@@ -8,32 +10,31 @@ export type Property = {
   totalShares: number;
   image: string; 
   dailyReturn: number;
-  
-  // User-specific investment data (denormalized or from a separate investment document)
-  invested?: number;
-  initialInvestment?: number;
-  ownedShares?: number;
-  investmentTerm?: number;
 };
 
 export type Transaction = {
   id: string; 
   userId: string;
-  type: 'deposit' | 'withdraw' | 'investment';
+  type: 'deposit' | 'withdraw' | 'investment' | 'investment-release';
   amount: number;
   description: string;
-  date: string; // ISO string
+  date: Timestamp; 
   // Optional fields for withdrawal details
   clabe?: string;
   accountHolderName?: string;
 };
 
 export type User = {
-  id: string; // Simulated user ID
+  uid: string; // Firebase Auth UID
   publicId: string; // This is the 5-digit user-facing ID
   name: string;
   email: string;
 };
+
+export type UserBalance = {
+    amount: number;
+    lastUpdated: Timestamp;
+}
 
 export type Investment = {
     id: string;
@@ -41,8 +42,10 @@ export type Investment = {
     propertyId: string;
     investedAmount: number;
     ownedShares: number;
-    investmentDate: string; // ISO String
+    investmentDate: Timestamp; 
     term: number; // in days
+    status: 'active' | 'released';
+    expirationDate: Timestamp;
     currentValue?: number; // Calculated field for current value
 };
 
@@ -52,6 +55,6 @@ export type WithdrawalRequest = {
     amount: number;
     clabe: string;
     accountHolderName: string;
-    date: string; // ISO String
+    date: Timestamp;
     status: 'pending' | 'approved' | 'rejected';
 }

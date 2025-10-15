@@ -3,11 +3,11 @@
     "User": {
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the investment platform.",
+      "description": "Represents a user of the investment platform, stored in Firestore.",
       "properties": {
-        "id": {
+        "uid": {
           "type": "string",
-          "description": "Unique local user ID."
+          "description": "Unique Firebase Auth user ID."
         },
         "publicId": {
           "type": "string",
@@ -23,173 +23,118 @@
           "format": "email"
         }
       },
-      "required": ["id", "publicId", "name", "email"]
+      "required": ["uid", "publicId", "name", "email"]
+    },
+     "UserBalance": {
+      "title": "UserBalance",
+      "type": "object",
+      "description": "Represents a user's account balance.",
+      "properties": {
+        "amount": {
+          "type": "number",
+          "description": "The current balance amount."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The last time the balance was updated."
+        }
+      },
+      "required": ["amount", "lastUpdated"]
     },
     "Property": {
       "title": "Property",
       "type": "object",
       "description": "Represents an investment property available on the platform.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the property."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the property."
-        },
-        "location": {
-          "type": "string",
-          "description": "Location of the property."
-        },
-        "type": {
-          "type": "string",
-          "description": "Type of property (e.g., House, Loft)."
-        },
-        "price": {
-          "type": "number",
-          "description": "Total price of the property."
-        },
-        "minInvestment": {
-          "type": "number",
-          "description": "Minimum investment amount allowed for this property."
-        },
-        "totalShares": {
-          "type": "number",
-          "description": "Total number of shares available for this property."
-        },
-        "image": {
-            "type": "string",
-            "description": "Placeholder image ID from placeholder-images.json"
-        },
-        "dailyReturn": {
-            "type": "number",
-            "description": "Daily return on investment percentage."
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "location": { "type": "string" },
+        "type": { "type": "string" },
+        "price": { "type": "number" },
+        "minInvestment": { "type": "number" },
+        "totalShares": { "type": "number" },
+        "image": { "type": "string" },
+        "dailyReturn": { "type": "number" }
       },
-      "required": [
-        "id",
-        "name",
-        "location",
-        "type",
-        "price",
-        "minInvestment",
-        "totalShares",
-        "image",
-        "dailyReturn"
-      ]
+      "required": ["id", "name", "location", "price", "minInvestment", "dailyReturn"]
     },
     "Investment": {
       "title": "Investment",
       "type": "object",
       "description": "Represents a user's investment in a specific property.",
       "properties": {
-        "userId": {
-          "type": "string",
-          "description": "Reference to local User ID."
-        },
-        "propertyId": {
-          "type": "string",
-          "description": "Reference to Property."
-        },
-        "investedAmount": {
-          "type": "number",
-          "description": "Amount invested by the user in this property."
-        },
-        "ownedShares": {
-          "type": "number",
-          "description": "Number of shares owned by the user for this property."
-        },
-        "investmentDate": {
-          "type": "string",
-          "description": "Date when the investment was made.",
-          "format": "date-time"
-        },
-        "term": {
-            "type": "number",
-            "description": "Investment term in days."
-        }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "investedAmount": { "type": "number" },
+        "ownedShares": { "type": "number" },
+        "investmentDate": { "type": "string", "format": "date-time" },
+        "expirationDate": { "type": "string", "format": "date-time" },
+        "term": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "released"] }
       },
-      "required": [
-        "userId",
-        "propertyId",
-        "investedAmount",
-        "ownedShares",
-        "investmentDate",
-        "term"
-      ]
+      "required": ["userId", "propertyId", "investedAmount", "investmentDate", "term", "status", "expirationDate"]
     },
     "Transaction": {
       "title": "Transaction",
       "type": "object",
-      "description": "Represents a financial transaction (deposit, withdrawal, or investment).",
+      "description": "Represents a financial transaction.",
       "properties": {
-        "id": {
-          "type": "string"
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to local User ID."
-        },
-        "type": {
-          "type": "string",
-          "description": "Type of transaction (deposit, withdrawal, investment).",
-          "enum": ["deposit", "withdrawal", "investment"]
-        },
-        "amount": {
-          "type": "number",
-          "description": "Amount of the transaction."
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the transaction."
-        },
-        "date": {
-          "type": "string",
-          "description": "Date of the transaction.",
-          "format": "date-time"
-        },
-        "clabe": {
-          "type": "string",
-          "description": "CLABE account for withdrawals."
-        },
-        "accountHolderName": {
-          "type": "string",
-          "description": "Name of the CLABE account holder."
-        }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["deposit", "withdraw", "investment", "investment-release"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "clabe": { "type": "string" },
+        "accountHolderName": { "type": "string" }
       },
-      "required": [
-        "id",
-        "userId",
-        "type",
-        "amount",
-        "description",
-        "date"
-      ]
+      "required": ["userId", "type", "amount", "description", "date"]
     },
     "WithdrawalRequest": {
-        "title": "Withdrawal Request",
-        "type": "object",
-        "description": "Represents a user's request to withdraw funds, pending admin approval.",
-        "properties": {
-            "id": { "type": "string" },
-            "userId": { "type": "string" },
-            "amount": { "type": "number" },
-            "clabe": { "type": "string" },
-            "accountHolderName": { "type": "string" },
-            "date": { "type": "string", "format": "date-time" },
-            "status": { "type": "string", "enum": ["pending", "approved", "rejected"]}
-        },
-        "required": ["id", "userId", "amount", "clabe", "accountHolderName", "date", "status"]
+      "title": "Withdrawal Request",
+      "type": "object",
+      "description": "Represents a user's request to withdraw funds.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "clabe": { "type": "string" },
+        "accountHolderName": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] }
+      },
+      "required": ["userId", "amount", "clabe", "accountHolderName", "date", "status"]
     }
   },
   "auth": {
-    "providers": [
-      "local"
-    ]
+    "providers": ["email-password"]
   },
-  "datastore": {
-      "type": "local",
-      "description": "The backend is now simulated locally using React Context and state. Data is held in-memory and persists across the session using localStorage. It is not a real database."
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores public profiles for all users."
+    },
+    "/balances/{userId}": {
+      "schema": { "$ref": "#/entities/UserBalance" },
+      "description": "Stores the account balance for each user."
+    },
+    "/properties/{propertyId}": {
+      "schema": { "$ref": "#/entities/Property" },
+      "description": "Stores all available investment properties."
+    },
+    "/investments/{userId}/userInvestments/{investmentId}": {
+      "schema": { "$ref": "#/entities/Investment" },
+      "description": "A subcollection storing all investments for a specific user."
+    },
+    "/transactions/{userId}/userTransactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "A subcollection storing all transactions for a specific user."
+    },
+    "/withdrawalRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/WithdrawalRequest" },
+      "description": "Stores all pending withdrawal requests from users."
+    }
   }
 }

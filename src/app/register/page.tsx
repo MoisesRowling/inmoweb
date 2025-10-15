@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import AuthFormWrapper from '@/components/auth/AuthFormWrapper';
 import { useApp } from '@/context/AppContext';
+import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 
 const formSchema = z.object({
@@ -22,7 +25,15 @@ const formSchema = z.object({
 });
 
 export default function RegisterPage() {
-  const { registerAndCreateUser, isAuthLoading } = useApp();
+  const { registerAndCreateUser, isAuthLoading, isAuthenticated } = useApp();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isAuthLoading && isAuthenticated) {
+        router.replace('/dashboard');
+    }
+  }, [isAuthLoading, isAuthenticated, router]);
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -35,6 +46,14 @@ export default function RegisterPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     registerAndCreateUser(values.name, values.email, values.password);
+  }
+
+  if (isAuthLoading || (!isAuthLoading && isAuthenticated)) {
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    )
   }
 
   return (
@@ -96,8 +115,8 @@ export default function RegisterPage() {
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full font-semibold !mt-6" disabled={form.formState.isSubmitting || isAuthLoading}>
-            {isAuthLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
+          <Button type="submit" className="w-full font-semibold !mt-6" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? 'Creando cuenta...' : 'Crear Cuenta'}
           </Button>
         </form>
       </Form>

@@ -39,8 +39,8 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
     mode: 'onTouched'
   });
 
-  function onSubmit(values: z.infer<typeof currentFormSchema>) {
-    const success = handleWithdraw(values.amount, values.clabe, values.accountHolderName);
+  async function onSubmit(values: z.infer<typeof currentFormSchema>) {
+    const success = await handleWithdraw(values.amount, values.clabe, values.accountHolderName);
     if(success) {
       onClose();
       form.reset();

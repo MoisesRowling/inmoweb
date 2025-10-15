@@ -29,41 +29,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   
-  // Add '/crudos' to the list of public pages to bypass user auth logic
-  const publicPages = ['/', '/login', '/register', '/crudos'];
-  const isPublicPage = publicPages.includes(pathname);
+  const publicPages = ['/login', '/register'];
+  // The home page is special, it redirects to dashboard if logged in but is public otherwise
+  const isHomePage = pathname === '/';
+  // Allow access to /crudos page for admin
   const isCrudPage = pathname === '/crudos';
+  
+  const isPublicRoute = publicPages.includes(pathname) || isHomePage;
 
   useEffect(() => {
     // Do not run auth logic on the CRUD page
     if (isCrudPage) return;
 
-    if (isAuthLoading) {
-      return; 
+    if (!isAuthLoading) {
+        if (isAuthenticated && publicPages.includes(pathname)) {
+            router.replace('/dashboard');
+        }
+        if (!isAuthenticated && !isPublicRoute) {
+            router.replace('/login');
+        }
     }
-
-    if (isAuthenticated && isPublicPage) {
-        router.replace('/dashboard');
-    }
-
-    if (!isAuthenticated && !isPublicPage) {
-        router.replace('/login');
-    }
-  }, [isAuthenticated, isAuthLoading, isPublicPage, router, pathname, isCrudPage]);
+  }, [isAuthenticated, isAuthLoading, pathname, router, isPublicRoute, isCrudPage]);
   
   if (isCrudPage) {
       return <>{children}</>;
   }
 
-  if ((isAuthLoading || !isAuthenticated) && !isPublicPage) {
+  // Show a loader for protected routes while auth is loading
+  if (isAuthLoading && !isPublicRoute) {
     return <FullPageLoader />;
   }
   
-  if (isAuthenticated && isPublicPage) {
+  // Show loader for public routes if user is authenticated (they will be redirected)
+  if (isAuthenticated && publicPages.includes(pathname)) {
       return <FullPageLoader />;
   }
 
-  const renderShell = !isPublicPage || isAuthenticated;
+  const renderShell = isAuthenticated && !isPublicRoute;
   
   if (renderShell) {
      return (
@@ -77,5 +79,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // For public pages like Home, Login, Register
   return <>{children}</>;
 }

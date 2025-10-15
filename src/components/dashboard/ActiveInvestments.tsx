@@ -13,7 +13,9 @@ interface DisplayInvestment extends Investment {
 export function ActiveInvestments() {
   const { properties, investments } = useApp();
   
-  const activeInvestments: DisplayInvestment[] = investments.map(investment => {
+  const activeInvestments: DisplayInvestment[] = (investments || [])
+  .filter(inv => inv.status === 'active')
+  .map(investment => {
     const property = properties.find(p => p.id === investment.propertyId);
     return {
         ...investment,

@@ -5,34 +5,102 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Save, Loader2, PlusCircle, CheckCircle, XCircle } from 'lucide-react';
-import type { User, Transaction, Investment, Property, WithdrawalRequest } from '@/lib/types';
+import { Trash2, Save, Loader2, PlusCircle, CheckCircle, XCircle, Sparkles } from 'lucide-react';
+import type { User, Transaction, Investment, Property, WithdrawalRequest, UserBalance } from '@/lib/types';
 import { AppShell } from '@/components/shared/AppShell';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatDistanceToNow, addDays } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
-
+import { firestore } from '@/firebase/config';
+import { collection, doc, getDocs, writeBatch, query, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { seedProperties } from '@/lib/seed';
 
 const CRUD_PASSWORD = process.env.NEXT_PUBLIC_CRUD_PASSWORD || "caballos1212";
 
-type DBState = {
+type DataSnapshot = {
     users: User[];
-    balances: { [key: string]: { amount: number; lastUpdated: string; } };
-    investments: Investment[];
-    transactions: Transaction[];
+    balances: { [key: string]: UserBalance };
+    investments: (Investment & {userId: string})[];
+    transactions: (Transaction & {userId: string})[];
     properties: Property[];
     withdrawalRequests: WithdrawalRequest[];
 }
 
+async function approveWithdrawal(requestId: string, userId: string, amount: number) {
+    const batch = writeBatch(firestore);
+    const requestRef = doc(firestore, 'withdrawalRequests', requestId);
+    const transactionRef = doc(collection(firestore, 'transactions', userId, 'userTransactions'));
+    
+    // NOTE: Balance was already debited at time of request.
+    // We just create the transaction and delete the request.
+    batch.set(transactionRef, {
+        userId,
+        type: 'withdraw',
+        amount,
+        description: 'Retiro procesado con éxito',
+        date: new Date(),
+    });
+    batch.delete(requestRef);
+    await batch.commit();
+}
+
+async function rejectWithdrawal(requestId: string, userId: string, amount: number) {
+    const batch = writeBatch(firestore);
+    const requestRef = doc(firestore, 'withdrawalRequests', requestId);
+    const balanceRef = doc(firestore, 'balances', userId);
+
+    // Refund the user's balance
+    const balanceSnap = await getDoc(balanceRef);
+    const currentBalance = balanceSnap.exists() ? balanceSnap.data().amount : 0;
+    batch.update(balanceRef, { amount: currentBalance + amount });
+
+    // Delete the request
+    batch.delete(requestRef);
+    await batch.commit();
+}
+
+async function deleteInvestment(investmentId: string, userId: string, propertyId: string) {
+    const batch = writeBatch(firestore);
+    const investmentRef = doc(firestore, 'investments', userId, 'userInvestments', investmentId);
+    const balanceRef = doc(firestore, 'balances', userId);
+    const transactionRef = doc(collection(firestore, 'transactions', userId, 'userTransactions'));
+    
+    const investmentSnap = await getDoc(investmentRef);
+    const propertySnap = await getDoc(doc(firestore, 'properties', propertyId));
+
+    if (!investmentSnap.exists()) throw new Error("Investment not found");
+    const investment = investmentSnap.data() as Investment;
+    const propertyName = propertySnap.exists() ? (propertySnap.data() as Property).name : 'N/A';
+    
+    // Refund user
+    const balanceSnap = await getDoc(balanceRef);
+    const currentBalance = balanceSnap.exists() ? balanceSnap.data().amount : 0;
+    batch.update(balanceRef, { amount: currentBalance + investment.investedAmount });
+
+    // Create refund transaction
+    batch.set(transactionRef, {
+        userId,
+        type: 'deposit',
+        amount: investment.investedAmount,
+        description: `Reembolso por inversión cancelada en ${propertyName}`,
+        date: new Date(),
+    });
+    
+    // Delete investment
+    batch.delete(investmentRef);
+    
+    await batch.commit();
+}
+
+
 export default function CrudPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
-    const [dbData, setDbData] = useState<DBState | null>(null);
+    const [dbData, setDbData] = useState<DataSnapshot | null>(null);
     const [loading, setLoading] = useState(false);
     const [editingState, setEditingState] = useState<{ [key: string]: any }>({});
     const { toast } = useToast();
     
-    // State for new transaction form
     const [newTransaction, setNewTransaction] = useState({
         userId: '',
         type: 'deposit',
@@ -48,42 +116,43 @@ export default function CrudPage() {
             toast({ title: "Error", description: "Contraseña incorrecta.", variant: "destructive" });
         }
     };
-    
-    const apiRequest = async (action: string, payload: any) => {
-        setLoading(true);
-        try {
-            const response = await fetch('/api/crud', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': CRUD_PASSWORD,
-                },
-                body: JSON.stringify({ action, payload }),
-            });
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message);
-            }
-            toast({ title: "Éxito", description: `Acción ${action} completada.` });
-            fetchData(); // Refresh data after action
-        } catch (error: any) {
-            toast({ title: "Error en la operación", description: error.message, variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const response = await fetch('/api/crud', {
-                headers: { 'Authorization': CRUD_PASSWORD }
-            });
-            if (!response.ok) throw new Error('Failed to fetch data');
-            const data = await response.json();
-            setDbData(data);
-        } catch (error) {
-            toast({ title: "Error", description: "No se pudieron cargar los datos.", variant: "destructive" });
+            // Fetch all data from firestore
+            const [usersSnap, propertiesSnap, withdrawalRequestsSnap] = await Promise.all([
+                getDocs(collection(firestore, 'users')),
+                getDocs(collection(firestore, 'properties')),
+                getDocs(collection(firestore, 'withdrawalRequests')),
+            ]);
+
+            const users = usersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as User));
+            const properties = propertiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
+            const withdrawalRequests = withdrawalRequestsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as WithdrawalRequest));
+            
+            const balances: { [key: string]: UserBalance } = {};
+            const investments: DataSnapshot['investments'] = [];
+            const transactions: DataSnapshot['transactions'] = [];
+
+            for(const user of users) {
+                const balanceSnap = await getDoc(doc(firestore, 'balances', user.uid));
+                if (balanceSnap.exists()) {
+                    balances[user.uid] = balanceSnap.data() as UserBalance;
+                }
+
+                const investmentsSnap = await getDocs(collection(firestore, 'investments', user.uid, 'userInvestments'));
+                investmentsSnap.forEach(doc => investments.push({ userId: user.uid, id: doc.id, ...doc.data()} as Investment & {userId: string}));
+
+                const transactionsSnap = await getDocs(collection(firestore, 'transactions', user.uid, 'userTransactions'));
+                transactionsSnap.forEach(doc => transactions.push({ userId: user.uid, id: doc.id, ...doc.data()} as Transaction & {userId: string}));
+            }
+
+            setDbData({ users, balances, properties, investments, transactions, withdrawalRequests });
+
+        } catch (error: any) {
+            console.error(error);
+            toast({ title: "Error", description: "No se pudieron cargar los datos de Firestore.", variant: "destructive" });
         } finally {
             setLoading(false);
         }
@@ -100,14 +169,96 @@ export default function CrudPage() {
         setNewTransaction(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleAddTransaction = () => {
-        if (!newTransaction.userId || !newTransaction.amount || !newTransaction.description) {
-            toast({ title: "Error", description: "Por favor, completa todos los campos de la transacción.", variant: "destructive" });
-            return;
+    const runAction = async (action: () => Promise<any>, successMsg: string) => {
+        setLoading(true);
+        try {
+            await action();
+            toast({ title: "Éxito", description: successMsg });
+            fetchData();
+        } catch (error: any) {
+            toast({ title: "Error en la operación", description: error.message, variant: "destructive" });
+        } finally {
+            setLoading(false);
         }
-        apiRequest('addTransaction', newTransaction);
-        setNewTransaction({ userId: '', type: 'deposit', amount: '', description: '' });
-    };
+    }
+
+    const handleSeed = async () => {
+        setLoading(true);
+        try {
+            const result = await seedProperties();
+            if (result.success) {
+                toast({ title: "Éxito", description: result.message });
+                fetchData();
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error: any) {
+             toast({ title: "Error en Seeding", description: error.message, variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    const handleUpdateUser = async (userId: string, newName: string) => {
+        if (!newName) return;
+        await runAction(() => updateDoc(doc(firestore, 'users', userId), { name: newName }), 'Usuario actualizado.');
+    }
+
+    const handleUpdateBalance = async (userId: string, newBalance: string) => {
+        if (newBalance === null || newBalance === undefined) return;
+        const amount = parseFloat(newBalance);
+        if (isNaN(amount)) return;
+        await runAction(() => updateDoc(doc(firestore, 'balances', userId), { amount }), 'Saldo actualizado.');
+    }
+
+    const handleDeleteUser = async (userId: string) => {
+         await runAction(async () => {
+            // This is a simplified delete. In a real app, you would want a Cloud Function
+            // to handle cascading deletes of subcollections. For now, we just delete the top-level docs.
+            const batch = writeBatch(firestore);
+            batch.delete(doc(firestore, 'users', userId));
+            batch.delete(doc(firestore, 'balances', userId));
+            await batch.commit();
+            // Note: Investments and transactions subcollections will be orphaned.
+         }, 'Usuario eliminado.');
+    }
+    
+    const handleDeleteTransaction = async (transactionId: string, userId: string) => {
+        await runAction(() => deleteDoc(doc(firestore, 'transactions', userId, 'userTransactions', transactionId)), 'Transacción eliminada.');
+    }
+
+    const handleAddTransaction = async () => {
+         await runAction(async () => {
+            const { userId, type, amount, description } = newTransaction;
+            if (!userId || !amount || !description) {
+                throw new Error("Por favor, completa todos los campos.");
+            }
+            const parsedAmount = parseFloat(amount);
+            if (isNaN(parsedAmount)) throw new Error('Monto inválido');
+
+            const batch = writeBatch(firestore);
+            const balanceRef = doc(firestore, 'balances', userId);
+            const transactionRef = doc(collection(firestore, 'transactions', userId, 'userTransactions'));
+
+            const balanceSnap = await getDoc(balanceRef);
+            const currentBalance = balanceSnap.exists() ? balanceSnap.data().amount : 0;
+            let newBalance = currentBalance;
+
+            if (type === 'deposit') {
+                newBalance += parsedAmount;
+            } else { // Direct withdraw
+                if (currentBalance < parsedAmount) throw new Error('Fondos insuficientes');
+                newBalance -= parsedAmount;
+            }
+
+            batch.update(balanceRef, { amount: newBalance, lastUpdated: new Date() });
+            batch.set(transactionRef, { userId, type, amount: parsedAmount, description, date: new Date() });
+
+            await batch.commit();
+            setNewTransaction({ userId: '', type: 'deposit', amount: '', description: '' });
+
+        }, 'Transacción añadida con éxito.');
+    }
 
     if (!isAuthenticated) {
         return (
@@ -142,11 +293,22 @@ export default function CrudPage() {
         );
     }
 
+    const toDate = (timestamp: any) => {
+        if (!timestamp) return new Date();
+        if (timestamp.toDate) return timestamp.toDate();
+        return new Date(timestamp);
+    }
 
     return (
         <AppShell>
             <div className="space-y-8">
-                <h1 className="text-3xl font-bold">Panel de Administración</h1>
+                <div className="flex justify-between items-center">
+                    <h1 className="text-3xl font-bold">Panel de Administración Firestore</h1>
+                    <Button onClick={handleSeed} variant="outline" disabled={loading}>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Poblar Propiedades
+                    </Button>
+                </div>
                 
                 {/* Withdrawal Requests Table */}
                 <Card>
@@ -168,8 +330,8 @@ export default function CrudPage() {
                             </TableHeader>
                              <TableBody>
                                 {dbData?.withdrawalRequests && dbData.withdrawalRequests.length > 0 ? (
-                                    dbData.withdrawalRequests.map((req: WithdrawalRequest) => {
-                                        const user = dbData.users.find(u => u.id === req.userId);
+                                    dbData.withdrawalRequests.map((req) => {
+                                        const user = dbData.users.find(u => u.uid === req.userId);
                                         return (
                                             <TableRow key={req.id}>
                                                 <TableCell>
@@ -179,13 +341,13 @@ export default function CrudPage() {
                                                 <TableCell>{req.amount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
                                                 <TableCell>{req.accountHolderName}</TableCell>
                                                 <TableCell className="font-mono">{req.clabe}</TableCell>
-                                                <TableCell>{new Date(req.date).toLocaleString()}</TableCell>
+                                                <TableCell>{toDate(req.date).toLocaleString()}</TableCell>
                                                 <TableCell className="flex gap-2">
                                                     <Button 
                                                         size="sm"
                                                         variant="outline"
                                                         className="border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
-                                                        onClick={() => apiRequest('approveWithdrawal', { requestId: req.id })}
+                                                        onClick={() => runAction(() => approveWithdrawal(req.id, req.userId, req.amount), 'Retiro aprobado.')}
                                                         disabled={loading}
                                                     >
                                                         <CheckCircle className="mr-2 h-4 w-4" />
@@ -195,7 +357,7 @@ export default function CrudPage() {
                                                         size="sm"
                                                         variant="outline"
                                                         className="border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                                        onClick={() => apiRequest('rejectWithdrawal', { requestId: req.id })}
+                                                        onClick={() => runAction(() => rejectWithdrawal(req.id, req.userId, req.amount), 'Retiro rechazado.')}
                                                         disabled={loading}
                                                     >
                                                         <XCircle className="mr-2 h-4 w-4" />
@@ -229,38 +391,38 @@ export default function CrudPage() {
                                     <TableHead>Public ID</TableHead>
                                     <TableHead>Nombre</TableHead>
                                     <TableHead>Email</TableHead>
-                                    <TableHead>Password</TableHead>
+                                    <TableHead>Firebase UID</TableHead>
                                     <TableHead>Saldo</TableHead>
                                     <TableHead>Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {dbData?.users.map((user: any) => (
-                                    <TableRow key={user.id}>
+                                {dbData?.users.map((user) => (
+                                    <TableRow key={user.uid}>
                                         <TableCell className="font-mono text-xs font-bold text-primary">{user.publicId}</TableCell>
                                         <TableCell>
                                             <Input 
-                                                value={editingState[user.id]?.name ?? user.name}
-                                                onChange={(e) => handleFieldChange(user.id, 'name', e.target.value)}
+                                                defaultValue={user.name}
+                                                onChange={(e) => handleFieldChange(user.uid, 'name', e.target.value)}
                                             />
                                         </TableCell>
                                         <TableCell>{user.email}</TableCell>
-                                        <TableCell>{user.password}</TableCell>
+                                        <TableCell className="font-mono text-xs">{user.uid}</TableCell>
                                         <TableCell>
                                             <Input 
                                                 type="number"
-                                                value={editingState[user.id]?.balance ?? dbData.balances[user.id]?.amount ?? 0}
-                                                onChange={(e) => handleFieldChange(user.id, 'balance', e.target.value)}
+                                                defaultValue={dbData.balances[user.uid]?.amount ?? 0}
+                                                onChange={(e) => handleFieldChange(user.uid, 'balance', e.target.value)}
                                             />
                                         </TableCell>
                                         <TableCell className="flex gap-2">
-                                            <Button size="icon" variant="outline" onClick={() => apiRequest('updateUser', { userId: user.id, newName: editingState[user.id]?.name })}>
+                                            <Button size="icon" variant="outline" onClick={() => handleUpdateUser(user.uid, editingState[user.uid]?.name)}>
                                                 <Save className="h-4 w-4" />
                                             </Button>
-                                            <Button size="icon" variant="outline" onClick={() => apiRequest('updateBalance', { userId: user.id, newBalance: editingState[user.id]?.balance })}>
+                                            <Button size="icon" variant="outline" onClick={() => handleUpdateBalance(user.uid, editingState[user.uid]?.balance)}>
                                                 <Save className="h-4 w-4 text-green-500" />
                                             </Button>
-                                            <Button size="icon" variant="destructive" onClick={() => apiRequest('deleteUser', { userId: user.id })}>
+                                            <Button size="icon" variant="destructive" onClick={() => handleDeleteUser(user.uid)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
@@ -284,7 +446,7 @@ export default function CrudPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     {dbData?.users.map((user) => (
-                                        <SelectItem key={user.id} value={user.id}>{user.name} ({user.email})</SelectItem>
+                                        <SelectItem key={user.uid} value={user.uid}>{user.name} ({user.email})</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -337,16 +499,16 @@ export default function CrudPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {dbData?.transactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((t: any) => (
+                                {dbData?.transactions.sort((a,b) => toDate(b.date).getTime() - toDate(a.date).getTime()).map((t) => (
                                      <TableRow key={t.id}>
                                         <TableCell className="font-mono text-xs">{t.id}</TableCell>
                                         <TableCell className="font-mono text-xs">{t.userId}</TableCell>
                                         <TableCell>{t.type}</TableCell>
                                         <TableCell>{t.amount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
                                         <TableCell>{t.description}</TableCell>
-                                        <TableCell>{new Date(t.date).toLocaleString()}</TableCell>
+                                        <TableCell>{toDate(t.date).toLocaleString()}</TableCell>
                                         <TableCell>
-                                            <Button size="icon" variant="destructive" onClick={() => apiRequest('deleteTransaction', { transactionId: t.id })}>
+                                            <Button size="icon" variant="destructive" onClick={() => handleDeleteTransaction(t.id, t.userId)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
@@ -376,11 +538,10 @@ export default function CrudPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {dbData?.investments.map((inv: Investment) => {
-                                    const user = dbData.users.find(u => u.id === inv.userId);
+                                {dbData?.investments.filter(inv => inv.status === 'active').map((inv) => {
+                                    const user = dbData.users.find(u => u.uid === inv.userId);
                                     const property = dbData.properties.find(p => p.id === inv.propertyId);
-                                    const investmentDate = new Date(inv.investmentDate);
-                                    const expirationDate = addDays(investmentDate, inv.term);
+                                    const expirationDate = toDate(inv.expirationDate);
                                     
                                     return (
                                         <TableRow key={inv.id}>
@@ -390,7 +551,7 @@ export default function CrudPage() {
                                             </TableCell>
                                             <TableCell>{property?.name ?? 'N/A'}</TableCell>
                                             <TableCell>{inv.investedAmount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
-                                            <TableCell>{investmentDate.toLocaleString()}</TableCell>
+                                            <TableCell>{toDate(inv.investmentDate).toLocaleString()}</TableCell>
                                             <TableCell>{expirationDate.toLocaleString()}</TableCell>
                                             <TableCell>
                                                 {formatDistanceToNow(expirationDate, { addSuffix: true, locale: es })}
@@ -399,7 +560,7 @@ export default function CrudPage() {
                                                 <Button 
                                                     size="icon" 
                                                     variant="destructive" 
-                                                    onClick={() => apiRequest('deleteInvestment', { investmentId: inv.id, userId: inv.userId })}
+                                                    onClick={() => runAction(() => deleteInvestment(inv.id, inv.userId, inv.propertyId), 'Inversión eliminada y fondos devueltos.')}
                                                     disabled={loading}
                                                 >
                                                     <Trash2 className="h-4 w-4" />

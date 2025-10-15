@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useApp } from '@/context/AppContext';
 import AuthFormWrapper from '@/components/auth/AuthFormWrapper';
+import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Por favor ingresa un correo electrónico válido.' }),
@@ -16,7 +19,14 @@ const formSchema = z.object({
 });
 
 export default function LoginPage() {
-  const { login, isAuthLoading } = useApp();
+  const { login, isAuthLoading, isAuthenticated } = useApp();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isAuthLoading && isAuthenticated) {
+        router.replace('/dashboard');
+    }
+  }, [isAuthLoading, isAuthenticated, router]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -28,6 +38,14 @@ export default function LoginPage() {
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     login(values.email, values.password);
+  }
+
+  if (isAuthLoading || (!isAuthLoading && isAuthenticated)) {
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    )
   }
 
   return (
@@ -63,8 +81,8 @@ export default function LoginPage() {
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full font-semibold" disabled={form.formState.isSubmitting || isAuthLoading}>
-            {isAuthLoading ? 'Iniciando...' : 'Iniciar Sesión'}
+          <Button type="submit" className="w-full font-semibold" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? 'Iniciando...' : 'Iniciar Sesión'}
           </Button>
         </form>
       </Form>

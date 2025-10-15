@@ -6,7 +6,6 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { DollarSign, Activity, Building2 } from "lucide-react";
 import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PropertyCard } from "@/components/properties/PropertyCard";
 
@@ -14,8 +13,6 @@ export default function DashboardPage() {
   const { user, balance, properties, investments, setModals, isAuthLoading } = useApp();
   
   if (isAuthLoading || !user) {
-    // AppShell handles the main loading state, so we just show a skeleton here 
-    // for the brief moment before user data is available after auth is confirmed.
     return (
         <AppShell>
             <div className="space-y-8">
@@ -44,10 +41,10 @@ export default function DashboardPage() {
   }
 
   const totalInvested = investments.reduce((sum, inv) => sum + (inv.currentValue ?? inv.investedAmount), 0);
-  const totalOriginalInvestment = investments.reduce((sum, inv) => sum + inv.investedAmount, 0);
   const totalProperties = [...new Set(investments.map(inv => inv.propertyId))].length;
 
   const dailyGain = investments.reduce((sum, inv) => {
+    if (inv.status !== 'active') return sum;
     const property = properties.find(p => p.id === inv.propertyId);
     if (!property) return sum;
     const dailyReturn = typeof property.dailyReturn === 'number' ? property.dailyReturn : 0;

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useApp } from "@/context/AppContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, ArrowDown, ArrowUp, ShoppingCart, Info } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, ShoppingCart, Info, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -17,13 +17,21 @@ export function TransactionHistory() {
   const { transactions } = useApp();
   const [showAll, setShowAll] = useState(false);
 
-  const sortedTransactions = transactions ? [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [];
+  // Helper to convert Firestore Timestamp to Date
+  const toDate = (timestamp: any) => {
+    if (!timestamp) return new Date();
+    if (timestamp.toDate) return timestamp.toDate();
+    return new Date(timestamp);
+  }
+
+  const sortedTransactions = transactions ? [...transactions].sort((a, b) => toDate(b.date).getTime() - toDate(a.date).getTime()) : [];
   const displayedTransactions = showAll ? sortedTransactions : sortedTransactions.slice(0, 5);
 
   const iconMap = {
     deposit: <ArrowUp className="w-4 h-4 text-green-500" />,
     withdraw: <ArrowDown className="w-4 h-4 text-red-500" />,
     investment: <ShoppingCart className="w-4 h-4 text-primary" />,
+    'investment-release': <Repeat className="w-4 h-4 text-blue-500" />,
   };
   
   return (
@@ -69,11 +77,11 @@ export function TransactionHistory() {
                             </Tooltip>
                         )}
                      </p>
-                     <p className="text-xs text-muted-foreground">{format(new Date(trans.date), "dd MMM yyyy, hh:mm a")}</p>
+                     <p className="text-xs text-muted-foreground">{format(toDate(trans.date), "dd MMM yyyy, hh:mm a")}</p>
                    </div>
                 </div>
                 <div className={cn("text-right font-bold text-sm", {
-                    'text-green-600': trans.type === 'deposit',
+                    'text-green-600': trans.type === 'deposit' || trans.type === 'investment-release',
                     'text-red-600': trans.type === 'withdraw',
                     'text-foreground': trans.type === 'investment',
                 })}>
