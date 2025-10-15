@@ -53,7 +53,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
   const { data, error, isLoading } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
-    revalidateOnFocus: false, // Turned off to prevent excessive refetching with remote DB
+    revalidateOnFocus: true,
     revalidateOnMount: true,
   });
 
@@ -218,5 +218,3 @@ export const useApp = (): AppContextType => {
   }
   return context;
 };
-
-    
