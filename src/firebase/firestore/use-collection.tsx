@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { onSnapshot, type CollectionReference, type Query, type DocumentData } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export function useCollection<T extends DocumentData>(ref: CollectionReference<T> | Query<T> | null) {
   const [data, setData] = useState<T[] | null>(null);
@@ -25,7 +27,16 @@ export function useCollection<T extends DocumentData>(ref: CollectionReference<T
         setIsLoading(false);
       },
       (err) => {
-        console.error("Error in useCollection:", err);
+        // Create and emit a contextual error for permission issues
+        if (err.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: (ref as CollectionReference).path, // Use path for collections
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+            console.error("Error in useCollection:", err);
+        }
         setError(err);
         setIsLoading(false);
       }
