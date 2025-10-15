@@ -30,8 +30,7 @@ export async function GET(request: NextRequest) {
     
     let currentBalance = userBalanceInfo.amount;
     const activeInvestments: Investment[] = [];
-    const investmentsToRemove: string[] = [];
-
+    
     const userInvestments = allInvestments.filter(inv => inv.userId === userId);
 
     for (const investment of userInvestments) {
@@ -42,11 +41,6 @@ export async function GET(request: NextRequest) {
         if (now >= expirationDate) {
             const property = properties.find(p => p.id === investment.propertyId);
             if (!property) continue;
-
-            const secondsElapsedTotal = (expirationDate.getTime() - investmentDate.getTime()) / 1000;
-            const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
-            const investmentTotalGains = gainPerSecond * secondsElapsedTotal;
-            const finalValue = investment.investedAmount + investmentTotalGains;
             
             // This logic will now be handled by a POST request to avoid changing data on GET
             // We just calculate values for display
@@ -56,7 +50,10 @@ export async function GET(request: NextRequest) {
             });
 
         } else {
-            activeInvestments.push(investment);
+            activeInvestments.push({
+                ...investment,
+                status: 'active'
+            });
         }
     }
 
@@ -69,6 +66,7 @@ export async function GET(request: NextRequest) {
         const investmentDate = new Date(investment.investmentDate);
         let endDate = now;
 
+        // If investment is expired, calculate value up to expiration date
         if (investment.status === 'expired') {
           const expirationDate = new Date(investmentDate);
           expirationDate.setDate(expirationDate.getDate() + investment.term);
@@ -135,8 +133,12 @@ export async function POST(request: NextRequest) {
                 if (typeof amount !== 'number' || amount <= 0) {
                     return NextResponse.json({ message: "Invalid deposit amount" }, { status: 400 });
                 }
+                if (!db.balances[userId]) {
+                    db.balances[userId] = { amount: 0, lastUpdated: new Date().toISOString() };
+                }
                 db.balances[userId].amount += amount;
 
+                if (!db.transactions) db.transactions = [];
                 db.transactions.push({
                     id: `txn-${Date.now()}`,
                     userId,
@@ -152,11 +154,11 @@ export async function POST(request: NextRequest) {
                  if (typeof amount !== 'number' || amount <= 0 || !clabe || !accountHolderName) {
                     return NextResponse.json({ message: "Invalid withdrawal payload" }, { status: 400 });
                  }
-                 if (db.balances[userId].amount < amount) {
+                 if (!db.balances[userId] || db.balances[userId].amount < amount) {
                     return NextResponse.json({ message: "Insufficient funds" }, { status: 400 });
                  }
 
-                 // Create a withdrawal request instead of directly changing the balance
+                 if (!db.withdrawalRequests) db.withdrawalRequests = [];
                  db.withdrawalRequests.push({
                     id: `wd-req-${Date.now()}`,
                     userId,
@@ -168,6 +170,8 @@ export async function POST(request: NextRequest) {
                  });
                  // For now, we'll auto-approve and process for simulation
                  db.balances[userId].amount -= amount;
+
+                 if (!db.transactions) db.transactions = [];
                  db.transactions.push({
                     id: `txn-${Date.now()}`,
                     userId,
@@ -185,7 +189,7 @@ export async function POST(request: NextRequest) {
                 if (typeof amount !== 'number' || amount <= 0 || !property || typeof term !== 'number') {
                     return NextResponse.json({ message: "Invalid investment payload" }, { status: 400 });
                 }
-                if (db.balances[userId].amount < amount) {
+                 if (!db.balances[userId] || db.balances[userId].amount < amount) {
                     return NextResponse.json({ message: "Insufficient funds" }, { status: 400 });
                 }
                 
@@ -194,6 +198,7 @@ export async function POST(request: NextRequest) {
                 const sharePrice = property.price / property.totalShares;
                 const ownedShares = amount / sharePrice;
 
+                if (!db.investments) db.investments = [];
                 db.investments.push({
                     id: `inv-${Date.now()}`,
                     userId,
@@ -204,6 +209,7 @@ export async function POST(request: NextRequest) {
                     term,
                 });
                 
+                if (!db.transactions) db.transactions = [];
                 db.transactions.push({
                     id: `txn-${Date.now()}`,
                     userId,

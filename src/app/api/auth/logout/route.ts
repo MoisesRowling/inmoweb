@@ -1,14 +1,8 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
+// This is now handled on the client by removing the user from localStorage.
+// This route can be kept for completeness but doesn't need to do anything
+// with cookies if the session isn't cookie-based.
 export async function POST() {
-  // Clear the session cookie
-  cookies().set('session', '', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: -1, // Expire the cookie immediately
-    path: '/',
-  });
-
   return NextResponse.json({ message: 'Logged out successfully' });
 }

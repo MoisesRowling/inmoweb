@@ -135,7 +135,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     setUser(null);
     localStorage.removeItem('user');
-    await fetch('/api/auth/logout', { method: 'POST' });
+    // No need to call a logout API if session is just in localStorage
     router.push('/login');
   }, [router]);
 
