@@ -1,86 +1,66 @@
 /**
- * @fileoverview Firestore Security Rules for the investment platform.
+ * @fileoverview Firestore Security Rules for Prototyping.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model, ensuring that users can only
- * access their own data. Public read access is granted to the "properties" collection.
+ * This ruleset grants open read and write access to all data in the Firestore database.
+ * This is intended for rapid prototyping and should NEVER be used in a production environment.
  *
  * Data Structure:
- * - /users/{userId}: User profiles, accessible only to the user themselves.
- * - /properties/{propertyId}: Publicly accessible property listings.
- * - /transactions/{transactionId}: Transactions, only accessible to the owner user. Transactions are secured as subcollections:
- *   - /transactions/{userId}/userTransactions/{transactionId}: Transactions, only accessible to the owner user.
+ * The database consists of top-level collections for 'Users', 'Properties', 'Investments', and 'Transactions'.
+ * Each document within these collections is identified by a unique ID.
  *
  * Key Security Decisions:
- * - Users can only list their own transactions, not all transactions.
- * - Public listing is enabled for properties.
+ * - All reads and writes are allowed for any user, authenticated or not.
+ * - No data validation is performed.
  *
- * Denormalization for Authorization:
- *  N/A (User ID is available in path for user data.)
- *
- * Structural Segregation:
- *  Private user data is stored under /users/{userId}, while public property
- *  data is stored in the top-level /properties collection.
+ * WARNING: These rules are insecure and should only be used for local development and prototyping.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants access to user profiles.
+     * @description Allows any user to read and write user data.
      * @path /users/{userId}
-     * @allow (create) User with matching UID can create their profile.
-     * @allow (get, update, delete) User with matching UID can read, update, and delete their profile.
-     * @deny (create) User cannot create a profile with a mismatched UID.
-     * @deny (list) Users cannot list all profiles.
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
+     * @allow (get, list, create, update, delete) - Any user can perform any operation.
+     * @deny None. All requests are allowed.
+     * @principle Insecure: Open access for prototyping only.
      */
     match /users/{userId} {
-      allow get, update, delete: if isOwner(userId);
-      allow create: if request.auth.uid == userId;
-      allow list: if false;
+      allow get, list, create, update, delete: if true;
     }
 
     /**
-     * @description Grants public read access to property listings and restricts write access to owners (simulated in local environment).
+     * @description Allows any user to read and write property data.
      * @path /properties/{propertyId}
-     * @allow (get, list) Anyone can read property listings.
-     * @allow (create, update, delete) No write access granted.  For prototyping only.  Real writes are stubbed locally.
-     * @deny (create, update, delete) All writes are denied in this prototype.
-     * @principle Allows public read access with restricted writes.
+     * @allow (get, list, create, update, delete) - Any user can perform any operation.
+     * @deny None. All requests are allowed.
+     * @principle Insecure: Open access for prototyping only.
      */
     match /properties/{propertyId} {
-      allow get, list: if true;
-      allow create, update, delete: if false; // Real writes are stubbed locally.
+      allow get, list, create, update, delete: if true;
     }
 
     /**
-     * @description Grants access to user's transactions.
-     * @path /transactions/{transactionId}/userTransactions
-     * @allow (create) User with matching UID can create their transaction.
-     * @allow (get, update, delete) User with matching UID can read, update, and delete their transaction.
-     * @deny (create) User cannot create a transaction with a mismatched UID.
-     * @deny (list) Users cannot list all transactions.
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
+     * @description Allows any user to read and write investment data.
+     * @path /investments/{investmentId}
+     * @allow (get, list, create, update, delete) - Any user can perform any operation.
+     * @deny None. All requests are allowed.
+     * @principle Insecure: Open access for prototyping only.
      */
-    match /transactions/{userId}/userTransactions/{transactionId} {
-      allow get, update, delete: if isOwner(userId);
-      allow create: if request.auth.uid == userId;
-      allow list: if false;
+    match /investments/{investmentId} {
+      allow get, list, create, update, delete: if true;
     }
 
+    /**
+     * @description Allows any user to read and write transaction data.
+     * @path /transactions/{transactionId}
+     * @allow (get, list, create, update, delete) - Any user can perform any operation.
+     * @deny None. All requests are allowed.
+     * @principle Insecure: Open access for prototyping only.
+     */
     match /transactions/{transactionId} {
-        allow read, write: if false;
-    }
-
-    // Helper function to determine if the request is from the document owner.
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
-    // Helper function to determine if a user is signed in.
-    function isSignedIn() {
-      return request.auth != null;
+      allow get, list, create, update, delete: if true;
     }
   }
 }
