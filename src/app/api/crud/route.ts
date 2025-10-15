@@ -3,12 +3,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { readDB, writeDB } from '@/lib/db';
 
+// It's better to use an environment variable for secrets.
 const CRUD_PASSWORD = process.env.CRUD_PASSWORD || "caballos1212";
 
 
 export async function GET(request: NextRequest) {
-    const password = request.headers.get('Authorization');
-    if (password !== CRUD_PASSWORD) {
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader !== CRUD_PASSWORD) {
         return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
     try {
@@ -21,8 +22,8 @@ export async function GET(request: NextRequest) {
 
 
 export async function POST(request: NextRequest) {
-     const password = request.headers.get('Authorization');
-    if (password !== CRUD_PASSWORD) {
+     const authHeader = request.headers.get('Authorization');
+    if (authHeader !== CRUD_PASSWORD) {
         return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
