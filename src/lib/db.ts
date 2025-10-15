@@ -2,7 +2,7 @@
 
 const BIN_ID = process.env.JSONBIN_BIN_ID;
 const MASTER_KEY = process.env.JSONBIN_MASTER_KEY;
-const ACCESS_KEY = process.env.JSONBIN_ACCESS_KEY; // Use the access key for writes
+const ACCESS_KEY = process.env.JSONBIN_ACCESS_KEY;
 const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
 // This function reads the remote db.json from jsonbin.io
@@ -12,13 +12,12 @@ export const readDB = async () => {
   }
   
   try {
-    // Reading the latest version uses the Master Key
     const response = await fetch(`${API_URL}/latest`, {
       method: 'GET',
       headers: {
-        'X-Master-Key': MASTER_KEY,
+        'X-Master-Key': MASTER_KEY.trim(),
       },
-      cache: 'no-store', // Always fetch the latest version
+      cache: 'no-store',
     });
 
     if (!response.ok) {
@@ -27,7 +26,6 @@ export const readDB = async () => {
     }
 
     const data = await response.json();
-    // The actual data is nested under the 'record' property
     return data.record;
   } catch (error) {
     console.error("Error reading from jsonbin.io:", error);
@@ -42,12 +40,11 @@ export const writeDB = async (data: any) => {
     }
     
     try {
-        // Writing/updating uses the Access Key
         const response = await fetch(API_URL, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Access-Key': ACCESS_KEY,
+                'X-Access-Key': ACCESS_KEY.trim(),
             },
             body: JSON.stringify(data),
         });
