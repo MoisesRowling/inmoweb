@@ -3,7 +3,6 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { GlobalModals } from '@/components/modals/GlobalModals';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { AppProvider } from '@/context/AppContext';
 
 
@@ -27,13 +26,11 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </head>
       <body className={`${inter.className} font-body antialiased`}>
-        <FirebaseClientProvider>
-            <AppProvider>
-                {children}
-                <Toaster />
-                <GlobalModals />
-            </AppProvider>
-        </FirebaseClientProvider>
+        <AppProvider>
+            {children}
+            <Toaster />
+            <GlobalModals />
+        </AppProvider>
       </body>
     </html>
   );

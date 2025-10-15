@@ -17,11 +17,10 @@ export function TransactionHistory() {
   const { transactions } = useApp();
   const [showAll, setShowAll] = useState(false);
 
-  // Helper to convert Firestore Timestamp to Date
-  const toDate = (timestamp: any) => {
-    if (!timestamp) return new Date();
-    if (timestamp.toDate) return timestamp.toDate();
-    return new Date(timestamp);
+  // Helper to convert string date to Date object
+  const toDate = (dateString: string) => {
+    if (!dateString) return new Date();
+    return new Date(dateString);
   }
 
   const sortedTransactions = transactions ? [...transactions].sort((a, b) => toDate(b.date).getTime() - toDate(a.date).getTime()) : [];

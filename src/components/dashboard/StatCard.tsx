@@ -43,7 +43,7 @@ export function StatCard({ title, value, description, icon: Icon, isCurrency = f
         <div className="text-2xl font-bold font-headline">
           {formatValue()}
         </div>
-        <p className={cn("text-xs text-muted-foreground", descriptionColorClasses[color as keyof typeof descriptionColorClasses])}>
+        <p className={cn("text-xs text-muted-foreground", description.startsWith('+') && descriptionColorClasses.green)}>
           {description}
         </p>
       </CardContent>
