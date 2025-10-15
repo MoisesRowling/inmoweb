@@ -5,10 +5,9 @@
 // these values in environment variables for security.
 
 export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  projectId: "studio-8999942293-ca3c8",
+  appId: "1:316734885883:web:b408ed3587f9e78284055e",
+  apiKey: "AIzaSyAsD16Mq3i4I7MNL8UhLvaJde37TUhZB1k",
+  authDomain: "studio-8999942293-ca3c8.firebaseapp.com",
+  messagingSenderId: "316734885883",
 };
