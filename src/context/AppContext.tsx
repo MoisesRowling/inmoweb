@@ -6,8 +6,6 @@ import useSWR, { mutate } from 'swr';
 import type { Property, Transaction, User, Investment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9002';
-
 const fetcher = (url: string) => fetch(url).then(res => {
     if (!res.ok) {
         const error = new Error('An error occurred while fetching the data.');
@@ -54,14 +52,14 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
-  const { data, error, isLoading } = useSWR(user ? `${API_URL}/api/data?userId=${user.id}` : null, fetcher, {
+  const { data, error, isLoading } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
     revalidateOnFocus: false, // Turned off to prevent excessive refetching with remote DB
     revalidateOnMount: true,
   });
 
   const refreshData = useCallback(() => {
     if (user) {
-        mutate(`${API_URL}/api/data?userId=${user.id}`);
+        mutate(`/api/data?userId=${user.id}`);
     }
   }, [user]);
 
@@ -89,7 +87,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const login = async (email: string, pass: string) => {
     setIsAuthLoading(true);
     try {
-        const response = await fetch(`${API_URL}/api/auth/login`, {
+        const response = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password: pass }),
@@ -113,7 +111,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const registerAndCreateUser = async (name: string, email: string, password: string) => {
     setIsAuthLoading(true);
     try {
-        const response = await fetch(`${API_URL}/api/auth/register`, {
+        const response = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, email, password }),
@@ -137,13 +135,13 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     setUser(null);
     localStorage.removeItem('user');
-    await fetch(`${API_URL}/api/auth/logout`, { method: 'POST' });
+    await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
   }, [router]);
 
   const postAction = async (action: string, payload: any) => {
     if (!user) throw new Error("User not authenticated");
-    const response = await fetch(`${API_URL}/api/data?userId=${user.id}`, {
+    const response = await fetch(`/api/data?userId=${user.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, payload }),
@@ -220,3 +218,5 @@ export const useApp = (): AppContextType => {
   }
   return context;
 };
+
+    
