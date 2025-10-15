@@ -1,31 +1,5 @@
 import { NextResponse } from 'next/server';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9002';
-const CRUD_PASSWORD = process.env.CRUD_PASSWORD || "caballos1212";
-
-// This function now reads the DB via the new CRUD API route
-const readDB = async () => {
-  const response = await fetch(`${API_URL}/api/crud`, {
-    headers: { 'Authorization': CRUD_PASSWORD },
-    cache: 'no-store'
-  });
-  if (!response.ok) throw new Error('Failed to fetch DB');
-  return response.json();
-};
-
-// This function now writes the DB via the new CRUD API route
-const writeDB = async (data: any) => {
-  const response = await fetch(`${API_URL}/api/crud`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': CRUD_PASSWORD
-    },
-    body: JSON.stringify(data)
-  });
-  if (!response.ok) throw new Error('Failed to write DB');
-};
-
+import { readDB, writeDB } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
