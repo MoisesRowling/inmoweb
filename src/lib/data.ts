@@ -11,7 +11,7 @@ export const propertiesData: Omit<Property, 'invested' | 'initialInvestment' | '
     minInvestment: 300,
     totalShares: 15000,
     image: 'hacienda-santorini',
-    dailyReturn: 0.1,
+    dailyReturn: 0.001,
   },
   {
     id: '2',
@@ -22,7 +22,7 @@ export const propertiesData: Omit<Property, 'invested' | 'initialInvestment' | '
     minInvestment: 500,
     totalShares: 7600,
     image: 'casa-monaco',
-    dailyReturn: 0.1,
+    dailyReturn: 0.0011,
   },
   {
     id: '3',
@@ -33,7 +33,7 @@ export const propertiesData: Omit<Property, 'invested' | 'initialInvestment' | '
     minInvestment: 700,
     totalShares: 8857,
     image: 'residencia-ejecutiva',
-    dailyReturn: 0.1,
+    dailyReturn: 0.0012,
   },
   {
     id: '4',
@@ -44,6 +44,6 @@ export const propertiesData: Omit<Property, 'invested' | 'initialInvestment' | '
     minInvestment: 250,
     totalShares: 10000,
     image: 'casa-esmeralda',
-    dailyReturn: 0.1,
+    dailyReturn: 0.0009,
   }
 ];

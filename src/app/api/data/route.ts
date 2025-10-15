@@ -62,40 +62,37 @@ export async function GET(request: NextRequest) {
 
     // Real-time return calculation for still active investments
     const updatedInvestments = activeInvestments.map(investment => {
-      if (investment.status === 'expired') {
-          // If expired, we can calculate the final value for display but not alter the balance
-           const property = properties.find(p => p.id === investment.propertyId);
-            if (!property) return { ...investment, currentValue: investment.investedAmount };
-            const investmentDate = new Date(investment.investmentDate);
-            const expirationDate = new Date(investmentDate);
-            expirationDate.setDate(expirationDate.getDate() + investment.term);
-            const secondsElapsedTotal = (expirationDate.getTime() - investmentDate.getTime()) / 1000;
-            const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
-            const investmentTotalGains = gainPerSecond * secondsElapsedTotal;
-            return {
-                ...investment,
-                currentValue: investment.investedAmount + investmentTotalGains
-            };
-      }
-
+      let currentValue = investment.investedAmount;
       const property = properties.find(p => p.id === investment.propertyId);
-      if (!property || property.dailyReturn <= 0) {
-        return { ...investment, currentValue: investment.investedAmount };
-      }
-      
-      const investmentDate = new Date(investment.investmentDate);
-      const secondsElapsedTotal = (now.getTime() - investmentDate.getTime()) / 1000;
-      
-      if (secondsElapsedTotal <= 0) {
-          return { ...investment, currentValue: investment.investedAmount };
+
+      if (property && property.dailyReturn > 0) {
+        const investmentDate = new Date(investment.investmentDate);
+        let endDate = now;
+
+        if (investment.status === 'expired') {
+          const expirationDate = new Date(investmentDate);
+          expirationDate.setDate(expirationDate.getDate() + investment.term);
+          endDate = expirationDate;
+        }
+        
+        const secondsElapsed = (endDate.getTime() - investmentDate.getTime()) / 1000;
+
+        if (secondsElapsed > 0) {
+            const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
+            const totalGains = gainPerSecond * secondsElapsed;
+            currentValue = investment.investedAmount + totalGains;
+        }
       }
 
-      const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
-      const investmentTotalGains = gainPerSecond * secondsElapsedTotal;
+      // Safeguard against non-finite numbers
+      if (!isFinite(currentValue)) {
+        console.warn(`Calculated a non-finite currentValue for investment ${investment.id}. Defaulting to investedAmount.`);
+        currentValue = investment.investedAmount;
+      }
       
       return {
         ...investment,
-        currentValue: investment.investedAmount + investmentTotalGains
+        currentValue: currentValue
       };
     });
     
