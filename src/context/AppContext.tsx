@@ -6,9 +6,15 @@ import useSWR, { mutate } from 'swr';
 import type { Property, Transaction, User, Investment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9002';
+
 const fetcher = (url: string) => fetch(url).then(res => {
     if (!res.ok) {
-        throw new Error('Network response was not ok');
+        const error = new Error('An error occurred while fetching the data.');
+        // Attach extra info to the error object.
+        error.info = res.json();
+        error.status = res.status;
+        throw error;
     }
     return res.json();
 });
@@ -26,7 +32,7 @@ interface AppContextType {
   balance: number;
   properties: Property[];
   transactions: Transaction[];
-  investments: Investment[];
+  investments: (Investment & { status?: string })[];
   logout: () => void;
   login: (email: string, pass: string) => Promise<void>;
   registerAndCreateUser: (name: string, email: string, password: string) => Promise<void>;
@@ -48,21 +54,26 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
-  const { data, error, isLoading } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
-    revalidateOnFocus: true,
+  const { data, error, isLoading } = useSWR(user ? `${API_URL}/api/data?userId=${user.id}` : null, fetcher, {
+    revalidateOnFocus: false, // Turned off to prevent excessive refetching with remote DB
     revalidateOnMount: true,
   });
 
   const refreshData = useCallback(() => {
     if (user) {
-        mutate(`/api/data?userId=${user.id}`);
+        mutate(`${API_URL}/api/data?userId=${user.id}`);
     }
   }, [user]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Failed to parse user from localStorage", e);
+        localStorage.removeItem('user');
+      }
     }
     setIsAuthLoading(false);
   }, []);
@@ -78,7 +89,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const login = async (email: string, pass: string) => {
     setIsAuthLoading(true);
     try {
-        const response = await fetch('/api/auth/login', {
+        const response = await fetch(`${API_URL}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password: pass }),
@@ -102,13 +113,13 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const registerAndCreateUser = async (name: string, email: string, password: string) => {
     setIsAuthLoading(true);
     try {
-        const response = await fetch('/api/auth/register', {
+        const response = await fetch(`${API_URL}/api/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, email, password }),
         });
         const result = await response.json();
-        if (response.ok) {
+        if (response.status === 201) {
             setUser(result.user);
             localStorage.setItem('user', JSON.stringify(result.user));
             toast({ title: '¡Cuenta creada exitosamente!' });
@@ -126,12 +137,13 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     setUser(null);
     localStorage.removeItem('user');
+    await fetch(`${API_URL}/api/auth/logout`, { method: 'POST' });
     router.push('/login');
   }, [router]);
 
   const postAction = async (action: string, payload: any) => {
     if (!user) throw new Error("User not authenticated");
-    const response = await fetch(`/api/data?userId=${user.id}`, {
+    const response = await fetch(`${API_URL}/api/data?userId=${user.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, payload }),

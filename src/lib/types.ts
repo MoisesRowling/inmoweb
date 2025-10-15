@@ -17,22 +17,23 @@ export type Transaction = {
   type: 'deposit' | 'withdraw' | 'investment' | 'investment-release';
   amount: number;
   description: string;
-  date: string; // Changed from Timestamp
+  date: string;
   // Optional fields for withdrawal details
   clabe?: string;
   accountHolderName?: string;
 };
 
 export type User = {
-  id: string; // Changed from uid to id
+  id: string;
   publicId: string;
   name: string;
   email: string;
+  password?: string; // Password should not be sent to client
 };
 
 export type UserBalance = {
     amount: number;
-    lastUpdated: string; // Changed from Timestamp
+    lastUpdated: string;
 }
 
 export type Investment = {
@@ -41,9 +42,10 @@ export type Investment = {
     propertyId: string;
     investedAmount: number;
     ownedShares: number;
-    investmentDate: string; // Changed from Timestamp
+    investmentDate: string;
     term: number; // in days
     currentValue?: number; // Calculated field for current value
+    status?: 'active' | 'expired'; // Calculated field
 };
 
 export type WithdrawalRequest = {
@@ -52,6 +54,6 @@ export type WithdrawalRequest = {
     amount: number;
     clabe: string;
     accountHolderName: string;
-    date: string; // Changed from Timestamp
+    date: string;
     status: 'pending' | 'approved' | 'rejected';
 }
