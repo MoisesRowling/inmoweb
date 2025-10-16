@@ -1,15 +1,18 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import useSWR, { mutate } from 'swr';
 import type { Property, Transaction, User, Investment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 const fetcher = (url: string) => fetch(url).then(res => {
+    if (res.status === 401) {
+        // This will be handled by the logout function
+        return null;
+    }
     if (!res.ok) {
         const error = new Error('An error occurred while fetching the data.');
-        // Attach extra info to the error object.
         error.info = res.json();
         error.status = res.status;
         throw error;
@@ -48,40 +51,52 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
   
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
 
-  const { data, error, isLoading } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
+  // Load user from localStorage on initial load
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (e) {
+      console.error("Failed to parse user from localStorage", e);
+      localStorage.removeItem('user');
+    } finally {
+        setIsAuthLoading(false);
+    }
+  }, []);
+
+  const { data, error, isLoading, isValidating } = useSWR(user ? '/api/data' : null, fetcher, {
     revalidateOnFocus: true,
     revalidateOnMount: true,
   });
 
-  const refreshData = useCallback(() => {
-    if (user) {
-        mutate(`/api/data?userId=${user.id}`);
-    }
-  }, [user]);
+  const logout = useCallback(async () => {
+    setUser(null);
+    localStorage.removeItem('user');
+    await fetch('/api/auth/logout', { method: 'POST' });
+    mutate('/api/data', null, false); // Clear the SWR cache for user data
+    router.push('/login');
+    toast({ title: "Has cerrado sesión." });
+  }, [router, toast]);
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Failed to parse user from localStorage", e);
-        localStorage.removeItem('user');
-      }
-    }
-    setIsAuthLoading(false);
-  }, []);
 
   useEffect(() => {
     if (error) {
-        toast({ title: 'Error de Datos', description: 'No se pudieron cargar los datos del portafolio.', variant: 'destructive'});
-        console.error("SWR Error:", error);
+        if (error.status === 401) {
+            // Unauthorized, likely expired token
+            logout();
+        } else {
+            toast({ title: 'Error de Datos', description: 'No se pudieron cargar los datos del portafolio.', variant: 'destructive'});
+            console.error("SWR Error:", error);
+        }
     }
-  }, [error, toast]);
+  }, [error, toast, logout]);
 
 
   const login = async (email: string, pass: string) => {
@@ -118,10 +133,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         });
         const result = await response.json();
         if (response.status === 201) {
-            setUser(result.user);
-            localStorage.setItem('user', JSON.stringify(result.user));
-            toast({ title: '¡Cuenta creada exitosamente!' });
-            router.push('/dashboard');
+            toast({ title: '¡Cuenta creada exitosamente!', description: 'Ahora puedes iniciar sesión.' });
+            router.push('/login');
         } else {
             throw new Error(result.message || 'Error al registrar la cuenta.');
         }
@@ -131,23 +144,25 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         setIsAuthLoading(false);
     }
   };
-  
-  const logout = useCallback(async () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    // No need to call a logout API if session is just in localStorage
-    router.push('/login');
-  }, [router]);
 
+  const refreshData = useCallback(() => {
+    if (user) {
+        mutate('/api/data');
+    }
+  }, [user]);
+  
   const postAction = async (action: string, payload: any) => {
     if (!user) throw new Error("User not authenticated");
-    const response = await fetch(`/api/data?userId=${user.id}`, {
+    const response = await fetch('/api/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, payload }),
     });
     const result = await response.json();
     if (!response.ok) {
+      if (response.status === 401) {
+          logout();
+      }
       throw new Error(result.message || `Failed to perform action: ${action}`);
     }
     return result;
@@ -188,7 +203,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const value: AppContextType = {
     user,
     isAuthenticated: !!user,
-    isAuthLoading: isAuthLoading || (!!user && isLoading),
+    isAuthLoading: isAuthLoading || (!!user && (isLoading || isValidating)),
     balance: data?.balance ?? 0,
     properties: data?.properties ?? [],
     transactions: data?.transactions ?? [],

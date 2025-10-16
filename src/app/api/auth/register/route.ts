@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       publicId: String(Math.floor(10000 + Math.random() * 90000)),
       name,
       email,
-      password, // In a real app, hash this password!
+      password: password, // Storing password in plain text as requested
     };
     
     const newBalance = {
@@ -28,7 +28,6 @@ export async function POST(request: Request) {
 
     db.users.push(newUser);
     
-    // THE FIX: Ensure db.balances object exists before assigning to it.
     if (!db.balances) {
         db.balances = {};
     }
@@ -38,6 +37,7 @@ export async function POST(request: Request) {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...userSafe } = newUser;
+    // For registration, we don't need to return a token. The user will be redirected to login.
     return NextResponse.json({ user: userSafe }, { status: 201 });
 
   } catch (error: any) {

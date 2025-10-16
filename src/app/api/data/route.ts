@@ -1,15 +1,21 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Investment, Property, Transaction, User } from '@/lib/types';
 import { readDB, writeDB } from '@/lib/db';
+import { verifyAuth } from '@/lib/auth';
 
 
 async function getCurrentTime() {
+    // This now runs on the server, so new Date() is safe.
     return new Date();
 }
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
+  const authResult = await verifyAuth(request);
+  if (authResult.error) {
+    return NextResponse.json({ message: authResult.error }, { status: authResult.status });
+  }
+  
+  const userId = authResult.userId;
 
   if (!userId) {
     return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
@@ -113,8 +119,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const authResult = await verifyAuth(request);
+    if (authResult.error) {
+        return NextResponse.json({ message: authResult.error }, { status: authResult.status });
+    }
+  
+    const userId = authResult.userId;
 
     if (!userId) {
         return NextResponse.json({ message: 'User ID is required' }, { status: 400 });

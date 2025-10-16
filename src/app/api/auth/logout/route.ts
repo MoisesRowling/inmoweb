@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server';
+import { serialize } from 'cookie';
 
-// This is now handled on the client by removing the user from localStorage.
-// This route can be kept for completeness but doesn't need to do anything
-// with cookies if the session isn't cookie-based.
 export async function POST() {
-  return NextResponse.json({ message: 'Logged out successfully' });
+  // Expire the cookie to log the user out
+  const cookie = serialize('session', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    expires: new Date(0), // Set expiry date to the past
+    path: '/',
+  });
+
+  const response = NextResponse.json({ message: 'Cierre de sesión exitoso' });
+  response.headers.set('Set-Cookie', cookie);
+  return response;
 }
