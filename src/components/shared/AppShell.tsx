@@ -29,20 +29,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   
-  const publicPages = ['/login', '/register'];
-  // The home page is special, it redirects to dashboard if logged in but is public otherwise
-  const isHomePage = pathname === '/';
-  // Allow access to /crudos page for admin
+  const publicPages = ['/', '/login', '/register'];
   const isCrudPage = pathname === '/crudos';
   
-  const isPublicRoute = publicPages.includes(pathname) || isHomePage;
+  const isPublicRoute = publicPages.includes(pathname);
 
   useEffect(() => {
-    // Do not run auth logic on the CRUD page
     if (isCrudPage) return;
 
     if (!isAuthLoading) {
-        if (isAuthenticated && publicPages.includes(pathname)) {
+        if (isAuthenticated && publicPages.includes(pathname) && pathname !== '/') {
             router.replace('/dashboard');
         }
         if (!isAuthenticated && !isPublicRoute) {
@@ -61,24 +57,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
   
   // Show loader for public routes if user is authenticated (they will be redirected)
-  if (isAuthenticated && publicPages.includes(pathname)) {
+  if (isAuthenticated && publicPages.includes(pathname) && pathname !== '/') {
       return <FullPageLoader />;
   }
-
-  const renderShell = isAuthenticated && !isPublicRoute;
   
-  if (renderShell) {
-     return (
-        <div className="min-h-screen flex flex-col bg-background">
-          <Header />
-          <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              {children}
-          </main>
-          <Footer />
-        </div>
-    );
+  // For public pages like Home, Login, Register, render only children
+  if (isPublicRoute) {
+      return <>{children}</>;
   }
-
-  // For public pages like Home, Login, Register
-  return <>{children}</>;
+  
+  // For authenticated app routes
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      <Header />
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {children}
+      </main>
+      <Footer />
+    </div>
+  );
 }
