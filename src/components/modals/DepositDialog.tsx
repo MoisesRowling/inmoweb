@@ -7,7 +7,6 @@ import { Info, Copy } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { usePortfolio } from '@/hooks/usePortfolio';
 
 interface DepositDialogProps {
   isOpen: boolean;
@@ -15,8 +14,7 @@ interface DepositDialogProps {
 }
 
 export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
-  const { user, handleDeposit } = useApp();
-  const { refreshData } = usePortfolio();
+  const { user } = useApp();
   const { toast } = useToast();
 
   const copyToClipboard = (text: string) => {
@@ -34,12 +32,6 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
         <path d=" M16 .0C7.16 0 0 7.16 0 16s7.16 16 16 16c9.02 0 16-7.16 16-16S24.84 0 16 0zm0 29.5C8.54 29.5 2.5 23.46 2.5 16S8.54 2.5 16 2.5 29.5 8.54 29.5 16 23.46 29.5 16 29.5z" />
     </svg>
   )
-  
-  const handleFakeDeposit = async () => {
-    await handleDeposit(5000); // Simulate a 5000 MXN deposit
-    refreshData();
-    onClose();
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -67,14 +59,14 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
               </div>
               <div>
                   <p className="text-xs text-muted-foreground">Banco</p>
-                  <p className="font-semibold">BBVA</p>
+                  <p className="font-semibold">INVEX</p>
               </div>
               <div className="flex justify-between items-center">
                   <div>
                       <p className="text-xs text-muted-foreground">CLABE</p>
-                      <p className="font-mono font-semibold">123456789012345678</p>
+                      <p className="font-mono font-semibold">059180131136162416</p>
                   </div>
-                  <Button size="icon" variant="ghost" onClick={() => copyToClipboard('123456789012345678')}>
+                  <Button size="icon" variant="ghost" onClick={() => copyToClipboard('059180131136162416')}>
                       <Copy className="h-4 w-4"/>
                   </Button>
               </div>
@@ -96,9 +88,6 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
                 </Link>
             </Button>
             
-            <Button onClick={handleFakeDeposit} className='w-full' variant="secondary">
-                Simular depósito de $5,000 MXN
-            </Button>
         </div>
 
         <DialogFooter>

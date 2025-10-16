@@ -6,12 +6,23 @@
       "name": "Test User",
       "email": "test@test.com",
       "password": "password"
+    },
+    {
+      "id": "user-1760597572719",
+      "publicId": "51640",
+      "name": "maria de los angeles",
+      "email": "mxlaten@gmail.com",
+      "password": "caballos1212"
     }
   ],
   "balances": {
     "user-1698864200000": {
-      "amount": 100,
+      "amount": 0,
       "lastUpdated": "2023-11-01T18:43:20.000Z"
+    },
+    "user-1760597572719": {
+      "amount": 0,
+      "lastUpdated": "2025-10-16T06:52:52.719Z"
     }
   },
   "properties": [
@@ -62,12 +73,12 @@
   ],
   "investments": [
     {
-      "id": "inv-1760594648956",
+      "id": "inv-1760597465320",
       "userId": "user-1698864200000",
-      "propertyId": "1",
+      "propertyId": "2",
       "investedAmount": 12000,
-      "ownedShares": 40,
-      "investmentDate": "2025-10-16T06:04:08.956Z",
+      "ownedShares": 24,
+      "investmentDate": "2025-10-16T06:51:05.320Z",
       "term": 7
     }
   ],
@@ -139,6 +150,40 @@
       "amount": 44,
       "description": "Depósito realizado con éxito",
       "date": "2025-10-16T06:43:58.966Z"
+    },
+    {
+      "id": "txn-refund-1760597440166",
+      "userId": "user-1698864200000",
+      "type": "investment-refund",
+      "amount": 12000,
+      "description": "Reembolso de inversión (ID: inv-1760594648956)",
+      "date": "2025-10-16T06:50:40.166Z"
+    },
+    {
+      "id": "txn-inv-1760597465320",
+      "userId": "user-1698864200000",
+      "type": "investment",
+      "amount": 12000,
+      "description": "Inversión en Casa Monaco",
+      "date": "2025-10-16T06:51:05.320Z"
+    },
+    {
+      "id": "txn-w-req-wd-req-1760597489993",
+      "userId": "user-1698864200000",
+      "type": "withdraw-request",
+      "amount": 100,
+      "description": "Solicitud de retiro - Pendiente",
+      "date": "2025-10-16T06:51:29.993Z"
+    },
+    {
+      "id": "txn-1760597517308",
+      "userId": "user-1698864200000",
+      "type": "withdraw",
+      "amount": 100,
+      "description": "Retiro aprobado y procesado exitosamente",
+      "clabe": "018009392838221333",
+      "accountHolderName": "juan lopez",
+      "date": "2025-10-16T06:51:57.308Z"
     }
   ],
   "withdrawalRequests": [
@@ -159,6 +204,15 @@
       "accountHolderName": "lolololo",
       "status": "approved",
       "date": "2025-10-16T06:38:38.077Z"
+    },
+    {
+      "id": "wd-req-1760597489993",
+      "userId": "user-1698864200000",
+      "amount": 100,
+      "clabe": "018009392838221333",
+      "accountHolderName": "juan lopez",
+      "status": "approved",
+      "date": "2025-10-16T06:51:29.993Z"
     }
   ]
 }
