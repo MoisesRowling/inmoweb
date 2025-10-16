@@ -40,6 +40,7 @@ export function usePortfolio() {
   const { data, error, isLoading, mutate } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
     revalidateOnFocus: true,
     revalidateOnMount: true,
+    revalidateOnInterval: 0, // Deshabilita la revalidación por intervalo
     onSuccess: (data) => {
         // After fetching data, check investments
         if(user) {
