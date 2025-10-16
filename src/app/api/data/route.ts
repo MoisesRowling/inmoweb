@@ -1,3 +1,4 @@
+
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Investment, Property, Transaction, User } from '@/lib/types';
 import { readDB, writeDB } from '@/lib/db';
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
                 
                 if (!db.transactions) db.transactions = [];
                 db.transactions.push({
-                    id-`txn-${Date.now()}`,
+                    id: `txn-${Date.now()}`,
                     userId,
                     type: 'investment',
                     amount,
