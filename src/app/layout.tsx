@@ -3,7 +3,9 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { GlobalModals } from '@/components/modals/GlobalModals';
-import { AppProvider as AppProviderContent } from '@/context/AppContext';
+import { AppProvider } from '@/context/AppContext';
+import AuthGuard from '@/components/auth/AuthGuard';
+import { AppShell } from '@/components/shared/AppShell';
 
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -26,11 +28,15 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </head>
       <body className={`${inter.className} font-body antialiased`}>
-        <AppProviderContent>
-            {children}
-            <Toaster />
-            <GlobalModals />
-        </AppProviderContent>
+        <AppProvider>
+          <AuthGuard>
+              <AppShell>
+                {children}
+              </AppShell>
+              <Toaster />
+              <GlobalModals />
+          </AuthGuard>
+        </AppProvider>
       </body>
     </html>
   );

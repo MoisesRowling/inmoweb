@@ -1,39 +1,21 @@
 'use client';
 
 import { useApp } from '@/context/AppContext';
-import { useRouter, usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Header } from './Header';
 import { Footer } from './Footer';
-import { Loader2 } from 'lucide-react';
-
-const FullPageLoader = () => (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
-    </div>
-);
-
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isAuthLoading } = useApp();
-  const router = useRouter();
+  const { isAuthenticated } = useApp();
   const pathname = usePathname();
   
   const publicPages = ['/', '/login', '/register', '/crudos'];
-  const isPublicRoute = publicPages.includes(pathname);
+  const isPublicPage = publicPages.includes(pathname);
 
-  useEffect(() => {
-    if (!isAuthLoading && !isAuthenticated && !isPublicRoute) {
-        router.replace('/login');
-    }
-  }, [isAuthenticated, isAuthLoading, pathname, router, isPublicRoute]);
-  
-  if (isAuthLoading || (!isAuthenticated && !isPublicRoute)) {
-    return <FullPageLoader />;
-  }
-  
-  // For public routes, just render the content
-  if (isPublicRoute) {
+  // For public pages, or if the user is not authenticated yet,
+  // just render the page content without the main layout.
+  // The AuthGuard will handle redirection.
+  if (isPublicPage || !isAuthenticated) {
       return <>{children}</>;
   }
   

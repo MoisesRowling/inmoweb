@@ -121,7 +121,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleDeposit = async (amount: number) => {
      try {
-        await postAction('deposit', { amount }, user!.id);
+        if (!user) throw new Error("User not authenticated");
+        await postAction('deposit', { amount }, user.id);
         toast({ title: 'Depósito Exitoso', description: `Has simulado un depósito de ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
      } catch (e: any) {
         toast({ title: 'Error en depósito', description: e.message, variant: 'destructive'});
@@ -130,7 +131,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleWithdraw = async (amount: number, clabe: string, accountHolderName: string): Promise<boolean> => {
      try {
-        await postAction('withdraw', { amount, clabe, accountHolderName }, user!.id);
+        if (!user) throw new Error("User not authenticated");
+        await postAction('withdraw', { amount, clabe, accountHolderName }, user.id);
         toast({ title: 'Solicitud de Retiro Enviada', description: `Tu solicitud para retirar ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} ha sido enviada.` });
         return true;
      } catch (e: any) {
@@ -141,7 +143,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   
   const handleInvest = async (amount: number, property: Property, term: number) => {
     try {
-        await postAction('invest', { amount, property, term }, user!.id);
+        if (!user) throw new Error("User not authenticated");
+        await postAction('invest', { amount, property, term }, user.id);
         toast({ title: '¡Inversión Exitosa!', description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.` });
     } catch (e: any) {
         toast({ title: 'Error en inversión', description: e.message, variant: 'destructive'});
