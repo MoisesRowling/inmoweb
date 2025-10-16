@@ -3,18 +3,32 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Lock } from 'lucide-react';
+import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle } from 'lucide-react';
 import { AppShell } from '@/components/shared/AppShell';
+import type { User as UserType, Investment, WithdrawalRequest, Property } from '@/lib/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { format, add, differenceInDays, formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+interface DbData {
+    users: UserType[];
+    investments: Investment[];
+    withdrawalRequests: WithdrawalRequest[];
+    properties: Property[];
+}
 
 export default function CrudosPage() {
-  const [data, setData] = useState('');
+  const [dbData, setDbData] = useState<DbData | null>(null);
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -36,8 +50,8 @@ export default function CrudosPage() {
       if (!response.ok) {
         throw new Error('No se pudieron cargar los datos. ¿Contraseña incorrecta?');
       }
-      const dbData = await response.json();
-      setData(JSON.stringify(dbData, null, 2));
+      const data: DbData = await response.json();
+      setDbData(data);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -50,35 +64,22 @@ export default function CrudosPage() {
     }
   };
 
-  const handleSave = async () => {
+  const handleAction = async (action: 'update_user' | 'approve_withdrawal' | 'reject_withdrawal', payload: any) => {
     setIsSaving(true);
-    try {
-      JSON.parse(data); // Validate JSON before sending
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error de formato',
-        description: 'El texto no es un JSON válido.',
-      });
-      setIsSaving(false);
-      return;
-    }
-
     try {
       const response = await fetch('/api/crudos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password, action: 'write', data: JSON.parse(data) })
+        body: JSON.stringify({ password, action, payload })
       });
-
       if (!response.ok) {
-        throw new Error('No se pudo guardar la base de datos.');
+        throw new Error('La operación falló.');
       }
-
       toast({
         title: 'Éxito',
         description: 'La base de datos ha sido actualizada.',
       });
+      fetchData(); // Refresh data after action
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -101,6 +102,28 @@ export default function CrudosPage() {
         });
       }
   }
+
+  const handleUpdateUser = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    handleAction('update_user', editingUser);
+    setEditingUser(null);
+  };
+  
+  const getInvestmentTimeLeft = (investment: Investment) => {
+    const investmentDate = new Date(investment.investmentDate);
+    const expirationDate = add(investmentDate, { days: investment.term });
+    const now = new Date();
+
+    if (now > expirationDate) {
+        return <span className="text-muted-foreground">Vencido</span>;
+    }
+
+    return formatDistanceToNow(expirationDate, { addSuffix: true, locale: es });
+  };
+  
+  const findUserById = (userId: string) => dbData?.users.find(u => u.id === userId);
+  const findPropertyById = (propertyId: string) => dbData?.properties.find(p => p.id === propertyId);
 
   if (!isAuthenticated) {
     return (
@@ -129,11 +152,17 @@ export default function CrudosPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div>
-            <h1 className="text-3xl font-bold text-foreground font-headline">Administrador de Base de Datos (db.json)</h1>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground font-headline">CRUD Manager</h1>
             <p className="text-muted-foreground mt-1">
-            Aquí puedes ver y editar directamente el contenido del archivo `db.json`. Ten cuidado, los cambios son permanentes.
+              Gestiona los datos de la aplicación.
             </p>
+          </div>
+          <Button onClick={fetchData} disabled={isLoading || isSaving}>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Recargar Datos
+          </Button>
         </div>
 
         {isLoading ? (
@@ -141,25 +170,154 @@ export default function CrudosPage() {
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="space-y-4">
-            <Textarea
-              value={data}
-              onChange={(e) => setData(e.target.value)}
-              className="min-h-[600px] font-mono text-xs bg-muted/50"
-              placeholder="Contenido de db.json..."
-            />
-            <div className="flex justify-end gap-4">
-                <Button variant="outline" onClick={fetchData} disabled={isSaving}>
-                    Recargar Datos
-                </Button>
-                <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Guardar Cambios
-                </Button>
-            </div>
-          </div>
+          <Tabs defaultValue="users">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="users"><User className="mr-2"/>Usuarios</TabsTrigger>
+              <TabsTrigger value="withdrawals"><DollarSign className="mr-2"/>Retiros</TabsTrigger>
+              <TabsTrigger value="investments"><Briefcase className="mr-2"/>Inversiones</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="users" className="mt-4">
+               <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>ID de Usuario</TableHead>
+                            <TableHead>Nombre</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Contraseña</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {dbData?.users.map(user => (
+                            <TableRow key={user.id}>
+                                <TableCell className="font-mono">{user.publicId}</TableCell>
+                                <TableCell>{user.name}</TableCell>
+                                <TableCell>{user.email}</TableCell>
+                                <TableCell className="font-mono">{user.password}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" onClick={() => setEditingUser(user)}>
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TabsContent>
+
+            <TabsContent value="withdrawals" className="mt-4">
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Usuario</TableHead>
+                            <TableHead>Cantidad</TableHead>
+                            <TableHead>CLABE</TableHead>
+                            <TableHead>Titular</TableHead>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Estado</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {dbData?.withdrawalRequests.map(req => {
+                            const user = findUserById(req.userId);
+                            return (
+                                <TableRow key={req.id}>
+                                    <TableCell>{user?.name || req.userId}</TableCell>
+                                    <TableCell>{req.amount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
+                                    <TableCell className="font-mono">{req.clabe}</TableCell>
+                                    <TableCell>{req.accountHolderName}</TableCell>
+                                    <TableCell>{format(new Date(req.date), "dd MMM yyyy")}</TableCell>
+                                    <TableCell>{req.status}</TableCell>
+                                    <TableCell className="text-right">
+                                        {req.status === 'pending' && (
+                                            <div className="flex gap-2 justify-end">
+                                                <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleAction('approve_withdrawal', {id: req.id})} disabled={isSaving}>
+                                                    <CheckCircle className="mr-2 h-4 w-4"/> Aprobar
+                                                </Button>
+                                                <Button size="sm" variant="outline" className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => handleAction('reject_withdrawal', {id: req.id})} disabled={isSaving}>
+                                                    <XCircle className="mr-2 h-4 w-4"/> Rechazar
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
+                    </TableBody>
+                </Table>
+            </TabsContent>
+
+            <TabsContent value="investments" className="mt-4">
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Inversor</TableHead>
+                            <TableHead>Propiedad</TableHead>
+                            <TableHead>Monto Invertido</TableHead>
+                            <TableHead>Fecha de Inversión</TableHead>
+                            <TableHead>Plazo</TableHead>
+                            <TableHead>Tiempo Restante</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {dbData?.investments.map(inv => {
+                            const user = findUserById(inv.userId);
+                            const property = findPropertyById(inv.propertyId);
+                            return (
+                                <TableRow key={inv.id}>
+                                    <TableCell>{user?.name || inv.userId}</TableCell>
+                                    <TableCell>{property?.name || inv.propertyId}</TableCell>
+                                    <TableCell>{inv.investedAmount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
+                                    <TableCell>{format(new Date(inv.investmentDate), "dd MMM yyyy")}</TableCell>
+                                    <TableCell>{inv.term} días</TableCell>
+                                    <TableCell>{getInvestmentTimeLeft(inv)}</TableCell>
+                                </TableRow>
+                            )
+                        })}
+                    </TableBody>
+                </Table>
+            </TabsContent>
+          </Tabs>
         )}
       </div>
+
+       <Dialog open={!!editingUser} onOpenChange={(isOpen) => !isOpen && setEditingUser(null)}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Editando Usuario</DialogTitle>
+                    <DialogDescription>
+                        Modifica los detalles del usuario. La contraseña se actualizará inmediatamente.
+                    </DialogDescription>
+                </DialogHeader>
+                {editingUser && (
+                    <form onSubmit={handleUpdateUser}>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="name" className="text-right">Nombre</Label>
+                                <Input id="name" value={editingUser.name} onChange={(e) => setEditingUser({...editingUser, name: e.target.value})} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="email" className="text-right">Email</Label>
+                                <Input id="email" type="email" value={editingUser.email} onChange={(e) => setEditingUser({...editingUser, email: e.target.value})} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="password" className="text-right">Contraseña</Label>
+                                <Input id="password" value={editingUser.password} onChange={(e) => setEditingUser({...editingUser, password: e.target.value})} className="col-span-3" />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="secondary" onClick={() => setEditingUser(null)}>Cancelar</Button>
+                            <Button type="submit" disabled={isSaving}>
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Guardar Cambios
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                )}
+            </DialogContent>
+        </Dialog>
     </AppShell>
   );
 }
