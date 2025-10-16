@@ -8,7 +8,6 @@ import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PropertyCard } from "@/components/properties/PropertyCard";
-import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 
 export default function DashboardPage() {
   const { user, isAuthLoading } = useApp();
@@ -147,7 +146,6 @@ export default function DashboardPage() {
 
         </div>
         <div className="lg:col-span-1 row-start-1 lg:row-start-auto space-y-6">
-          <PortfolioSuggestion />
           <TransactionHistory />
         </div>
       </div>

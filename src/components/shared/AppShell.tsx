@@ -5,7 +5,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
-import { Skeleton } from '../ui/skeleton';
 import { Loader2 } from 'lucide-react';
 
 const FullPageLoader = () => (
@@ -20,39 +19,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   
-  const publicPages = ['/', '/login', '/register'];
-  const isCrudPage = pathname === '/crudos';
-  
+  const publicPages = ['/', '/login', '/register', '/crudos'];
   const isPublicRoute = publicPages.includes(pathname);
 
   useEffect(() => {
-    if (isCrudPage) return;
-
     if (!isAuthLoading) {
-        if (isAuthenticated && isPublicRoute) {
+        if (isAuthenticated && (pathname === '/login' || pathname === '/register' || pathname === '/')) {
             router.replace('/dashboard');
         }
         if (!isAuthenticated && !isPublicRoute) {
             router.replace('/login');
         }
     }
-  }, [isAuthenticated, isAuthLoading, pathname, router, isPublicRoute, isCrudPage]);
+  }, [isAuthenticated, isAuthLoading, pathname, router, isPublicRoute]);
   
-  if (isCrudPage) {
-      return <>{children}</>;
-  }
-
-  // While loading auth state, or if user is being redirected, show a loader
-  if (isAuthLoading || (isAuthenticated && isPublicRoute) || (!isAuthenticated && !isPublicRoute)) {
+  if (isAuthLoading || (!isAuthenticated && !isPublicRoute) || (isAuthenticated && (pathname === '/login' || pathname === '/register' || pathname === '/'))) {
     return <FullPageLoader />;
   }
   
-  // For public pages like Home, Login, Register, render only children
-  if (isPublicRoute && !isAuthenticated) {
+  if (isPublicRoute) {
       return <>{children}</>;
   }
   
-  // For authenticated app routes, render the full shell
   return (
     <div className="min-h-screen flex flex-col bg-secondary/50">
       <Header />
