@@ -1,8 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Investment, Property, Transaction, User } from '@/lib/types';
 import { readDB, writeDB } from '@/lib/db';
-import { verifyAuth } from '@/lib/auth';
-
 
 async function getCurrentTime() {
     // This now runs on the server, so new Date() is safe.
@@ -10,12 +8,9 @@ async function getCurrentTime() {
 }
 
 export async function GET(request: NextRequest) {
-  const authResult = await verifyAuth(request);
-  if (authResult.error) {
-    return NextResponse.json({ message: authResult.error }, { status: authResult.status });
-  }
-  
-  const userId = authResult.userId;
+  // Since we removed JWT auth, we will get userId from query params.
+  // This is NOT secure and for local prototype only.
+  const userId = request.nextUrl.searchParams.get('userId');
 
   if (!userId) {
     return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
@@ -119,12 +114,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const authResult = await verifyAuth(request);
-    if (authResult.error) {
-        return NextResponse.json({ message: authResult.error }, { status: authResult.status });
-    }
-  
-    const userId = authResult.userId;
+    const { action, payload, userId } = await request.json();
 
     if (!userId) {
         return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
@@ -132,7 +122,6 @@ export async function POST(request: NextRequest) {
 
     try {
         const db = await readDB();
-        const { action, payload } = await request.json();
         
         const user = db.users.find((u:any) => u.id === userId);
         if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });

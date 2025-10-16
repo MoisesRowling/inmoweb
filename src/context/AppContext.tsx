@@ -1,19 +1,19 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import useSWR, { mutate } from 'swr';
 import type { Property, Transaction, User, Investment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 const fetcher = (url: string) => fetch(url).then(res => {
-    if (res.status === 401) {
-        // This will be handled by the logout function
-        return null;
-    }
     if (!res.ok) {
         const error = new Error('An error occurred while fetching the data.');
-        error.info = res.json();
+        try {
+          error.info = res.json();
+        } catch (e) {
+          // ignore
+        }
         error.status = res.status;
         throw error;
     }
@@ -51,7 +51,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
   const { toast } = useToast();
   
   const [modals, setModals] = useState<ModalState>({ deposit: false, withdraw: false, invest: null });
@@ -71,30 +70,24 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const { data, error, isLoading, isValidating } = useSWR(user ? '/api/data' : null, fetcher, {
+  const { data, error, isLoading, isValidating } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
     revalidateOnFocus: true,
     revalidateOnMount: true,
   });
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem('user');
-    await fetch('/api/auth/logout', { method: 'POST' });
-    mutate('/api/data', null, false); // Clear the SWR cache for user data
+    mutate(user ? `/api/data?userId=${user.id}` : null, null, false); // Clear the SWR cache for user data
     router.push('/login');
     toast({ title: "Has cerrado sesión." });
-  }, [router, toast]);
+  }, [router, toast, user]);
 
 
   useEffect(() => {
     if (error) {
-        if (error.status === 401) {
-            // Unauthorized, likely expired token
-            logout();
-        } else {
-            toast({ title: 'Error de Datos', description: 'No se pudieron cargar los datos del portafolio.', variant: 'destructive'});
-            console.error("SWR Error:", error);
-        }
+        toast({ title: 'Error de Datos', description: 'No se pudieron cargar los datos del portafolio.', variant: 'destructive'});
+        console.error("SWR Error:", error);
     }
   }, [error, toast, logout]);
 
@@ -147,7 +140,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const refreshData = useCallback(() => {
     if (user) {
-        mutate('/api/data');
+        mutate(`/api/data?userId=${user.id}`);
     }
   }, [user]);
   
@@ -156,13 +149,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const response = await fetch('/api/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, payload }),
+      body: JSON.stringify({ action, payload, userId: user.id }),
     });
     const result = await response.json();
     if (!response.ok) {
-      if (response.status === 401) {
-          logout();
-      }
       throw new Error(result.message || `Failed to perform action: ${action}`);
     }
     return result;
