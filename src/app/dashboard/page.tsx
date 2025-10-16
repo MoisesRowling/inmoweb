@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from "react";
-import { AppShell } from "@/components/shared/AppShell";
 import { useApp } from "@/context/AppContext";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -9,6 +8,7 @@ import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PropertyCard } from "@/components/properties/PropertyCard";
+import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 
 export default function DashboardPage() {
   const { user, isAuthLoading } = useApp();
@@ -33,21 +33,25 @@ export default function DashboardPage() {
       return investment.investedAmount;
     };
     
-    const initialTotal = investments.reduce((sum, inv) => {
-        const property = properties.find(p => p.id === inv.propertyId);
-        return sum + calculateCurrentValue(inv, property);
-    }, 0);
-    setTotalInvested(initialTotal);
+    if (investments.length > 0 && properties.length > 0) {
+        const initialTotal = investments.reduce((sum, inv) => {
+            const property = properties.find(p => p.id === inv.propertyId);
+            return sum + calculateCurrentValue(inv, property);
+        }, 0);
+        setTotalInvested(initialTotal);
 
-    const interval = setInterval(() => {
-      const currentTotal = investments.reduce((sum, inv) => {
-        const property = properties.find(p => p.id === inv.propertyId);
-        return sum + calculateCurrentValue(inv, property);
-      }, 0);
-      setTotalInvested(currentTotal);
-    }, 1000);
+        const interval = setInterval(() => {
+          const currentTotal = investments.reduce((sum, inv) => {
+            const property = properties.find(p => p.id === inv.propertyId);
+            return sum + calculateCurrentValue(inv, property);
+          }, 0);
+          setTotalInvested(currentTotal);
+        }, 1000);
 
-    return () => clearInterval(interval);
+        return () => clearInterval(interval);
+    } else {
+        setTotalInvested(0);
+    }
   }, [investments, properties]);
 
 
@@ -135,7 +139,7 @@ export default function DashboardPage() {
                 <p className="text-muted-foreground mt-1">Explora oportunidades exclusivas para hacer crecer tu dinero.</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-6">
-                {properties.map((property) => (
+                {properties.slice(0,2).map((property) => (
                   <PropertyCard key={property.id} property={property} />
                 ))}
               </div>
@@ -143,6 +147,7 @@ export default function DashboardPage() {
 
         </div>
         <div className="lg:col-span-1 row-start-1 lg:row-start-auto space-y-6">
+          <PortfolioSuggestion />
           <TransactionHistory />
         </div>
       </div>
