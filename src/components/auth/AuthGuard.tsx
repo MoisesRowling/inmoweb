@@ -20,32 +20,28 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     const isPublicPage = publicPages.includes(pathname);
 
     useEffect(() => {
-        if (!isAuthLoading && !isAuthenticated && !isPublicPage) {
+        if (isAuthLoading) {
+            return; // Don't do anything while loading authentication state
+        }
+
+        // If user is not authenticated and is trying to access a private page
+        if (!isAuthenticated && !isPublicPage) {
             router.replace('/login');
         }
+
+        // If user is authenticated and is on a public page (except home), redirect to dashboard
+        if (isAuthenticated && isPublicPage && pathname !== '/') {
+            router.replace('/dashboard');
+        }
+
     }, [isAuthenticated, isAuthLoading, isPublicPage, pathname, router]);
 
-    if (isAuthLoading) {
-        return <FullPageLoader />;
-    }
-
-    if (!isAuthenticated && isPublicPage) {
-        return <>{children}</>;
-    }
-
-    if (isAuthenticated && isPublicPage) {
-        // Redirect authenticated users from public pages to dashboard
-        // except for the home page, which has its own logic
-        if (pathname !== '/') {
-            router.replace('/dashboard');
-            return <FullPageLoader />;
-        }
-    }
-    
-    if (!isAuthenticated && !isPublicPage) {
+    // Show a loader while authentication is in progress or while redirecting
+    if (isAuthLoading || (!isAuthenticated && !isPublicPage) || (isAuthenticated && isPublicPage && pathname !== '/')) {
         return <FullPageLoader />;
     }
     
+    // If everything is fine, render the children
     return <>{children}</>;
 };
 
