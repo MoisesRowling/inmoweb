@@ -5,7 +5,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft, RefreshCw, History } from 'lucide-react';
+import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft, RefreshCw, History, Trash2, Undo } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { AppShell } from '@/components/shared/AppShell';
 import type { User as UserType, Investment, WithdrawalRequest, Property, Transaction } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -162,6 +163,9 @@ export default function CrudosPage() {
       if (data.transactions) {
         data.transactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       }
+       if (data.investments) {
+        data.investments.sort((a,b) => new Date(b.investmentDate).getTime() - new Date(a.investmentDate).getTime());
+      }
       setDbData(data);
     } catch (error: any) {
       toast({
@@ -175,7 +179,7 @@ export default function CrudosPage() {
     }
   };
 
-  const handleAction = async (action: 'update_user' | 'approve_withdrawal' | 'reject_withdrawal' | 'deposit_to_user' | 'withdraw_from_user', payload: any) => {
+  const handleAction = async (action: string, payload: any) => {
     setIsSaving(true);
     try {
       const response = await fetch('/api/crudos', {
@@ -406,6 +410,7 @@ export default function CrudosPage() {
                                 <TableHead>Fecha de Inversión</TableHead>
                                 <TableHead>Plazo</TableHead>
                                 <TableHead>Tiempo Restante</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -420,6 +425,32 @@ export default function CrudosPage() {
                                         <TableCell>{format(new Date(inv.investmentDate), "dd MMM yyyy")}</TableCell>
                                         <TableCell>{inv.term} días</TableCell>
                                         <TableCell>{getInvestmentTimeLeft(inv)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" disabled={isSaving}>
+                                                        <Undo className="h-4 w-4 text-orange-600" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Deshacer Inversión?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                          Esta acción reembolsará <strong>{inv.investedAmount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</strong> al usuario <strong>{user?.name}</strong> y eliminará permanentemente esta inversión. No se puede deshacer.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction
+                                                          onClick={() => handleAction('delete_investment', { investmentId: inv.id })}
+                                                          className="bg-orange-600 hover:bg-orange-700"
+                                                        >
+                                                            Sí, deshacer inversión
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
                                     </TableRow>
                                 )
                             })}
@@ -444,12 +475,13 @@ export default function CrudosPage() {
                                 <TableHead>Descripción</TableHead>
                                 <TableHead>Fecha</TableHead>
                                 <TableHead className="text-right">Cantidad</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {dbData?.transactions.map(trans => {
                                 const user = findUserById(trans.userId);
-                                const isPositive = trans.type === 'deposit' || trans.type === 'investment-release';
+                                const isPositive = trans.type === 'deposit' || trans.type === 'investment-release' || trans.type === 'investment-refund';
                                 return (
                                     <TableRow key={trans.id}>
                                         <TableCell>
@@ -461,7 +493,9 @@ export default function CrudosPage() {
                                                 'bg-green-100 text-green-800': trans.type === 'deposit',
                                                 'bg-red-100 text-red-800': trans.type === 'withdraw',
                                                 'bg-blue-100 text-blue-800': trans.type === 'investment-release',
-                                                'bg-gray-100 text-gray-800': trans.type === 'investment'
+                                                'bg-orange-100 text-orange-800': trans.type === 'investment-refund',
+                                                'bg-gray-100 text-gray-800': trans.type === 'investment',
+                                                'bg-yellow-100 text-yellow-800': trans.type === 'withdraw-request',
                                             })}>{trans.type}</span>
                                         </TableCell>
                                         <TableCell>{trans.description}</TableCell>
@@ -473,6 +507,32 @@ export default function CrudosPage() {
                                         })}>
                                             {isPositive ? '+' : '-'}
                                             {trans.amount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" disabled={isSaving}>
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Eliminar Transacción?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                          Esta acción eliminará permanentemente el registro de la transacción. No afectará el saldo del usuario. Esta acción no se puede deshacer.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction
+                                                          onClick={() => handleAction('delete_transaction', { transactionId: trans.id })}
+                                                          className="bg-destructive hover:bg-destructive/90"
+                                                        >
+                                                            Sí, eliminar
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                         </TableCell>
                                     </TableRow>
                                 )

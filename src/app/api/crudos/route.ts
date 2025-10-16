@@ -154,6 +154,63 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: `Retiro de ${amount} realizado a ${user.name}.` });
         }
 
+        case 'delete_transaction': {
+            const { transactionId } = payload;
+            if (!transactionId) {
+                return NextResponse.json({ message: 'ID de transacción es requerido.' }, { status: 400 });
+            }
+            const initialLength = db.transactions.length;
+            db.transactions = db.transactions.filter((t: any) => t.id !== transactionId);
+
+            if (db.transactions.length === initialLength) {
+                return NextResponse.json({ message: 'Transacción no encontrada.' }, { status: 404 });
+            }
+            
+            await writeDB(db);
+            return NextResponse.json({ message: 'Transacción eliminada correctamente.' });
+        }
+
+        case 'delete_investment': {
+            const { investmentId } = payload;
+            if (!investmentId) {
+                return NextResponse.json({ message: 'ID de inversión es requerido.' }, { status: 400 });
+            }
+            const investmentIndex = db.investments.findIndex((i: any) => i.id === investmentId);
+            if (investmentIndex === -1) {
+                return NextResponse.json({ message: 'Inversión no encontrada.' }, { status: 404 });
+            }
+            
+            const investment = db.investments[investmentIndex];
+            const user = db.users.find((u: any) => u.id === investment.userId);
+            if (!user) {
+                return NextResponse.json({ message: 'Usuario de la inversión no encontrado.' }, { status: 404 });
+            }
+
+            // Refund the invested amount
+            if (db.balances[investment.userId]) {
+                db.balances[investment.userId].amount += investment.investedAmount;
+            } else {
+                 return NextResponse.json({ message: 'Balance del usuario no encontrado.' }, { status: 404 });
+            }
+
+            // Create a refund transaction
+            if (!db.transactions) db.transactions = [];
+            db.transactions.push({
+                id: `txn-refund-${Date.now()}`,
+                userId: investment.userId,
+                type: 'investment-refund',
+                amount: investment.investedAmount,
+                description: `Reembolso de inversión (ID: ${investment.id})`,
+                date: new Date().toISOString(),
+            });
+
+            // Remove the investment
+            db.investments.splice(investmentIndex, 1);
+            
+            await writeDB(db);
+            return NextResponse.json({ message: 'Inversión deshecha. El monto ha sido reembolsado al usuario.' });
+        }
+
         default:
             return NextResponse.json({ message: 'Acción no válida.' }, { status: 400 });
     }
