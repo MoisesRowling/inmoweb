@@ -24,16 +24,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isAuthLoading) {
-        if (isAuthenticated && (pathname === '/login' || pathname === '/register' || pathname === '/')) {
-            router.replace('/dashboard');
-        }
         if (!isAuthenticated && !isPublicRoute) {
             router.replace('/login');
         }
     }
   }, [isAuthenticated, isAuthLoading, pathname, router, isPublicRoute]);
   
-  if (isAuthLoading || (!isAuthenticated && !isPublicRoute) || (isAuthenticated && (pathname === '/login' || pathname === '/register' || pathname === '/'))) {
+  if (isAuthLoading || (!isAuthenticated && !isPublicRoute)) {
     return <FullPageLoader />;
   }
   
