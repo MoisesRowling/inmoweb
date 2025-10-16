@@ -1,7 +1,6 @@
 
 'use client';
 
-import { AppShell } from "@/components/shared/AppShell";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { HelpCircle } from "lucide-react";
 
@@ -42,7 +41,6 @@ const faqItems = [
 
 export default function FaqPage() {
   return (
-    <AppShell>
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="text-center">
           <HelpCircle className="w-16 h-16 mx-auto mb-4 text-primary" />
@@ -63,6 +61,5 @@ export default function FaqPage() {
           ))}
         </Accordion>
       </div>
-    </AppShell>
   );
 }
