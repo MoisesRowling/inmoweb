@@ -17,7 +17,6 @@ export default function DashboardPage() {
   const [totalInvested, setTotalInvested] = useState(0);
 
   useEffect(() => {
-    // This function calculates the current value of an investment
     const calculateCurrentValue = (investment: any, property: any) => {
       if (!property || property.dailyReturn <= 0) {
         return investment.investedAmount;
@@ -34,14 +33,12 @@ export default function DashboardPage() {
       return investment.investedAmount;
     };
     
-    // Calculate initial total
     const initialTotal = investments.reduce((sum, inv) => {
         const property = properties.find(p => p.id === inv.propertyId);
         return sum + calculateCurrentValue(inv, property);
     }, 0);
     setTotalInvested(initialTotal);
 
-    // Update the total every second
     const interval = setInterval(() => {
       const currentTotal = investments.reduce((sum, inv) => {
         const property = properties.find(p => p.id === inv.propertyId);
@@ -56,29 +53,27 @@ export default function DashboardPage() {
 
   if (isAuthLoading || !user || isPortfolioLoading) {
     return (
-        <AppShell>
-            <div className="space-y-8">
-                <div className="flex justify-between items-center">
-                    <div className="space-y-2">
-                        <Skeleton className="h-8 w-48" />
-                        <Skeleton className="h-4 w-72" />
-                    </div>
-                </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Skeleton className="h-[125px] w-full rounded-xl" />
-                    <Skeleton className="h-[125px] w-full rounded-xl" />
-                    <Skeleton className="h-[125px] w-full rounded-xl" />
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2">
-                        <Skeleton className="h-[300px] w-full rounded-xl" />
-                    </div>
-                    <div className="lg:col-span-1">
-                        <Skeleton className="h-[400px] w-full rounded-xl" />
-                    </div>
-                </div>
-            </div>
-      </AppShell>
+      <div className="space-y-8">
+          <div className="flex justify-between items-center">
+              <div className="space-y-2">
+                  <Skeleton className="h-8 w-48" />
+                  <Skeleton className="h-4 w-72" />
+              </div>
+          </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Skeleton className="h-[125px] w-full rounded-xl" />
+              <Skeleton className="h-[125px] w-full rounded-xl" />
+              <Skeleton className="h-[125px] w-full rounded-xl" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                  <Skeleton className="h-[300px] w-full rounded-xl" />
+              </div>
+              <div className="lg:col-span-1">
+                  <Skeleton className="h-[400px] w-full rounded-xl" />
+              </div>
+          </div>
+      </div>
     );
   }
 
@@ -92,67 +87,65 @@ export default function DashboardPage() {
   }, 0);
 
   return (
-    <AppShell>
-      <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground font-headline">Bienvenido, {(user.name || user.email).split(' ')[0]}</h1>
-            <p className="text-muted-foreground mt-1">Aquí está el resumen de tu portafolio de inversiones.</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">ID de Usuario</p>
-            <p className="text-sm font-mono font-semibold text-primary">{user.publicId}</p>
-          </div>
+    <div className="space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground font-headline">Bienvenido, {(user.name || user.email).split(' ')[0]}</h1>
+          <p className="text-muted-foreground mt-1">Aquí está el resumen de tu portafolio de inversiones.</p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard
-            title="Saldo Disponible"
-            value={balance}
-            isCurrency
-            description="Listo para invertir"
-            icon={DollarSign}
-            color="primary"
-          />
-          <StatCard
-            title="Valor del Portafolio"
-            value={totalInvested}
-            isCurrency
-            description={`+${dailyGain.toLocaleString('es-MX', {style:'currency', currency: 'MXN'})} / día`}
-            icon={Activity}
-            color="green"
-          />
-          <StatCard
-            title="Propiedades"
-            value={totalProperties}
-            description="En tu portafolio"
-            icon={Building2}
-            color="accent"
-          />
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <ActiveInvestments />
-
-             <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-foreground font-headline">Propiedades para Invertir</h2>
-                  <p className="text-muted-foreground mt-1">Explora oportunidades exclusivas para hacer crecer tu dinero.</p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-6">
-                  {properties.map((property) => (
-                    <PropertyCard key={property.id} property={property} />
-                  ))}
-                </div>
-            </div>
-
-          </div>
-          <div className="lg:col-span-1 row-start-1 lg:row-start-auto space-y-6">
-            <TransactionHistory />
-          </div>
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground">ID de Usuario</p>
+          <p className="text-sm font-mono font-semibold text-primary">{user.publicId}</p>
         </div>
       </div>
-    </AppShell>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatCard
+          title="Saldo Disponible"
+          value={balance}
+          isCurrency
+          description="Listo para invertir"
+          icon={DollarSign}
+          color="primary"
+        />
+        <StatCard
+          title="Valor del Portafolio"
+          value={totalInvested}
+          isCurrency
+          description={`+${dailyGain.toLocaleString('es-MX', {style:'currency', currency: 'MXN'})} / día`}
+          icon={Activity}
+          color="green"
+        />
+        <StatCard
+          title="Propiedades"
+          value={totalProperties}
+          description="En tu portafolio"
+          icon={Building2}
+          color="accent"
+        />
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <ActiveInvestments />
+
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground font-headline">Propiedades para Invertir</h2>
+                <p className="text-muted-foreground mt-1">Explora oportunidades exclusivas para hacer crecer tu dinero.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-6">
+                {properties.map((property) => (
+                  <PropertyCard key={property.id} property={property} />
+                ))}
+              </div>
+          </div>
+
+        </div>
+        <div className="lg:col-span-1 row-start-1 lg:row-start-auto space-y-6">
+          <TransactionHistory />
+        </div>
+      </div>
+    </div>
   );
 }

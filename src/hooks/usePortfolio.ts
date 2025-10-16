@@ -25,7 +25,7 @@ export function usePortfolio() {
   const { data, error, isLoading, mutate } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
     revalidateOnFocus: true,
     revalidateOnMount: true,
-    refreshInterval: 5000, // Re-fetch data every 5 seconds
+    refreshInterval: 5000, // Re-fetch data every 5 seconds to keep it fresh
   });
 
   const refreshData = useCallback(() => {

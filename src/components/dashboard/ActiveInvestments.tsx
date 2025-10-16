@@ -9,7 +9,7 @@ interface DisplayInvestment extends Investment {
     name: string;
     location: string;
     dailyReturn: number;
-    currentValue: number; // Ensure currentValue is always a number
+    currentValue: number;
 }
 
 const calculateCurrentValue = (investment: Investment, property: Property | undefined): number => {
@@ -32,7 +32,6 @@ export function ActiveInvestments() {
   const { properties, investments: rawInvestments } = usePortfolio();
   const [displayInvestments, setDisplayInvestments] = useState<DisplayInvestment[]>([]);
 
-  // Memoize the initial mapping of raw investments to include property data.
   const investmentsWithProps = useMemo(() => {
     return (rawInvestments || [])
       .map(investment => {
@@ -50,10 +49,8 @@ export function ActiveInvestments() {
 
 
   useEffect(() => {
-    // Set initial state
     setDisplayInvestments(investmentsWithProps);
 
-    // Set up an interval to update the current value every second
     const interval = setInterval(() => {
       setDisplayInvestments(prevInvestments =>
         prevInvestments.map(inv => {
@@ -64,9 +61,9 @@ export function ActiveInvestments() {
           };
         })
       );
-    }, 1000); // Update every second
+    }, 1000);
 
-    return () => clearInterval(interval); // Clean up on component unmount
+    return () => clearInterval(interval);
   }, [investmentsWithProps, properties]);
 
   const activeInvestments = displayInvestments;
