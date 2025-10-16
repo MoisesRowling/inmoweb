@@ -4,6 +4,7 @@
 
 
 
+
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Investment, Property, Transaction, User } from '@/lib/types';
 import { readDB, writeDB } from '@/lib/db';
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
 
       if (property && property.dailyReturn > 0) {
         const investmentDate = new Date(investment.investmentDate);
-        const secondsElapsed = (now.getTime() - investmentDate.getTime()) / 1000;
+        const secondsElapsed = Math.floor((now.getTime() - investmentDate.getTime()) / 1000);
 
         if (secondsElapsed > 0) {
             const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;

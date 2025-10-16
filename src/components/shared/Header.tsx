@@ -58,7 +58,7 @@ export function Header() {
             <span>Retirar Fondos</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={logout}>
+        <DropdownMenuItem onClick={logout}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Cerrar Sesión</span>
         </DropdownMenuItem>
