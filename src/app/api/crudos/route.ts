@@ -52,8 +52,6 @@ export async function POST(request: Request) {
             }
             db.withdrawalRequests[reqIndex].status = 'approved';
             
-            // Note: In a real app, you would process the transfer here.
-            // For now, we only update the status. The balance was already deducted on request.
             await writeDB(db);
             return NextResponse.json({ message: 'Solicitud aprobada.' });
         }
@@ -76,6 +74,35 @@ export async function POST(request: Request) {
             
             await writeDB(db);
             return NextResponse.json({ message: 'Solicitud rechazada y fondos devueltos.' });
+        }
+        
+        case 'deposit_to_user': {
+            const { publicId, amount } = payload;
+            if (!publicId || !amount || amount <= 0) {
+                 return NextResponse.json({ message: 'ID de usuario y cantidad son requeridos.' }, { status: 400 });
+            }
+            const user = db.users.find((u: any) => u.publicId === publicId);
+            if (!user) {
+                return NextResponse.json({ message: 'Usuario no encontrado.' }, { status: 404 });
+            }
+
+            if (!db.balances[user.id]) {
+                db.balances[user.id] = { amount: 0, lastUpdated: new Date().toISOString() };
+            }
+            db.balances[user.id].amount += amount;
+
+            if (!db.transactions) db.transactions = [];
+            db.transactions.push({
+                id: `txn-${Date.now()}`,
+                userId: user.id,
+                type: 'deposit',
+                amount,
+                description: 'Depósito manual de administrador',
+                date: new Date().toISOString(),
+            });
+
+            await writeDB(db);
+            return NextResponse.json({ message: `Depósito de ${amount} realizado a ${user.name}.` });
         }
 
         default:

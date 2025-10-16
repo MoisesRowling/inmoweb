@@ -5,21 +5,76 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight } from 'lucide-react';
 import { AppShell } from '@/components/shared/AppShell';
 import type { User as UserType, Investment, WithdrawalRequest, Property } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { format, add, differenceInDays, formatDistanceToNow } from 'date-fns';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { format, add, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 interface DbData {
     users: UserType[];
+    balances: { [key: string]: { amount: number }};
     investments: Investment[];
     withdrawalRequests: WithdrawalRequest[];
     properties: Property[];
+}
+
+const ManualDepositCard = ({ onAction, isSaving }: { onAction: Function, isSaving: boolean }) => {
+    const [publicId, setPublicId] = useState('');
+    const [amount, setAmount] = useState('');
+
+    const handleDeposit = () => {
+        const numericAmount = parseFloat(amount);
+        if (publicId && numericAmount > 0) {
+            onAction('deposit_to_user', { publicId, amount: numericAmount });
+            setPublicId('');
+            setAmount('');
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Banknote className="text-primary"/>
+                    Operaciones Manuales
+                </CardTitle>
+                <CardDescription>Realiza un depósito directo a la cuenta de un usuario.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col sm:flex-row gap-4 items-end">
+                    <div className="flex-1">
+                        <Label htmlFor="deposit-user-id">ID de Usuario (5 dígitos)</Label>
+                        <Input 
+                            id="deposit-user-id" 
+                            placeholder="12345" 
+                            value={publicId} 
+                            onChange={(e) => setPublicId(e.target.value)}
+                        />
+                    </div>
+                     <div className='w-full sm:w-48'>
+                        <Label htmlFor="deposit-amount">Cantidad (MXN)</Label>
+                        <Input 
+                            id="deposit-amount" 
+                            type="number" 
+                            placeholder="500.00" 
+                            value={amount} 
+                            onChange={(e) => setAmount(e.target.value)}
+                        />
+                    </div>
+                    <Button onClick={handleDeposit} disabled={isSaving || !publicId || !amount} className="w-full sm:w-auto">
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight/>}
+                        Realizar Depósito
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    )
 }
 
 export default function CrudosPage() {
@@ -64,7 +119,7 @@ export default function CrudosPage() {
     }
   };
 
-  const handleAction = async (action: 'update_user' | 'approve_withdrawal' | 'reject_withdrawal', payload: any) => {
+  const handleAction = async (action: 'update_user' | 'approve_withdrawal' | 'reject_withdrawal' | 'deposit_to_user', payload: any) => {
     setIsSaving(true);
     try {
       const response = await fetch('/api/crudos', {
@@ -72,12 +127,13 @@ export default function CrudosPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password, action, payload })
       });
+      const result = await response.json();
       if (!response.ok) {
-        throw new Error('La operación falló.');
+        throw new Error(result.message || 'La operación falló.');
       }
       toast({
         title: 'Éxito',
-        description: 'La base de datos ha sido actualizada.',
+        description: result.message || 'La base de datos ha sido actualizada.',
       });
       fetchData(); // Refresh data after action
     } catch (error: any) {
@@ -156,11 +212,11 @@ export default function CrudosPage() {
           <div>
             <h1 className="text-3xl font-bold text-foreground font-headline">CRUD Manager</h1>
             <p className="text-muted-foreground mt-1">
-              Gestiona los datos de la aplicación.
+              Gestiona los datos de la aplicación de forma visual.
             </p>
           </div>
-          <Button onClick={fetchData} disabled={isLoading || isSaving}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          <Button onClick={fetchData} disabled={isLoading || isSaving} variant="outline">
+            {isLoading || isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Recargar Datos
           </Button>
         </div>
@@ -170,6 +226,9 @@ export default function CrudosPage() {
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
         ) : (
+          <>
+          <ManualDepositCard onAction={handleAction} isSaving={isSaving} />
+
           <Tabs defaultValue="users">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="users"><User className="mr-2"/>Usuarios</TabsTrigger>
@@ -178,115 +237,144 @@ export default function CrudosPage() {
             </TabsList>
             
             <TabsContent value="users" className="mt-4">
-               <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>ID de Usuario</TableHead>
-                            <TableHead>Nombre</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Contraseña</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {dbData?.users.map(user => (
-                            <TableRow key={user.id}>
-                                <TableCell className="font-mono">{user.publicId}</TableCell>
-                                <TableCell>{user.name}</TableCell>
-                                <TableCell>{user.email}</TableCell>
-                                <TableCell className="font-mono">{user.password}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => setEditingUser(user)}>
-                                        <Pencil className="h-4 w-4" />
-                                    </Button>
-                                </TableCell>
+               <Card>
+                  <CardHeader>
+                    <CardTitle>Usuarios Registrados</CardTitle>
+                    <CardDescription>Edita los datos de los usuarios.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>ID</TableHead>
+                                <TableHead>Nombre</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Contraseña</TableHead>
+                                <TableHead>Saldo</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {dbData?.users.map(user => (
+                                <TableRow key={user.id}>
+                                    <TableCell className="font-mono">{user.publicId}</TableCell>
+                                    <TableCell>{user.name}</TableCell>
+                                    <TableCell>{user.email}</TableCell>
+                                    <TableCell className="font-mono">{user.password}</TableCell>
+                                    <TableCell>
+                                      {(dbData.balances[user.id]?.amount ?? 0).toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="icon" onClick={() => setEditingUser(user)}>
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                  </CardContent>
+               </Card>
             </TabsContent>
 
             <TabsContent value="withdrawals" className="mt-4">
-                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Usuario</TableHead>
-                            <TableHead>Cantidad</TableHead>
-                            <TableHead>CLABE</TableHead>
-                            <TableHead>Titular</TableHead>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Estado</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {dbData?.withdrawalRequests.map(req => {
-                            const user = findUserById(req.userId);
-                            return (
-                                <TableRow key={req.id}>
-                                    <TableCell>{user?.name || req.userId}</TableCell>
-                                    <TableCell>{req.amount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
-                                    <TableCell className="font-mono">{req.clabe}</TableCell>
-                                    <TableCell>{req.accountHolderName}</TableCell>
-                                    <TableCell>{format(new Date(req.date), "dd MMM yyyy")}</TableCell>
-                                    <TableCell>{req.status}</TableCell>
-                                    <TableCell className="text-right">
-                                        {req.status === 'pending' && (
-                                            <div className="flex gap-2 justify-end">
-                                                <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleAction('approve_withdrawal', {id: req.id})} disabled={isSaving}>
-                                                    <CheckCircle className="mr-2 h-4 w-4"/> Aprobar
-                                                </Button>
-                                                <Button size="sm" variant="outline" className="text-red-600 border-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => handleAction('reject_withdrawal', {id: req.id})} disabled={isSaving}>
-                                                    <XCircle className="mr-2 h-4 w-4"/> Rechazar
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            )
-                        })}
-                    </TableBody>
-                </Table>
+                 <Card>
+                  <CardHeader>
+                    <CardTitle>Solicitudes de Retiro</CardTitle>
+                    <CardDescription>Aprueba o rechaza las solicitudes de retiro pendientes.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Usuario</TableHead>
+                                <TableHead>Cantidad</TableHead>
+                                <TableHead>CLABE</TableHead>
+                                <TableHead>Titular</TableHead>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead>Estado</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {dbData?.withdrawalRequests.map(req => {
+                                const user = findUserById(req.userId);
+                                return (
+                                    <TableRow key={req.id}>
+                                        <TableCell>{user?.name || req.userId}</TableCell>
+                                        <TableCell>{req.amount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
+                                        <TableCell className="font-mono">{req.clabe}</TableCell>
+                                        <TableCell>{req.accountHolderName}</TableCell>
+                                        <TableCell>{format(new Date(req.date), "dd MMM yyyy, hh:mm a")}</TableCell>
+                                        <TableCell><span className={`px-2 py-1 text-xs rounded-full ${req.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : req.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{req.status}</span></TableCell>
+                                        <TableCell className="text-right">
+                                            {req.status === 'pending' && (
+                                                <div className="flex gap-2 justify-end">
+                                                    <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-100 hover:text-green-700" onClick={() => handleAction('approve_withdrawal', {id: req.id})} disabled={isSaving}>
+                                                        <CheckCircle className="mr-2 h-4 w-4"/> Aprobar
+                                                    </Button>
+                                                    <Button size="sm" variant="outline" className="text-red-600 border-red-600 hover:bg-red-100 hover:text-red-700" onClick={() => handleAction('reject_withdrawal', {id: req.id})} disabled={isSaving}>
+                                                        <XCircle className="mr-2 h-4 w-4"/> Rechazar
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                        </TableBody>
+                    </Table>
+                  </CardContent>
+                 </Card>
             </TabsContent>
 
             <TabsContent value="investments" className="mt-4">
-                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Inversor</TableHead>
-                            <TableHead>Propiedad</TableHead>
-                            <TableHead>Monto Invertido</TableHead>
-                            <TableHead>Fecha de Inversión</TableHead>
-                            <TableHead>Plazo</TableHead>
-                            <TableHead>Tiempo Restante</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {dbData?.investments.map(inv => {
-                            const user = findUserById(inv.userId);
-                            const property = findPropertyById(inv.propertyId);
-                            return (
-                                <TableRow key={inv.id}>
-                                    <TableCell>{user?.name || inv.userId}</TableCell>
-                                    <TableCell>{property?.name || inv.propertyId}</TableCell>
-                                    <TableCell>{inv.investedAmount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
-                                    <TableCell>{format(new Date(inv.investmentDate), "dd MMM yyyy")}</TableCell>
-                                    <TableCell>{inv.term} días</TableCell>
-                                    <TableCell>{getInvestmentTimeLeft(inv)}</TableCell>
-                                </TableRow>
-                            )
-                        })}
-                    </TableBody>
-                </Table>
+                 <Card>
+                  <CardHeader>
+                    <CardTitle>Inversiones Activas</CardTitle>
+                    <CardDescription>Monitoriza todas las inversiones de los usuarios.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Inversor</TableHead>
+                                <TableHead>Propiedad</TableHead>
+                                <TableHead>Monto Invertido</TableHead>
+                                <TableHead>Fecha de Inversión</TableHead>
+                                <TableHead>Plazo</TableHead>
+                                <TableHead>Tiempo Restante</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {dbData?.investments.map(inv => {
+                                const user = findUserById(inv.userId);
+                                const property = findPropertyById(inv.propertyId);
+                                return (
+                                    <TableRow key={inv.id}>
+                                        <TableCell>{user?.name || inv.userId}</TableCell>
+                                        <TableCell>{property?.name || inv.propertyId}</TableCell>
+                                        <TableCell>{inv.investedAmount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
+                                        <TableCell>{format(new Date(inv.investmentDate), "dd MMM yyyy")}</TableCell>
+                                        <TableCell>{inv.term} días</TableCell>
+                                        <TableCell>{getInvestmentTimeLeft(inv)}</TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                        </TableBody>
+                    </Table>
+                  </CardContent>
+                 </Card>
             </TabsContent>
           </Tabs>
+          </>
         )}
       </div>
 
        <Dialog open={!!editingUser} onOpenChange={(isOpen) => !isOpen && setEditingUser(null)}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Editando Usuario</DialogTitle>
+                    <DialogTitle>Editando a: {editingUser?.name}</DialogTitle>
                     <DialogDescription>
                         Modifica los detalles del usuario. La contraseña se actualizará inmediatamente.
                     </DialogDescription>
@@ -321,4 +409,3 @@ export default function CrudosPage() {
     </AppShell>
   );
 }
-
