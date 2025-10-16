@@ -16,28 +16,51 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     const router = useRouter();
     const pathname = usePathname();
 
-    const publicPages = ['/', '/login', '/register', '/crudos'];
-    const isPublicPage = publicPages.includes(pathname);
-
     useEffect(() => {
         if (isAuthLoading) {
             return; // Don't do anything while loading authentication state
         }
-
-        // If user is not authenticated and is trying to access a private page
-        if (!isAuthenticated && !isPublicPage) {
-            router.replace('/login');
+        
+        // This is a special admin page, allow access regardless of auth state.
+        if (pathname === '/crudos') {
+            return;
         }
 
-        // If user is authenticated and is on a public page (except home), redirect to dashboard
+        const publicPages = ['/', '/login', '/register'];
+        const isPublicPage = publicPages.includes(pathname);
+
+        // If user is authenticated, and trying to access a public page that is not the homepage, redirect to dashboard.
         if (isAuthenticated && isPublicPage && pathname !== '/') {
             router.replace('/dashboard');
+            return;
+        }
+        
+        // If user is not authenticated and tries to access a private page, redirect to login.
+        if (!isAuthenticated && !isPublicPage) {
+            router.replace('/login');
+            return;
         }
 
-    }, [isAuthenticated, isAuthLoading, isPublicPage, pathname, router]);
+    }, [isAuthenticated, isAuthLoading, pathname, router]);
 
-    // Show a loader while authentication is in progress or while redirecting
-    if (isAuthLoading || (!isAuthenticated && !isPublicPage) || (isAuthenticated && isPublicPage && pathname !== '/')) {
+    // Show a loader during auth check or redirection
+    if (isAuthLoading) {
+        return <FullPageLoader />;
+    }
+    
+    // For the special case of /crudos, we always render it immediately
+    if (pathname === '/crudos') {
+        return <>{children}</>;
+    }
+
+    const publicPages = ['/', '/login', '/register'];
+    const isPublicPage = publicPages.includes(pathname);
+
+    // Prevent flicker: if we're about to redirect, show loader instead of content
+    if (isAuthenticated && isPublicPage && pathname !== '/') {
+        return <FullPageLoader />;
+    }
+    if (!isAuthenticated && !isPublicPage) {
         return <FullPageLoader />;
     }
     
