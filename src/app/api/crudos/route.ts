@@ -3,25 +3,15 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB } from '@/lib/db';
 
-const getCrudSecretKey = () => {
-    const secret = process.env.CRUD_SECRET_KEY;
-    if (!secret) {
-        throw new Error('La variable de entorno CRUD_SECRET_KEY no está configurada.');
-    }
-    return secret;
-};
-
 export async function POST(request: Request) {
   try {
     const { password, action, payload } = await request.json();
-    const secret = getCrudSecretKey();
+    const db = await readDB();
 
-    if (password !== secret) {
+    if (!db.admin || password !== db.admin.password) {
       return NextResponse.json({ message: 'Contraseña incorrecta.' }, { status: 401 });
     }
     
-    const db = await readDB();
-
     switch(action) {
         case 'read':
             return NextResponse.json(db);

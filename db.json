@@ -1,4 +1,7 @@
 {
+  "admin": {
+    "password": "inmotec"
+  },
   "users": [
     {
       "id": "user-1698864200000",
@@ -120,7 +123,7 @@
       "userId": "user-1698864200000",
       "type": "deposit",
       "amount": 56,
-      "description": "Depósito manual de administrador",
+      "description": "Depósito realizado con éxito",
       "date": "2025-10-16T06:42:03.366Z"
     },
     {
