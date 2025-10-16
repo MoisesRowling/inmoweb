@@ -116,7 +116,7 @@ export async function POST(request: Request) {
                 userId: user.id,
                 type: 'deposit',
                 amount,
-                description: 'Depósito manual de administrador',
+                description: 'Depósito realizado con éxito',
                 date: new Date().toISOString(),
             });
 

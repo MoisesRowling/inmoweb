@@ -10,7 +10,7 @@
   ],
   "balances": {
     "user-1698864200000": {
-      "amount": 8000,
+      "amount": 8056,
       "lastUpdated": "2023-11-01T18:43:20.000Z"
     }
   },
@@ -103,6 +103,14 @@
       "amount": 5000,
       "description": "Solicitud de retiro - Pendiente",
       "date": "2025-10-16T06:38:38.077Z"
+    },
+    {
+      "id": "txn-1760596923366",
+      "userId": "user-1698864200000",
+      "type": "deposit",
+      "amount": 56,
+      "description": "Depósito manual de administrador",
+      "date": "2025-10-16T06:42:03.366Z"
     }
   ],
   "withdrawalRequests": [
