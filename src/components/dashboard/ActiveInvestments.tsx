@@ -1,5 +1,5 @@
 'use client';
-import { useApp } from "@/context/AppContext";
+import { usePortfolio } from "@/hooks/usePortfolio";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2 } from "lucide-react";
 import type { Property, Investment } from "@/lib/types";
@@ -11,7 +11,7 @@ interface DisplayInvestment extends Investment {
 }
 
 export function ActiveInvestments() {
-  const { properties, investments } = useApp();
+  const { properties, investments } = usePortfolio();
   
   const activeInvestments: DisplayInvestment[] = (investments || [])
   .map(investment => {

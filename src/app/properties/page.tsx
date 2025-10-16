@@ -1,11 +1,11 @@
 'use client';
 
 import { AppShell } from "@/components/shared/AppShell";
-import { useApp } from "@/context/AppContext";
+import { usePortfolio } from "@/hooks/usePortfolio";
 import { PropertyCard } from "@/components/properties/PropertyCard";
 
 export default function PropertiesPage() {
-  const { properties } = useApp();
+  const { properties } = usePortfolio();
 
   return (
     <AppShell>

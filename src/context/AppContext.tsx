@@ -2,52 +2,9 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import useSWR, { mutate } from 'swr';
-import type { Property, Transaction, User, Investment } from '@/lib/types';
+import type { Property, User } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
-const fetcher = (url: string) => fetch(url).then(res => {
-    if (!res.ok) {
-        const error = new Error('An error occurred while fetching the data.');
-        try {
-          error.info = res.json();
-        } catch (e) {
-          // ignore
-        }
-        error.status = res.status;
-        throw error;
-    }
-    return res.json();
-});
-
-type ModalState = {
-  deposit: boolean;
-  withdraw: boolean;
-  invest: Property | null;
-};
-
-interface AppContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isAuthLoading: boolean; 
-  balance: number;
-  properties: Property[];
-  transactions: Transaction[];
-  investments: (Investment & { status?: string })[];
-  logout: () => void;
-  login: (email: string, pass: string) => Promise<void>;
-  registerAndCreateUser: (name: string, email: string, password: string) => Promise<void>;
-  handleDeposit: (amount: number) => Promise<void>;
-  handleWithdraw: (amount: number, clabe: string, accountHolderName: string) => Promise<boolean>;
-  handleInvest: (amount: number, property: Property, term: number) => Promise<void>;
-  modals: ModalState;
-  setModals: React.Dispatch<React.SetStateAction<ModalState>>;
-  refreshData: () => void;
-}
-
-const AppContext = createContext<AppContextType | undefined>(undefined);
-
-// Helper function to post actions to the API
 const postAction = async (action: string, payload: any, userId: string) => {
     if (!userId) throw new Error("User not authenticated");
     const response = await fetch('/api/data', {
@@ -62,6 +19,27 @@ const postAction = async (action: string, payload: any, userId: string) => {
     return result;
 };
 
+type ModalState = {
+  deposit: boolean;
+  withdraw: boolean;
+  invest: Property | null;
+};
+
+interface AppContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isAuthLoading: boolean; 
+  logout: () => void;
+  login: (email: string, pass: string) => Promise<void>;
+  registerAndCreateUser: (name: string, email: string, password: string) => Promise<void>;
+  handleDeposit: (amount: number) => Promise<void>;
+  handleWithdraw: (amount: number, clabe: string, accountHolderName: string) => Promise<boolean>;
+  handleInvest: (amount: number, property: Property, term: number) => Promise<void>;
+  modals: ModalState;
+  setModals: React.Dispatch<React.SetStateAction<ModalState>>;
+}
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
 
 function AppProviderContent({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -78,9 +56,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
-        // On initial load, check for matured investments
-        postAction('check_investments', {}, parsedUser.id)
-            .then(() => mutate(`/api/data?userId=${parsedUser.id}`));
       }
     } catch (e) {
       console.error("Failed to parse user from localStorage", e);
@@ -90,33 +65,13 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const { data, error, isLoading } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
-    revalidateOnFocus: true,
-    revalidateOnMount: true,
-    onSuccess: (data) => {
-        // After fetching data, check investments
-        if(user) {
-            postAction('check_investments', {}, user.id)
-                .then(() => mutate(`/api/data?userId=${user.id}`));
-        }
-    }
-  });
-
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem('user');
-    mutate(user ? `/api/data?userId=${user.id}` : null, null, false); // Clear the SWR cache for user data
+    // Note: SWR cache for the user will be cleared automatically as the key becomes null.
     router.push('/login');
     toast({ title: "Has cerrado sesión." });
-  }, [router, toast, user]);
-
-
-  useEffect(() => {
-    if (error) {
-        toast({ title: 'Error de Datos', description: 'No se pudieron cargar los datos del portafolio.', variant: 'destructive'});
-        console.error("SWR Error:", error);
-    }
-  }, [error, toast, logout]);
+  }, [router, toast]);
 
 
   const login = async (email: string, pass: string) => {
@@ -165,16 +120,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshData = useCallback(() => {
-    if (user) {
-        mutate(`/api/data?userId=${user.id}`);
-    }
-  }, [user]);
-
   const handleDeposit = async (amount: number) => {
      try {
         await postAction('deposit', { amount }, user!.id);
-        refreshData();
         toast({ title: 'Depósito Exitoso', description: `Has simulado un depósito de ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
      } catch (e: any) {
         toast({ title: 'Error en depósito', description: e.message, variant: 'destructive'});
@@ -184,7 +132,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const handleWithdraw = async (amount: number, clabe: string, accountHolderName: string): Promise<boolean> => {
      try {
         await postAction('withdraw', { amount, clabe, accountHolderName }, user!.id);
-        refreshData();
         toast({ title: 'Solicitud de Retiro Enviada', description: `Tu solicitud para retirar ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} ha sido enviada.` });
         return true;
      } catch (e: any) {
@@ -196,7 +143,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const handleInvest = async (amount: number, property: Property, term: number) => {
     try {
         await postAction('invest', { amount, property, term }, user!.id);
-        refreshData();
         toast({ title: '¡Inversión Exitosa!', description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.` });
     } catch (e: any) {
         toast({ title: 'Error en inversión', description: e.message, variant: 'destructive'});
@@ -206,11 +152,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const value: AppContextType = {
     user,
     isAuthenticated: !!user,
-    isAuthLoading: isAuthLoading || (!!user && isLoading),
-    balance: data?.balance ?? 0,
-    properties: data?.properties ?? [],
-    transactions: data?.transactions ?? [],
-    investments: data?.investments ?? [],
+    isAuthLoading,
     modals,
     logout,
     login,
@@ -219,7 +161,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     handleWithdraw,
     handleInvest,
     setModals,
-    refreshData,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

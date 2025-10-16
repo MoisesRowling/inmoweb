@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useApp } from "@/context/AppContext";
+import { usePortfolio } from "@/hooks/usePortfolio";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, ArrowDown, ArrowUp, ShoppingCart, Info, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/tooltip"
 
 export function TransactionHistory() {
-  const { transactions } = useApp();
+  const { transactions } = usePortfolio();
   const [showAll, setShowAll] = useState(false);
 
   // Helper to convert string date to Date object

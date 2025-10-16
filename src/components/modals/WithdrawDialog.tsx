@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useApp } from '@/context/AppContext';
+import { usePortfolio } from '@/hooks/usePortfolio';
 import { DollarSign } from 'lucide-react';
 
 const formSchema = (maxBalance: number) => z.object({
@@ -25,7 +26,8 @@ interface WithdrawDialogProps {
 }
 
 export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
-  const { balance, handleWithdraw } = useApp();
+  const { handleWithdraw } = useApp();
+  const { balance, refreshData } = usePortfolio();
   
   const currentFormSchema = formSchema(balance);
 
@@ -42,6 +44,7 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
   async function onSubmit(values: z.infer<typeof currentFormSchema>) {
     const success = await handleWithdraw(values.amount, values.clabe, values.accountHolderName);
     if(success) {
+      refreshData();
       onClose();
       form.reset();
     }

@@ -1,9 +1,9 @@
 'use client';
 
-import { useApp } from '@/context/AppContext';
+import { usePortfolio } from '@/hooks/usePortfolio';
 
 export function UserBalance() {
-  const { balance } = useApp();
+  const { balance } = usePortfolio();
 
   return (
     <div className="flex items-center gap-2 text-sm">

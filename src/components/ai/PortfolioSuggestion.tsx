@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { getPortfolioSuggestion } from '@/actions/suggest-portfolio-action';
 import type { SuggestPortfolioOutput } from '@/ai/flows/suggest-portfolio';
-import { useApp } from '@/context/AppContext';
+import { usePortfolio } from '@/hooks/usePortfolio';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +21,7 @@ const formSchema = z.object({
 });
 
 export function PortfolioSuggestion() {
-  const { balance, properties } = useApp();
+  const { balance, properties } = usePortfolio();
   const [suggestion, setSuggestion] = useState<SuggestPortfolioOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

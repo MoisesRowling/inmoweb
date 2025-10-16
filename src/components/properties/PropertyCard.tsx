@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import type { Property } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useApp } from '@/context/AppContext';
+import { usePortfolio } from '@/hooks/usePortfolio';
 import { useRouter } from 'next/navigation';
 
 interface PropertyCardProps {
@@ -14,7 +15,8 @@ interface PropertyCardProps {
 }
 
 export function PropertyCard({ property, isGuest = false }: PropertyCardProps) {
-  const { setModals, investments } = useApp();
+  const { setModals } = useApp();
+  const { investments } = usePortfolio();
   const router = useRouter();
   const placeholderImage = PlaceHolderImages.find(img => img.id === property.image);
 

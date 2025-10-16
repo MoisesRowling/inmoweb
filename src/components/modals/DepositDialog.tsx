@@ -7,6 +7,7 @@ import { Info, Copy } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { usePortfolio } from '@/hooks/usePortfolio';
 
 interface DepositDialogProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface DepositDialogProps {
 
 export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
   const { user, handleDeposit } = useApp();
+  const { refreshData } = usePortfolio();
   const { toast } = useToast();
 
   const copyToClipboard = (text: string) => {
@@ -33,8 +35,9 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
     </svg>
   )
   
-  const handleFakeDeposit = () => {
-    handleDeposit(5000); // Simulate a 5000 MXN deposit
+  const handleFakeDeposit = async () => {
+    await handleDeposit(5000); // Simulate a 5000 MXN deposit
+    refreshData();
     onClose();
   }
 

@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useApp } from '@/context/AppContext';
+import { usePortfolio } from '@/hooks/usePortfolio';
 import type { Property } from '@/lib/types';
 import { DollarSign } from 'lucide-react';
 
@@ -87,7 +88,8 @@ const EarningPreview = ({ control, dailyReturn }: { control: any, dailyReturn: n
 }
 
 export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
-  const { balance, handleInvest } = useApp();
+  const { handleInvest } = useApp();
+  const { balance, refreshData } = usePortfolio();
 
   const currentFormSchema = formSchema(property.minInvestment, balance);
   const form = useForm<z.infer<typeof currentFormSchema>>({
@@ -99,8 +101,9 @@ export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
     mode: 'onTouched'
   });
 
-  function onSubmit(values: z.infer<typeof currentFormSchema>) {
-    handleInvest(values.amount, property, parseInt(values.term, 10));
+  async function onSubmit(values: z.infer<typeof currentFormSchema>) {
+    await handleInvest(values.amount, property, parseInt(values.term, 10));
+    refreshData(); // Refresh portfolio data after investing
     onClose();
     form.reset();
   }
