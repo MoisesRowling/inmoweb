@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PropertyCard } from "@/components/properties/PropertyCard";
 
 export default function DashboardPage() {
-  const { user, balance, properties, investments, setModals, isAuthLoading } = useApp();
+  const { user, balance, properties, investments, isAuthLoading } = useApp();
   
   if (isAuthLoading || !user) {
     return (
@@ -44,7 +44,6 @@ export default function DashboardPage() {
   const totalProperties = [...new Set(investments.map(inv => inv.propertyId))].length;
 
   const dailyGain = investments.reduce((sum, inv) => {
-    if (inv.status !== 'active') return sum;
     const property = properties.find(p => p.id === inv.propertyId);
     if (!property) return sum;
     const dailyReturn = typeof property.dailyReturn === 'number' ? property.dailyReturn : 0;

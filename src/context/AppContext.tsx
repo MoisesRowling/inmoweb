@@ -90,7 +90,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const { data, error, isLoading, isValidating } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
+  const { data, error, isLoading } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
     revalidateOnFocus: true,
     revalidateOnMount: true,
     onSuccess: (data) => {
@@ -206,7 +206,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const value: AppContextType = {
     user,
     isAuthenticated: !!user,
-    isAuthLoading: isAuthLoading || (!!user && (isLoading || isValidating)),
+    isAuthLoading: isAuthLoading || (!!user && isLoading),
     balance: data?.balance ?? 0,
     properties: data?.properties ?? [],
     transactions: data?.transactions ?? [],
