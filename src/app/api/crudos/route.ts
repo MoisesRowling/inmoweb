@@ -70,7 +70,7 @@ export async function POST(request: Request) {
                 userId: withdrawalRequest.userId,
                 type: 'withdraw',
                 amount: withdrawalRequest.amount,
-                description: 'Retiro de fondos aprobado',
+                description: 'Retiro aprobado y procesado exitosamente',
                 clabe: withdrawalRequest.clabe,
                 accountHolderName: withdrawalRequest.accountHolderName,
                 date: new Date().toISOString(),
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
                 userId: user.id,
                 type: 'withdraw',
                 amount,
-                description: 'Retiro manual de administrador',
+                description: 'Retiro realizado con éxito',
                 date: new Date().toISOString(),
             });
 
