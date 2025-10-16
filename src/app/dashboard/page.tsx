@@ -2,6 +2,7 @@
 import React from "react";
 import { AppShell } from "@/components/shared/AppShell";
 import { useApp } from "@/context/AppContext";
+import { usePortfolio } from "@/hooks/usePortfolio";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { DollarSign, Activity, Building2 } from "lucide-react";
 import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
@@ -10,9 +11,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PropertyCard } from "@/components/properties/PropertyCard";
 
 export default function DashboardPage() {
-  const { user, balance, properties, investments, isAuthLoading } = useApp();
+  const { user, isAuthLoading } = useApp();
+  const { balance, properties, investments, isLoading: isPortfolioLoading } = usePortfolio();
   
-  if (isAuthLoading || !user) {
+  if (isAuthLoading || !user || isPortfolioLoading) {
     return (
         <AppShell>
             <div className="space-y-8">
