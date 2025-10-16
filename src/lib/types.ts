@@ -15,7 +15,7 @@ export type Property = {
 export type Transaction = {
   id: string; 
   userId: string;
-  type: 'deposit' | 'withdraw' | 'investment' | 'investment-release';
+  type: 'deposit' | 'withdraw' | 'investment' | 'investment-release' | 'withdraw-request';
   amount: number;
   description: string;
   date: string;

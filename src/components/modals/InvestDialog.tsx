@@ -89,9 +89,9 @@ const EarningPreview = ({ control, dailyReturn }: { control: any, dailyReturn: n
 
 export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
   const { handleInvest } = useApp();
-  const { balance, refreshData } = usePortfolio();
+  const { availableBalance, refreshData } = usePortfolio();
 
-  const currentFormSchema = formSchema(property.minInvestment, balance);
+  const currentFormSchema = formSchema(property.minInvestment, availableBalance);
   const form = useForm<z.infer<typeof currentFormSchema>>({
     resolver: zodResolver(currentFormSchema),
     defaultValues: {
@@ -141,7 +141,7 @@ export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
                     </div>
                     <div className="flex justify-between">
                         <span className="text-muted-foreground">Saldo disponible:</span>
-                        <span className="font-bold">{balance.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</span>
+                        <span className="font-bold">{availableBalance.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</span>
                     </div>
                 </div>
             </div>
@@ -192,7 +192,7 @@ export function InvestDialog({ property, isOpen, onClose }: InvestDialogProps) {
                   <FormControl>
                     <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type="number" placeholder={`${property.minInvestment.toLocaleString('es-MX')}`} min={property.minInvestment} max={balance} className="pl-8" {...field} />
+                        <Input type="number" placeholder={`${property.minInvestment.toLocaleString('es-MX')}`} min={property.minInvestment} max={availableBalance} className="pl-8" {...field} />
                     </div>
                   </FormControl>
                   <FormMessage />

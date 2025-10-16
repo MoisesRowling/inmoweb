@@ -27,9 +27,9 @@ interface WithdrawDialogProps {
 
 export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
   const { handleWithdraw } = useApp();
-  const { balance, refreshData } = usePortfolio();
+  const { availableBalance, refreshData } = usePortfolio();
   
-  const currentFormSchema = formSchema(balance);
+  const currentFormSchema = formSchema(availableBalance);
 
   const form = useForm<z.infer<typeof currentFormSchema>>({
     resolver: zodResolver(currentFormSchema),
@@ -69,7 +69,7 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
         <div className='py-2'>
             <p className="text-sm text-muted-foreground">Saldo disponible para retirar:</p>
             <p className="text-2xl font-bold text-foreground mb-4">
-                {balance.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                {availableBalance.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
             </p>
         </div>
         <Form {...form}>
@@ -109,7 +109,7 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
                   <FormControl>
                      <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type="number" placeholder="0.00" max={balance} className="pl-8" {...field} />
+                        <Input type="number" placeholder="0.00" max={availableBalance} className="pl-8" {...field} />
                     </div>
                   </FormControl>
                   <FormMessage />

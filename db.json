@@ -89,5 +89,15 @@
       "date": "2025-10-16T06:04:08.956Z"
     }
   ],
-  "withdrawalRequests": []
+  "withdrawalRequests": [
+    {
+      "id": "wd-req-1760596505157",
+      "userId": "user-1698864200000",
+      "amount": 3000,
+      "clabe": "123323443423443333",
+      "accountHolderName": "laten lavier",
+      "status": "pending",
+      "date": "2025-10-16T06:35:05.157Z"
+    }
+  ]
 }

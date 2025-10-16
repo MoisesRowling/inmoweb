@@ -8,10 +8,11 @@ import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PropertyCard } from "@/components/properties/PropertyCard";
+import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 
 export default function DashboardPage() {
   const { user, isAuthLoading } = useApp();
-  const { balance, properties, investments, isLoading: isPortfolioLoading } = usePortfolio();
+  const { availableBalance, properties, investments, isLoading: isPortfolioLoading } = usePortfolio();
   
   const [totalInvested, setTotalInvested] = useState(0);
 
@@ -105,7 +106,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Saldo Disponible"
-          value={balance}
+          value={availableBalance}
           isCurrency
           description="Listo para invertir"
           icon={DollarSign}

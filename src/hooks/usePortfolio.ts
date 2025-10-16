@@ -1,8 +1,8 @@
 'use client';
 
 import useSWR from 'swr';
-import { useCallback } from 'react';
-import type { Investment, Property, Transaction } from '@/lib/types';
+import { useCallback, useMemo } from 'react';
+import type { Investment, Property, Transaction, WithdrawalRequest } from '@/lib/types';
 import { useApp } from '@/context/AppContext';
 
 const fetcher = (url: string) => fetch(url).then(res => {
@@ -34,12 +34,21 @@ export function usePortfolio() {
     }
   }, [user, mutate]);
 
+  const availableBalance = useMemo(() => {
+    if (!data) return 0;
+    const pendingWithdrawals = (data.withdrawalRequests || []).filter((wr: WithdrawalRequest) => wr.status === 'pending');
+    const pendingAmount = pendingWithdrawals.reduce((sum: number, wr: WithdrawalRequest) => sum + wr.amount, 0);
+    return (data.balance || 0) - pendingAmount;
+  }, [data]);
+
 
   return {
     balance: data?.balance ?? 0,
-    properties: data?.properties ?? [],
-    transactions: data?.transactions ?? [],
-    investments: data?.investments ?? [],
+    availableBalance: availableBalance,
+    properties: (data?.properties as Property[]) ?? [],
+    transactions: (data?.transactions as Transaction[]) ?? [],
+    investments: (data?.investments as Investment[]) ?? [],
+    withdrawalRequests: (data?.withdrawalRequests as WithdrawalRequest[]) ?? [],
     isLoading: isLoading,
     error: error,
     refreshData,

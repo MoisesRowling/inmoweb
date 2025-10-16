@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, ArrowDown, ArrowUp, ShoppingCart, Info, Repeat } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, ShoppingCart, Info, Repeat, Hourglass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -29,6 +29,7 @@ export function TransactionHistory() {
   const iconMap = {
     deposit: <ArrowUp className="w-4 h-4 text-green-500" />,
     withdraw: <ArrowDown className="w-4 h-4 text-red-500" />,
+    'withdraw-request': <Hourglass className="w-4 h-4 text-yellow-500" />,
     investment: <ShoppingCart className="w-4 h-4 text-primary" />,
     'investment-release': <Repeat className="w-4 h-4 text-blue-500" />,
   };
@@ -64,7 +65,7 @@ export function TransactionHistory() {
                    <div>
                      <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                         {trans.description}
-                        {trans.type === 'withdraw' && trans.clabe && (
+                        {(trans.type === 'withdraw' || trans.type === 'withdraw-request') && trans.clabe && (
                            <Tooltip>
                               <TooltipTrigger asChild>
                                 <Info className="h-4 w-4 text-muted-foreground cursor-pointer"/>
@@ -82,9 +83,10 @@ export function TransactionHistory() {
                 <div className={cn("text-right font-bold text-sm", {
                     'text-green-600': trans.type === 'deposit' || trans.type === 'investment-release',
                     'text-red-600': trans.type === 'withdraw',
+                    'text-yellow-600': trans.type === 'withdraw-request',
                     'text-foreground': trans.type === 'investment',
                 })}>
-                  {trans.type === 'withdraw' || trans.type === 'investment' ? '-' : '+'}
+                  {trans.type === 'withdraw' || trans.type === 'investment' || trans.type === 'withdraw-request' ? '-' : '+'}
                   {trans.amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
                 </div>
               </div>

@@ -13,6 +13,8 @@ async function checkAndMatureInvestments(userId: string, db: any) {
     let balanceUpdated = false;
 
     const remainingInvestments: Investment[] = [];
+    const allOtherInvestments = (db.investments || []).filter((inv: Investment) => inv.userId !== userId);
+
 
     for (const investment of userInvestments) {
         const investmentDate = new Date(investment.investmentDate);
@@ -54,8 +56,7 @@ async function checkAndMatureInvestments(userId: string, db: any) {
     
     // Only write to DB if there was a change
     if (balanceUpdated) {
-        const otherUsersInvestments = (db.investments || []).filter((inv: Investment) => inv.userId !== userId);
-        db.investments = [...otherUsersInvestments, ...remainingInvestments];
+        db.investments = [...allOtherInvestments, ...remainingInvestments];
         await writeDB(db);
     }
 }
@@ -92,7 +93,8 @@ export async function GET(request: NextRequest) {
       balance: userBalanceInfo.amount,
       investments: activeInvestments, // Send raw investments, calculation will happen on client
       transactions: (db.transactions || []).filter((t: any) => t.userId === userId).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-      properties: db.properties || []
+      properties: db.properties || [],
+      withdrawalRequests: (db.withdrawalRequests || []).filter((wr: any) => wr.userId === userId),
     };
 
     return NextResponse.json(userData);
@@ -114,6 +116,10 @@ export async function POST(request: NextRequest) {
         
         const user = db.users.find((u:any) => u.id === userId);
         if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
+
+        const pendingWithdrawals = (db.withdrawalRequests || []).filter((wr:any) => wr.userId === userId && wr.status === 'pending');
+        const pendingWithdrawalAmount = pendingWithdrawals.reduce((sum: number, wr: any) => sum + wr.amount, 0);
+        const availableBalance = (db.balances[userId]?.amount || 0) - pendingWithdrawalAmount;
 
         switch(action) {
             case 'deposit': {
@@ -142,13 +148,14 @@ export async function POST(request: NextRequest) {
                  if (typeof amount !== 'number' || amount <= 0 || !clabe || !accountHolderName) {
                     return NextResponse.json({ message: "Invalid withdrawal payload" }, { status: 400 });
                  }
-                 if (!db.balances[userId] || db.balances[userId].amount < amount) {
-                    return NextResponse.json({ message: "Insufficient funds" }, { status: 400 });
+                 if (availableBalance < amount) {
+                    return NextResponse.json({ message: "Fondos insuficientes considerando retiros pendientes." }, { status: 400 });
                  }
 
+                 const requestId = `wd-req-${Date.now()}`;
                  if (!db.withdrawalRequests) db.withdrawalRequests = [];
                  db.withdrawalRequests.push({
-                    id: `wd-req-${Date.now()}`,
+                    id: requestId,
                     userId,
                     amount,
                     clabe,
@@ -156,8 +163,17 @@ export async function POST(request: NextRequest) {
                     status: 'pending',
                     date: new Date().toISOString(),
                  });
+
+                 if (!db.transactions) db.transactions = [];
+                 db.transactions.push({
+                    id: `txn-w-req-${requestId}`,
+                    userId,
+                    type: 'withdraw-request',
+                    amount,
+                    description: `Solicitud de retiro - Pendiente`,
+                    date: new Date().toISOString(),
+                 });
                 
-                // Balance is NOT reduced here. It's reduced on approval.
                 break;
             }
             case 'invest': {
@@ -165,8 +181,8 @@ export async function POST(request: NextRequest) {
                 if (typeof amount !== 'number' || amount <= 0 || !property || typeof term !== 'number') {
                     return NextResponse.json({ message: "Invalid investment payload" }, { status: 400 });
                 }
-                 if (!db.balances[userId] || db.balances[userId].amount < amount) {
-                    return NextResponse.json({ message: "Insufficient funds" }, { status: 400 });
+                 if (availableBalance < amount) {
+                    return NextResponse.json({ message: "Fondos insuficientes para invertir." }, { status: 400 });
                 }
                 
                 db.balances[userId].amount -= amount;
@@ -187,7 +203,7 @@ export async function POST(request: NextRequest) {
                 
                 if (!db.transactions) db.transactions = [];
                 db.transactions.push({
-                    id: `txn-${Date.now()}`,
+                    id: `txn-inv-${Date.now()}`,
                     userId,
                     type: 'investment',
                     amount,
