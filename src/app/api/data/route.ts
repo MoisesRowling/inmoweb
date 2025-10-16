@@ -1,5 +1,7 @@
 
 
+
+
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Investment, Property, Transaction, User } from '@/lib/types';
 import { readDB, writeDB } from '@/lib/db';
