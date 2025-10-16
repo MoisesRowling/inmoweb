@@ -41,7 +41,7 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-function AppProviderContent({ children }: { children: ReactNode }) {
+export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const router = useRouter();
@@ -68,7 +68,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem('user');
-    // Note: SWR cache for the user will be cleared automatically as the key becomes null.
     router.push('/login');
     toast({ title: "Has cerrado sesión." });
   }, [router, toast]);
@@ -164,10 +163,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-}
-
-export function AppProvider({ children }: { children: ReactNode }) {
-    return <AppProviderContent>{children}</AppProviderContent>;
 }
 
 export const useApp = (): AppContextType => {
