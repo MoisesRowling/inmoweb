@@ -8,9 +8,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { Menu } from 'lucide-react';
+import { UserBalance } from './UserBalance';
 
 export function Header() {
-  const { isAuthenticated, user, logout, balance, setModals } = useApp();
+  const { isAuthenticated, user, logout, setModals } = useApp();
 
   const getInitials = (name: string) => {
     if (!name) return 'U';
@@ -39,15 +40,19 @@ export function Header() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-            onSelect={(e) => e.preventDefault()}
-            onClick={() => setModals(prev => ({ ...prev, deposit: true }))}
+          onSelect={(e) => {
+            e.preventDefault();
+            setModals(prev => ({ ...prev, deposit: true }));
+          }}
         >
             <ArrowUpCircle className="mr-2 h-4 w-4" />
             <span>Depositar Fondos</span>
         </DropdownMenuItem>
         <DropdownMenuItem
-            onSelect={(e) => e.preventDefault()}
-            onClick={() => setModals(prev => ({ ...prev, withdraw: true }))}
+          onSelect={(e) => {
+            e.preventDefault();
+            setModals(prev => ({ ...prev, withdraw: true }));
+          }}
         >
             <ArrowDownCircle className="mr-2 h-4 w-4" />
             <span>Retirar Fondos</span>
@@ -108,10 +113,7 @@ export function Header() {
                 <Button variant="ghost" asChild>
                   <Link href="/properties">Propiedades</Link>
                 </Button>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Saldo:</span>
-                  <span className="font-semibold">{balance.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</span>
-                </div>
+                <UserBalance />
                 <UserMenu />
               </>
             ) : (
