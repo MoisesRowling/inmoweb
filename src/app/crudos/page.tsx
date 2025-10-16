@@ -5,9 +5,9 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft, RefreshCw, History } from 'lucide-react';
 import { AppShell } from '@/components/shared/AppShell';
-import type { User as UserType, Investment, WithdrawalRequest, Property } from '@/lib/types';
+import type { User as UserType, Investment, WithdrawalRequest, Property, Transaction } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, add, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface DbData {
     users: UserType[];
@@ -22,6 +23,7 @@ interface DbData {
     investments: Investment[];
     withdrawalRequests: WithdrawalRequest[];
     properties: Property[];
+    transactions: Transaction[];
 }
 
 const ManualDepositCard = ({ onAction, isSaving }: { onAction: Function, isSaving: boolean }) => {
@@ -156,6 +158,10 @@ export default function CrudosPage() {
         throw new Error('No se pudieron cargar los datos. ¿Contraseña incorrecta?');
       }
       const data: DbData = await response.json();
+      // Ensure transactions are sorted
+      if (data.transactions) {
+        data.transactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      }
       setDbData(data);
     } catch (error: any) {
       toast({
@@ -285,10 +291,11 @@ export default function CrudosPage() {
           
 
           <Tabs defaultValue="users">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="users"><User className="mr-2"/>Usuarios</TabsTrigger>
               <TabsTrigger value="withdrawals"><DollarSign className="mr-2"/>Retiros</TabsTrigger>
               <TabsTrigger value="investments"><Briefcase className="mr-2"/>Inversiones</TabsTrigger>
+              <TabsTrigger value="transactions"><History className="mr-2"/>Transacciones</TabsTrigger>
             </TabsList>
             
             <TabsContent value="users" className="mt-4">
@@ -421,6 +428,60 @@ export default function CrudosPage() {
                   </CardContent>
                  </Card>
             </TabsContent>
+
+             <TabsContent value="transactions" className="mt-4">
+                 <Card>
+                  <CardHeader>
+                    <CardTitle>Historial de Transacciones</CardTitle>
+                    <CardDescription>Todas las transacciones registradas en el sistema.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Usuario</TableHead>
+                                <TableHead>Tipo</TableHead>
+                                <TableHead>Descripción</TableHead>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead className="text-right">Cantidad</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {dbData?.transactions.map(trans => {
+                                const user = findUserById(trans.userId);
+                                const isPositive = trans.type === 'deposit' || trans.type === 'investment-release';
+                                return (
+                                    <TableRow key={trans.id}>
+                                        <TableCell>
+                                            <div className='font-medium'>{user?.name || 'Usuario no encontrado'}</div>
+                                            <div className='text-xs text-muted-foreground font-mono'>{user?.publicId}</div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className={cn('px-2 py-1 text-xs rounded-full', {
+                                                'bg-green-100 text-green-800': trans.type === 'deposit',
+                                                'bg-red-100 text-red-800': trans.type === 'withdraw',
+                                                'bg-blue-100 text-blue-800': trans.type === 'investment-release',
+                                                'bg-gray-100 text-gray-800': trans.type === 'investment'
+                                            })}>{trans.type}</span>
+                                        </TableCell>
+                                        <TableCell>{trans.description}</TableCell>
+                                        <TableCell>{format(new Date(trans.date), "dd MMM yyyy, hh:mm a")}</TableCell>
+                                        <TableCell className={cn("text-right font-bold", {
+                                            'text-green-600': isPositive,
+                                            'text-red-600': !isPositive && trans.type === 'withdraw',
+                                            'text-foreground': !isPositive && trans.type === 'investment'
+                                        })}>
+                                            {isPositive ? '+' : '-'}
+                                            {trans.amount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                        </TableBody>
+                    </Table>
+                  </CardContent>
+                 </Card>
+            </TabsContent>
           </Tabs>
           </>
         )}
@@ -464,3 +525,6 @@ export default function CrudosPage() {
     </AppShell>
   );
 }
+
+
+    
