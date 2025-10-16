@@ -94,24 +94,24 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <ActiveInvestments />
+
+             <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground font-headline">Propiedades para Invertir</h2>
+                  <p className="text-muted-foreground mt-1">Explora oportunidades exclusivas para hacer crecer tu dinero.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-6">
+                  {properties.map((property) => (
+                    <PropertyCard key={property.id} property={property} />
+                  ))}
+                </div>
+            </div>
+
           </div>
           <div className="lg:col-span-1 row-start-1 lg:row-start-auto space-y-6">
             <TransactionHistory />
           </div>
         </div>
-
-        <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground font-headline">Propiedades para Invertir</h2>
-              <p className="text-muted-foreground mt-1">Explora oportunidades exclusivas para hacer crecer tu dinero.</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {properties.map((property) => (
-                <PropertyCard key={property.id} property={property} />
-              ))}
-            </div>
-        </div>
-
       </div>
     </AppShell>
   );
