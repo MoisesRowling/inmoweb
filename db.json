@@ -10,7 +10,7 @@
   ],
   "balances": {
     "user-1698864200000": {
-      "amount": 10000,
+      "amount": 15000,
       "lastUpdated": "2023-11-01T18:43:20.000Z"
     }
   },
@@ -24,7 +24,7 @@
       "minInvestment": 300,
       "totalShares": 15000,
       "image": "hacienda-santorini",
-      "dailyReturn": 0.001
+      "dailyReturn": 0.1
     },
     {
       "id": "2",
@@ -35,7 +35,7 @@
       "minInvestment": 500,
       "totalShares": 7600,
       "image": "casa-monaco",
-      "dailyReturn": 0.0011
+      "dailyReturn": 0.1
     },
     {
       "id": "3",
@@ -46,7 +46,7 @@
       "minInvestment": 700,
       "totalShares": 8857,
       "image": "residencia-ejecutiva",
-      "dailyReturn": 0.0012
+      "dailyReturn": 0.1
     },
     {
       "id": "4",
@@ -57,10 +57,19 @@
       "minInvestment": 250,
       "totalShares": 10000,
       "image": "casa-esmeralda",
-      "dailyReturn": 0.0009
+      "dailyReturn": 0.1
     }
   ],
   "investments": [],
-  "transactions": [],
+  "transactions": [
+    {
+      "id": "txn-1760593392558",
+      "userId": "user-1698864200000",
+      "type": "deposit",
+      "amount": 5000,
+      "description": "Depósito simulado",
+      "date": "2025-10-16T05:43:12.558Z"
+    }
+  ],
   "withdrawalRequests": []
 }
