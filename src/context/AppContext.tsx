@@ -47,6 +47,22 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Helper function to post actions to the API
+const postAction = async (action: string, payload: any, userId: string) => {
+    if (!userId) throw new Error("User not authenticated");
+    const response = await fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, payload, userId }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.message || `Failed to perform action: ${action}`);
+    }
+    return result;
+};
+
+
 function AppProviderContent({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -60,7 +76,11 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     try {
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        // On initial load, check for matured investments
+        postAction('check_investments', {}, parsedUser.id)
+            .then(() => mutate(`/api/data?userId=${parsedUser.id}`));
       }
     } catch (e) {
       console.error("Failed to parse user from localStorage", e);
@@ -73,6 +93,13 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const { data, error, isLoading, isValidating } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
     revalidateOnFocus: true,
     revalidateOnMount: true,
+    onSuccess: (data) => {
+        // After fetching data, check investments
+        if(user) {
+            postAction('check_investments', {}, user.id)
+                .then(() => mutate(`/api/data?userId=${user.id}`));
+        }
+    }
   });
 
   const logout = useCallback(() => {
@@ -143,24 +170,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         mutate(`/api/data?userId=${user.id}`);
     }
   }, [user]);
-  
-  const postAction = async (action: string, payload: any) => {
-    if (!user) throw new Error("User not authenticated");
-    const response = await fetch('/api/data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, payload, userId: user.id }),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      throw new Error(result.message || `Failed to perform action: ${action}`);
-    }
-    return result;
-  }
 
   const handleDeposit = async (amount: number) => {
      try {
-        await postAction('deposit', { amount });
+        await postAction('deposit', { amount }, user!.id);
         refreshData();
         toast({ title: 'Depósito Exitoso', description: `Has simulado un depósito de ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}.` });
      } catch (e: any) {
@@ -170,7 +183,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const handleWithdraw = async (amount: number, clabe: string, accountHolderName: string): Promise<boolean> => {
      try {
-        await postAction('withdraw', { amount, clabe, accountHolderName });
+        await postAction('withdraw', { amount, clabe, accountHolderName }, user!.id);
         refreshData();
         toast({ title: 'Solicitud de Retiro Enviada', description: `Tu solicitud para retirar ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} ha sido enviada.` });
         return true;
@@ -182,7 +195,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   
   const handleInvest = async (amount: number, property: Property, term: number) => {
     try {
-        await postAction('invest', { amount, property, term });
+        await postAction('invest', { amount, property, term }, user!.id);
         refreshData();
         toast({ title: '¡Inversión Exitosa!', description: `Has invertido ${amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} en ${property.name}.` });
     } catch (e: any) {

@@ -24,39 +24,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
-    let userBalanceInfo = db.balances[userId] || { amount: 0, lastUpdated: new Date().toISOString() };
+    const userBalanceInfo = db.balances[userId] || { amount: 0, lastUpdated: new Date().toISOString() };
     const allInvestments: Investment[] = db.investments || [];
     const properties: Property[] = db.properties || [];
     const now = await getCurrentTime();
     
-    let currentBalance = userBalanceInfo.amount;
-    const activeInvestments: Investment[] = [];
-    
-    const userInvestments = allInvestments.filter(inv => inv.userId === userId);
-
-    for (const investment of userInvestments) {
-        const investmentDate = new Date(investment.investmentDate);
-        const expirationDate = new Date(investmentDate);
-        expirationDate.setDate(expirationDate.getDate() + investment.term);
-
-        if (now >= expirationDate) {
-            const property = properties.find(p => p.id === investment.propertyId);
-            if (!property) continue;
-            
-            // This logic will now be handled by a POST request to avoid changing data on GET
-            // We just calculate values for display
-            activeInvestments.push({
-                ...investment,
-                status: 'expired' 
-            });
-
-        } else {
-            activeInvestments.push({
-                ...investment,
-                status: 'active'
-            });
-        }
-    }
+    const activeInvestments: Investment[] = allInvestments.filter(inv => inv.userId === userId);
 
     // Real-time return calculation for still active investments
     const updatedInvestments = activeInvestments.map(investment => {
@@ -65,16 +38,7 @@ export async function GET(request: NextRequest) {
 
       if (property && property.dailyReturn > 0) {
         const investmentDate = new Date(investment.investmentDate);
-        let endDate = now;
-
-        // If investment is expired, calculate value up to expiration date
-        if (investment.status === 'expired') {
-          const expirationDate = new Date(investmentDate);
-          expirationDate.setDate(expirationDate.getDate() + investment.term);
-          endDate = expirationDate;
-        }
-        
-        const secondsElapsed = (endDate.getTime() - investmentDate.getTime()) / 1000;
+        const secondsElapsed = (now.getTime() - investmentDate.getTime()) / 1000;
 
         if (secondsElapsed > 0) {
             const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
@@ -100,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     const userData = {
       user: userSafe,
-      balance: currentBalance,
+      balance: userBalanceInfo.amount,
       investments: updatedInvestments,
       transactions: (db.transactions || []).filter((t: any) => t.userId === userId).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()),
       properties: db.properties || []
@@ -167,20 +131,8 @@ export async function POST(request: NextRequest) {
                     status: 'pending',
                     date: new Date().toISOString(),
                  });
-                 // For now, we'll auto-approve and process for simulation
-                 db.balances[userId].amount -= amount;
-
-                 if (!db.transactions) db.transactions = [];
-                 db.transactions.push({
-                    id: `txn-${Date.now()}`,
-                    userId,
-                    type: 'withdraw',
-                    amount,
-                    description: 'Retiro de fondos',
-                    clabe,
-                    accountHolderName,
-                    date: new Date().toISOString(),
-                });
+                
+                // Balance is NOT reduced here. It's reduced on approval.
                 break;
             }
             case 'invest': {
@@ -210,13 +162,62 @@ export async function POST(request: NextRequest) {
                 
                 if (!db.transactions) db.transactions = [];
                 db.transactions.push({
-                    id: `txn-${Date.now()}`,
+                    id-`txn-${Date.now()}`,
                     userId,
                     type: 'investment',
                     amount,
                     description: `Inversión en ${property.name}`,
                     date: new Date().toISOString(),
                 });
+                break;
+            }
+            case 'check_investments': {
+                const now = new Date();
+                const userInvestments = (db.investments || []).filter((inv: Investment) => inv.userId === userId);
+                let balanceUpdated = false;
+
+                const remainingInvestments = [];
+
+                for (const investment of userInvestments) {
+                    const investmentDate = new Date(investment.investmentDate);
+                    const expirationDate = new Date(investmentDate);
+                    expirationDate.setDate(expirationDate.getDate() + investment.term);
+
+                    if (now >= expirationDate) {
+                        const property = db.properties.find((p: Property) => p.id === investment.propertyId);
+                        if (!property) continue;
+
+                        const secondsElapsed = (expirationDate.getTime() - investmentDate.getTime()) / 1000;
+                        const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
+                        const totalGains = gainPerSecond * secondsElapsed;
+                        const finalValue = investment.investedAmount + totalGains;
+
+                        if (!db.balances[userId]) {
+                            db.balances[userId] = { amount: 0, lastUpdated: new Date().toISOString() };
+                        }
+                        db.balances[userId].amount += finalValue;
+                        balanceUpdated = true;
+
+                        if (!db.transactions) db.transactions = [];
+                        db.transactions.push({
+                            id: `txn-${Date.now()}`,
+                            userId,
+                            type: 'investment-release',
+                            amount: finalValue,
+                            description: `Liberación de inversión: ${property.name}`,
+                            date: new Date().toISOString(),
+                        });
+
+                        // This investment is now finished, so it won't be in the next state.
+                    } else {
+                        remainingInvestments.push(investment);
+                    }
+                }
+                
+                // Update the global investments array
+                const otherUsersInvestments = (db.investments || []).filter((inv: Investment) => inv.userId !== userId);
+                db.investments = [...otherUsersInvestments, ...remainingInvestments];
+
                 break;
             }
             default:

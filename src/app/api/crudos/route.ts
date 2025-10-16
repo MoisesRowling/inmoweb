@@ -48,13 +48,36 @@ export async function POST(request: Request) {
             if (reqIndex === -1) {
                 return NextResponse.json({ message: 'Solicitud no encontrada.' }, { status: 404 });
             }
-            if (db.withdrawalRequests[reqIndex].status !== 'pending') {
+            const withdrawalRequest = db.withdrawalRequests[reqIndex];
+            if (withdrawalRequest.status !== 'pending') {
                 return NextResponse.json({ message: 'La solicitud ya ha sido procesada.' }, { status: 400 });
             }
+            
+            const userBalance = db.balances[withdrawalRequest.userId];
+            if (!userBalance || userBalance.amount < withdrawalRequest.amount) {
+                db.withdrawalRequests[reqIndex].status = 'rejected';
+                await writeDB(db);
+                return NextResponse.json({ message: 'Fondos insuficientes. Solicitud rechazada automáticamente.' }, { status: 400 });
+            }
+            
+            // Process the withdrawal
+            userBalance.amount -= withdrawalRequest.amount;
             db.withdrawalRequests[reqIndex].status = 'approved';
+
+            if (!db.transactions) db.transactions = [];
+            db.transactions.push({
+                id: `txn-${Date.now()}`,
+                userId: withdrawalRequest.userId,
+                type: 'withdraw',
+                amount: withdrawalRequest.amount,
+                description: 'Retiro de fondos aprobado',
+                clabe: withdrawalRequest.clabe,
+                accountHolderName: withdrawalRequest.accountHolderName,
+                date: new Date().toISOString(),
+            });
             
             await writeDB(db);
-            return NextResponse.json({ message: 'Solicitud aprobada.' });
+            return NextResponse.json({ message: 'Solicitud aprobada y procesada.' });
         }
         
         case 'reject_withdrawal': {
@@ -66,15 +89,10 @@ export async function POST(request: Request) {
                 return NextResponse.json({ message: 'La solicitud ya ha sido procesada.' }, { status: 400 });
             }
             db.withdrawalRequests[reqIndex].status = 'rejected';
-
-            // Refund the amount to the user's balance
-            const request = db.withdrawalRequests[reqIndex];
-            if (db.balances[request.userId]) {
-                db.balances[request.userId].amount += request.amount;
-            }
             
+            // No need to refund, balance was never debited
             await writeDB(db);
-            return NextResponse.json({ message: 'Solicitud rechazada y fondos devueltos.' });
+            return NextResponse.json({ message: 'Solicitud rechazada.' });
         }
         
         case 'deposit_to_user': {
