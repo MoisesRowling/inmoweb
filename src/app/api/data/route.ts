@@ -1,22 +1,67 @@
-
-
-
-
-
-
-
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Investment, Property, Transaction, User } from '@/lib/types';
 import { readDB, writeDB } from '@/lib/db';
 
 async function getCurrentTime() {
-    // This now runs on the server, so new Date() is safe.
     return new Date();
 }
 
+// Function to check and mature investments
+async function checkAndMatureInvestments(userId: string, db: any) {
+    const now = await getCurrentTime();
+    const userInvestments = (db.investments || []).filter((inv: Investment) => inv.userId === userId);
+    let balanceUpdated = false;
+
+    const remainingInvestments = [];
+
+    for (const investment of userInvestments) {
+        const investmentDate = new Date(investment.investmentDate);
+        const expirationDate = new Date(investmentDate);
+        expirationDate.setDate(expirationDate.getDate() + investment.term);
+
+        if (now >= expirationDate) {
+            const property = db.properties.find((p: Property) => p.id === investment.propertyId);
+            if (!property) {
+                remainingInvestments.push(investment); // Keep it if property not found
+                continue;
+            };
+
+            const secondsElapsed = Math.floor((expirationDate.getTime() - investmentDate.getTime()) / 1000);
+            const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
+            const totalGains = gainPerSecond * secondsElapsed;
+            const finalValue = investment.investedAmount + totalGains;
+
+            if (!db.balances[userId]) {
+                db.balances[userId] = { amount: 0, lastUpdated: new Date().toISOString() };
+            }
+            db.balances[userId].amount += finalValue;
+            balanceUpdated = true;
+
+            if (!db.transactions) db.transactions = [];
+            db.transactions.push({
+                id: `txn-release-${Date.now()}-${investment.id}`,
+                userId,
+                type: 'investment-release',
+                amount: finalValue,
+                description: `Liberación de inversión: ${property.name}`,
+                date: new Date().toISOString(),
+            });
+            // This investment is now finished, so it's not added to remainingInvestments
+        } else {
+            remainingInvestments.push(investment);
+        }
+    }
+    
+    if (balanceUpdated) {
+        // Update the global investments array
+        const otherUsersInvestments = (db.investments || []).filter((inv: Investment) => inv.userId !== userId);
+        db.investments = [...otherUsersInvestments, ...remainingInvestments];
+        await writeDB(db);
+    }
+}
+
+
 export async function GET(request: NextRequest) {
-  // Since we removed JWT auth, we will get userId from query params.
-  // This is NOT secure and for local prototype only.
   const userId = request.nextUrl.searchParams.get('userId');
 
   if (!userId) {
@@ -26,6 +71,10 @@ export async function GET(request: NextRequest) {
   try {
     const db = await readDB();
     
+    // --- Server-side investment check before returning data ---
+    await checkAndMatureInvestments(userId, db);
+    // --- End of server-side check ---
+
     const user = db.users.find((u: any) => u.id === userId);
     if (!user) {
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
@@ -38,7 +87,7 @@ export async function GET(request: NextRequest) {
     
     const activeInvestments: Investment[] = allInvestments.filter(inv => inv.userId === userId);
 
-    // Real-time return calculation for still active investments
+    // Real-time return calculation for display purposes
     const updatedInvestments = activeInvestments.map(investment => {
       let currentValue = investment.investedAmount;
       const property = properties.find(p => p.id === investment.propertyId);
@@ -54,7 +103,6 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Safeguard against non-finite numbers
       if (!isFinite(currentValue)) {
         console.warn(`Calculated a non-finite currentValue for investment ${investment.id}. Defaulting to investedAmount.`);
         currentValue = investment.investedAmount;
@@ -178,53 +226,10 @@ export async function POST(request: NextRequest) {
                 });
                 break;
             }
+            // The 'check_investments' action is now handled server-side on GET,
+            // but we can leave the case here in case it's needed for other purposes.
             case 'check_investments': {
-                const now = new Date();
-                const userInvestments = (db.investments || []).filter((inv: Investment) => inv.userId === userId);
-                let balanceUpdated = false;
-
-                const remainingInvestments = [];
-
-                for (const investment of userInvestments) {
-                    const investmentDate = new Date(investment.investmentDate);
-                    const expirationDate = new Date(investmentDate);
-                    expirationDate.setDate(expirationDate.getDate() + investment.term);
-
-                    if (now >= expirationDate) {
-                        const property = db.properties.find((p: Property) => p.id === investment.propertyId);
-                        if (!property) continue;
-
-                        const secondsElapsed = (expirationDate.getTime() - investmentDate.getTime()) / 1000;
-                        const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
-                        const totalGains = gainPerSecond * secondsElapsed;
-                        const finalValue = investment.investedAmount + totalGains;
-
-                        if (!db.balances[userId]) {
-                            db.balances[userId] = { amount: 0, lastUpdated: new Date().toISOString() };
-                        }
-                        db.balances[userId].amount += finalValue;
-                        balanceUpdated = true;
-
-                        if (!db.transactions) db.transactions = [];
-                        db.transactions.push({
-                            id: `txn-${Date.now()}`,
-                            userId,
-                            type: 'investment-release',
-                            amount: finalValue,
-                            description: `Liberación de inversión: ${property.name}`,
-                            date: new Date().toISOString(),
-                        });
-
-                        // This investment is now finished, so it won't be in the next state.
-                    } else {
-                        remainingInvestments.push(investment);
-                    }
-                }
-                
-                // Update the global investments array
-                const otherUsersInvestments = (db.investments || []).filter((inv: Investment) => inv.userId !== userId);
-                db.investments = [...otherUsersInvestments, ...remainingInvestments];
-
+                await checkAndMatureInvestments(userId, db);
                 break;
             }
             default:
@@ -239,5 +244,3 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: 'Server error processing request.' }, { status: 500 });
     }
 }
-
-    

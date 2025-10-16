@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import { useCallback } from 'react';
-import { type Investment, type Property, type Transaction } from '@/lib/types';
+import type { Investment, Property, Transaction } from '@/lib/types';
 import { useApp } from '@/context/AppContext';
 
 const fetcher = (url: string) => fetch(url).then(res => {
@@ -19,35 +19,14 @@ const fetcher = (url: string) => fetch(url).then(res => {
     return res.json();
 });
 
-const postAction = async (action: string, payload: any, userId: string) => {
-    if (!userId) throw new Error("User not authenticated");
-    const response = await fetch('/api/data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, payload, userId }),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      throw new Error(result.message || `Failed to perform action: ${action}`);
-    }
-    return result;
-};
-
-
 export function usePortfolio() {
   const { user } = useApp();
 
+  // The check for investments is now handled on the server side within the GET request.
+  // This avoids a client-side loop of fetching and checking.
   const { data, error, isLoading, mutate } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
     revalidateOnFocus: true,
     revalidateOnMount: true,
-    revalidateOnInterval: 0, // Deshabilita la revalidación por intervalo
-    onSuccess: (data) => {
-        // After fetching data, check investments
-        if(user) {
-            postAction('check_investments', {}, user.id)
-                .then(() => mutate());
-        }
-    }
   });
 
   const refreshData = useCallback(() => {
