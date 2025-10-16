@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft, RefreshCw, History, Trash2, Undo } from 'lucide-react';
+import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft, RefreshCw, History, Trash2, Undo, Copy, Database } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { AppShell } from '@/components/shared/AppShell';
 import type { User as UserType, Investment, WithdrawalRequest, Property, Transaction } from '@/lib/types';
@@ -17,8 +18,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { format, add, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
 
 interface DbData {
+    admin: { password?: string };
     users: UserType[];
     balances: { [key: string]: { amount: number }};
     investments: Investment[];
@@ -240,6 +243,17 @@ export default function CrudosPage() {
   
   const findUserById = (userId: string) => dbData?.users.find(u => u.id === userId);
   const findPropertyById = (propertyId: string) => dbData?.properties.find(p => p.id === propertyId);
+
+  const copyDbToClipboard = () => {
+    if (dbData) {
+        const dbString = JSON.stringify(dbData, null, 2);
+        navigator.clipboard.writeText(dbString);
+        toast({
+            title: 'Éxito',
+            description: 'El contenido de la base de datos se ha copiado al portapapeles.',
+        });
+    }
+  };
 
   if (!isAuthenticated) {
     return (
@@ -543,6 +557,29 @@ export default function CrudosPage() {
                  </Card>
             </TabsContent>
           </Tabs>
+
+          <Card className='mt-8'>
+            <CardHeader>
+                <CardTitle className='flex items-center gap-2'>
+                    <Database className="h-5 w-5"/>
+                    Respaldo Manual de la Base de Datos
+                </CardTitle>
+                <CardDescription>
+                    Copia el contenido completo de <code>db.json</code> para crear un respaldo manual.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Textarea
+                    readOnly
+                    value={dbData ? JSON.stringify(dbData, null, 2) : "Cargando datos..."}
+                    className="h-64 font-mono text-xs bg-secondary/50"
+                />
+                <Button onClick={copyDbToClipboard} disabled={!dbData}>
+                    <Copy className="mr-2 h-4 w-4"/>
+                    Copiar al Portapapeles
+                </Button>
+            </CardContent>
+          </Card>
           </>
         )}
       </div>
@@ -585,6 +622,9 @@ export default function CrudosPage() {
     </AppShell>
   );
 }
+
+
+    
 
 
     
