@@ -34,6 +34,7 @@ export function Footer() {
             <ul className="space-y-2 text-muted-foreground">
               <li><Link href="/" className="hover:text-primary transition">Inicio</Link></li>
               <li><Link href="/properties" className="hover:text-primary transition">Propiedades</Link></li>
+              <li><Link href="/faq" className="hover:text-primary transition">Preguntas Frecuentes</Link></li>
               <li><Link href="/login" className="hover:text-primary transition">Mi Cuenta</Link></li>
             </ul>
           </div>

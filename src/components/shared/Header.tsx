@@ -82,6 +82,7 @@ export function Header() {
                <>
                  <Link href="/dashboard" className="text-lg font-medium text-foreground hover:text-primary">Dashboard</Link>
                  <Link href="/properties" className="text-lg font-medium text-foreground hover:text-primary">Propiedades</Link>
+                 <Link href="/faq" className="text-lg font-medium text-foreground hover:text-primary">FAQ</Link>
                  <Button onClick={() => setModals(prev => ({ ...prev, deposit: true }))} variant="outline">Depositar</Button>
                  <Button onClick={() => setModals(prev => ({ ...prev, withdraw: true }))} variant="outline">Retirar</Button>
                  <Button onClick={logout} variant="ghost">Cerrar Sesión</Button>
