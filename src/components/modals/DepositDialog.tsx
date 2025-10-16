@@ -60,7 +60,7 @@ export function DepositDialog({ isOpen, onClose }: DepositDialogProps) {
            <div className="space-y-3 rounded-lg border bg-secondary/50 p-4">
                <div>
                   <p className="text-xs text-muted-foreground">Beneficiario</p>
-                  <p className="font-semibold">InmoSmart</p>
+                  <p className="font-semibold">Inmotec</p>
               </div>
               <div>
                   <p className="text-xs text-muted-foreground">Banco</p>

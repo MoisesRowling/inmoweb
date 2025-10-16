@@ -15,7 +15,7 @@ export default function AuthFormWrapper({ title, description, children }: AuthFo
           <div className="flex justify-center mb-4">
              <div className="flex items-center space-x-2">
                 <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center shadow-lg">
-                    <span className="text-3xl font-black text-primary-foreground">IS</span>
+                    <span className="text-3xl font-black text-primary-foreground">IT</span>
                 </div>
             </div>
           </div>

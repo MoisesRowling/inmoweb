@@ -9,8 +9,8 @@ import { AppProvider } from '@/context/AppContext';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'InmoSmart - La Nueva Era de la Inversión Inmobiliaria',
-  description: 'En InmoSmart, integramos herramientas digitales de vanguardia para que tu inversión inmobiliaria sea más inteligente, segura y rentable.',
+  title: 'Inmotec - La Nueva Era de la Inversión Inmobiliaria',
+  description: 'En Inmotec, integramos herramientas digitales de vanguardia para que tu inversión inmobiliaria sea más inteligente, segura y rentable.',
 };
 
 export default function RootLayout({

@@ -24,8 +24,8 @@ export function Footer() {
           </div>
           <div>
             <h4 className="font-bold text-lg mb-4 text-foreground">Contacto</h4>
-            <p className="text-muted-foreground">soporte@inmosmart.com</p>
-            <p className="text-muted-foreground mt-4 text-sm">© {new Date().getFullYear()} InmoSmart. Todos los derechos reservados.</p>
+            <p className="text-muted-foreground">soporte@inmotec.com</p>
+            <p className="text-muted-foreground mt-4 text-sm">© {new Date().getFullYear()} Inmotec. Todos los derechos reservados.</p>
           </div>
         </div>
       </div>

@@ -41,7 +41,7 @@ export default function Home() {
               La Nueva Era de la<br />Inversión Inmobiliaria
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-              En InmoSmart, integramos herramientas digitales de vanguardia para que tu inversión inmobiliaria sea más inteligente, segura y rentable.
+              En Inmotec, integramos herramientas digitales de vanguardia para que tu inversión inmobiliaria sea más inteligente, segura y rentable.
             </p>
             <Button asChild size="lg" className="text-lg font-bold shadow-lg">
               <Link href="/register">
@@ -67,7 +67,7 @@ export default function Home() {
 
         <section className="py-20 bg-primary/5 dark:bg-primary/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-4xl font-black text-foreground text-center mb-16 font-headline">¿Por qué InmoSmart?</h2>
+            <h2 className="text-4xl font-black text-foreground text-center mb-16 font-headline">¿Por qué Inmotec?</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="bg-card rounded-2xl p-8 text-center shadow-lg border">
