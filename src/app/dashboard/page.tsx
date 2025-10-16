@@ -1,5 +1,5 @@
 'use client';
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { AppShell } from "@/components/shared/AppShell";
 import { useApp } from "@/context/AppContext";
 import { usePortfolio } from "@/hooks/usePortfolio";
@@ -14,6 +14,46 @@ export default function DashboardPage() {
   const { user, isAuthLoading } = useApp();
   const { balance, properties, investments, isLoading: isPortfolioLoading } = usePortfolio();
   
+  const [totalInvested, setTotalInvested] = useState(0);
+
+  useEffect(() => {
+    // This function calculates the current value of an investment
+    const calculateCurrentValue = (investment: any, property: any) => {
+      if (!property || property.dailyReturn <= 0) {
+        return investment.investedAmount;
+      }
+      const investmentDate = new Date(investment.investmentDate);
+      const now = new Date();
+      const secondsElapsed = Math.floor((now.getTime() - investmentDate.getTime()) / 1000);
+
+      if (secondsElapsed > 0) {
+        const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
+        const totalGains = gainPerSecond * secondsElapsed;
+        return investment.investedAmount + totalGains;
+      }
+      return investment.investedAmount;
+    };
+    
+    // Calculate initial total
+    const initialTotal = investments.reduce((sum, inv) => {
+        const property = properties.find(p => p.id === inv.propertyId);
+        return sum + calculateCurrentValue(inv, property);
+    }, 0);
+    setTotalInvested(initialTotal);
+
+    // Update the total every second
+    const interval = setInterval(() => {
+      const currentTotal = investments.reduce((sum, inv) => {
+        const property = properties.find(p => p.id === inv.propertyId);
+        return sum + calculateCurrentValue(inv, property);
+      }, 0);
+      setTotalInvested(currentTotal);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [investments, properties]);
+
+
   if (isAuthLoading || !user || isPortfolioLoading) {
     return (
         <AppShell>
@@ -42,7 +82,6 @@ export default function DashboardPage() {
     );
   }
 
-  const totalInvested = investments.reduce((sum, inv) => sum + (inv.currentValue ?? inv.investedAmount), 0);
   const totalProperties = [...new Set(investments.map(inv => inv.propertyId))].length;
 
   const dailyGain = investments.reduce((sum, inv) => {

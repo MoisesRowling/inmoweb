@@ -12,7 +12,7 @@ async function checkAndMatureInvestments(userId: string, db: any) {
     const userInvestments = (db.investments || []).filter((inv: Investment) => inv.userId === userId);
     let balanceUpdated = false;
 
-    const remainingInvestments = [];
+    const remainingInvestments: Investment[] = [];
 
     for (const investment of userInvestments) {
         const investmentDate = new Date(investment.investmentDate);
@@ -26,9 +26,9 @@ async function checkAndMatureInvestments(userId: string, db: any) {
                 continue;
             };
 
-            const secondsElapsed = Math.floor((expirationDate.getTime() - investmentDate.getTime()) / 1000);
+            const secondsInTerm = investment.term * 86400;
             const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
-            const totalGains = gainPerSecond * secondsElapsed;
+            const totalGains = gainPerSecond * secondsInTerm;
             const finalValue = investment.investedAmount + totalGains;
 
             if (!db.balances[userId]) {
@@ -52,8 +52,8 @@ async function checkAndMatureInvestments(userId: string, db: any) {
         }
     }
     
+    // Only write to DB if there was a change
     if (balanceUpdated) {
-        // Update the global investments array
         const otherUsersInvestments = (db.investments || []).filter((inv: Investment) => inv.userId !== userId);
         db.investments = [...otherUsersInvestments, ...remainingInvestments];
         await writeDB(db);
@@ -71,9 +71,8 @@ export async function GET(request: NextRequest) {
   try {
     const db = await readDB();
     
-    // --- Server-side investment check before returning data ---
+    // Check and mature investments *before* sending data to the client.
     await checkAndMatureInvestments(userId, db);
-    // --- End of server-side check ---
 
     const user = db.users.find((u: any) => u.id === userId);
     if (!user) {
@@ -82,37 +81,8 @@ export async function GET(request: NextRequest) {
 
     const userBalanceInfo = db.balances[userId] || { amount: 0, lastUpdated: new Date().toISOString() };
     const allInvestments: Investment[] = db.investments || [];
-    const properties: Property[] = db.properties || [];
-    const now = await getCurrentTime();
     
     const activeInvestments: Investment[] = allInvestments.filter(inv => inv.userId === userId);
-
-    // Real-time return calculation for display purposes
-    const updatedInvestments = activeInvestments.map(investment => {
-      let currentValue = investment.investedAmount;
-      const property = properties.find(p => p.id === investment.propertyId);
-
-      if (property && property.dailyReturn > 0) {
-        const investmentDate = new Date(investment.investmentDate);
-        const secondsElapsed = Math.floor((now.getTime() - investmentDate.getTime()) / 1000);
-
-        if (secondsElapsed > 0) {
-            const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
-            const totalGains = gainPerSecond * secondsElapsed;
-            currentValue = investment.investedAmount + totalGains;
-        }
-      }
-
-      if (!isFinite(currentValue)) {
-        console.warn(`Calculated a non-finite currentValue for investment ${investment.id}. Defaulting to investedAmount.`);
-        currentValue = investment.investedAmount;
-      }
-      
-      return {
-        ...investment,
-        currentValue: currentValue
-      };
-    });
     
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...userSafe } = user;
@@ -120,7 +90,7 @@ export async function GET(request: NextRequest) {
     const userData = {
       user: userSafe,
       balance: userBalanceInfo.amount,
-      investments: updatedInvestments,
+      investments: activeInvestments, // Send raw investments, calculation will happen on client
       transactions: (db.transactions || []).filter((t: any) => t.userId === userId).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()),
       properties: db.properties || []
     };
@@ -224,12 +194,6 @@ export async function POST(request: NextRequest) {
                     description: `Inversión en ${property.name}`,
                     date: new Date().toISOString(),
                 });
-                break;
-            }
-            // The 'check_investments' action is now handled server-side on GET,
-            // but we can leave the case here in case it's needed for other purposes.
-            case 'check_investments': {
-                await checkAndMatureInvestments(userId, db);
                 break;
             }
             default:

@@ -22,11 +22,10 @@ const fetcher = (url: string) => fetch(url).then(res => {
 export function usePortfolio() {
   const { user } = useApp();
 
-  // The check for investments is now handled on the server side within the GET request.
-  // This avoids a client-side loop of fetching and checking.
   const { data, error, isLoading, mutate } = useSWR(user ? `/api/data?userId=${user.id}` : null, fetcher, {
     revalidateOnFocus: true,
     revalidateOnMount: true,
+    refreshInterval: 5000, // Re-fetch data every 5 seconds
   });
 
   const refreshData = useCallback(() => {
