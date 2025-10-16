@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight } from 'lucide-react';
+import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft } from 'lucide-react';
 import { AppShell } from '@/components/shared/AppShell';
 import type { User as UserType, Investment, WithdrawalRequest, Property } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,38 +40,88 @@ const ManualDepositCard = ({ onAction, isSaving }: { onAction: Function, isSavin
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Banknote className="text-primary"/>
-                    Operaciones Manuales
+                <CardTitle className="flex items-center gap-2 text-green-600">
+                    <ArrowRight className="h-5 w-5"/>
+                    Depósito Manual
                 </CardTitle>
-                <CardDescription>Realiza un depósito directo a la cuenta de un usuario.</CardDescription>
+                <CardDescription>Añade fondos a la cuenta de un usuario.</CardDescription>
             </CardHeader>
-            <CardContent>
-                <div className="flex flex-col sm:flex-row gap-4 items-end">
-                    <div className="flex-1">
-                        <Label htmlFor="deposit-user-id">ID de Usuario (5 dígitos)</Label>
-                        <Input 
-                            id="deposit-user-id" 
-                            placeholder="12345" 
-                            value={publicId} 
-                            onChange={(e) => setPublicId(e.target.value)}
-                        />
-                    </div>
-                     <div className='w-full sm:w-48'>
-                        <Label htmlFor="deposit-amount">Cantidad (MXN)</Label>
-                        <Input 
-                            id="deposit-amount" 
-                            type="number" 
-                            placeholder="500.00" 
-                            value={amount} 
-                            onChange={(e) => setAmount(e.target.value)}
-                        />
-                    </div>
-                    <Button onClick={handleDeposit} disabled={isSaving || !publicId || !amount} className="w-full sm:w-auto">
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight/>}
-                        Realizar Depósito
-                    </Button>
+            <CardContent className="space-y-4">
+                 <div>
+                    <Label htmlFor="deposit-user-id">ID de Usuario (5 dígitos)</Label>
+                    <Input 
+                        id="deposit-user-id" 
+                        placeholder="12345" 
+                        value={publicId} 
+                        onChange={(e) => setPublicId(e.target.value)}
+                    />
                 </div>
+                 <div>
+                    <Label htmlFor="deposit-amount">Cantidad (MXN)</Label>
+                    <Input 
+                        id="deposit-amount" 
+                        type="number" 
+                        placeholder="500.00" 
+                        value={amount} 
+                        onChange={(e) => setAmount(e.target.value)}
+                    />
+                </div>
+                <Button onClick={handleDeposit} disabled={isSaving || !publicId || !amount} className="w-full">
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Realizar Depósito
+                </Button>
+            </CardContent>
+        </Card>
+    )
+}
+
+
+const ManualWithdrawalCard = ({ onAction, isSaving }: { onAction: Function, isSaving: boolean }) => {
+    const [publicId, setPublicId] = useState('');
+    const [amount, setAmount] = useState('');
+
+    const handleWithdraw = () => {
+        const numericAmount = parseFloat(amount);
+        if (publicId && numericAmount > 0) {
+            onAction('withdraw_from_user', { publicId, amount: numericAmount });
+            setPublicId('');
+            setAmount('');
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-red-600">
+                    <ArrowLeft className="h-5 w-5"/>
+                    Retiro Manual
+                </CardTitle>
+                <CardDescription>Retira fondos de la cuenta de un usuario.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <div>
+                    <Label htmlFor="withdraw-user-id">ID de Usuario (5 dígitos)</Label>
+                    <Input 
+                        id="withdraw-user-id" 
+                        placeholder="12345" 
+                        value={publicId} 
+                        onChange={(e) => setPublicId(e.target.value)}
+                    />
+                </div>
+                 <div>
+                    <Label htmlFor="withdraw-amount">Cantidad (MXN)</Label>
+                    <Input 
+                        id="withdraw-amount" 
+                        type="number" 
+                        placeholder="500.00" 
+                        value={amount} 
+                        onChange={(e) => setAmount(e.target.value)}
+                    />
+                </div>
+                <Button onClick={handleWithdraw} disabled={isSaving || !publicId || !amount} className="w-full" variant="destructive">
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Realizar Retiro
+                </Button>
             </CardContent>
         </Card>
     )
@@ -119,7 +169,7 @@ export default function CrudosPage() {
     }
   };
 
-  const handleAction = async (action: 'update_user' | 'approve_withdrawal' | 'reject_withdrawal' | 'deposit_to_user', payload: any) => {
+  const handleAction = async (action: 'update_user' | 'approve_withdrawal' | 'reject_withdrawal' | 'deposit_to_user' | 'withdraw_from_user', payload: any) => {
     setIsSaving(true);
     try {
       const response = await fetch('/api/crudos', {
@@ -227,7 +277,20 @@ export default function CrudosPage() {
           </div>
         ) : (
           <>
-          <ManualDepositCard onAction={handleAction} isSaving={isSaving} />
+          <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Banknote className="text-primary"/>
+                    Operaciones Manuales
+                </CardTitle>
+                <CardDescription>Realiza depósitos y retiros directos a las cuentas de los usuarios.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <ManualDepositCard onAction={handleAction} isSaving={isSaving} />
+              <ManualWithdrawalCard onAction={handleAction} isSaving={isSaving} />
+            </CardContent>
+          </Card>
+          
 
           <Tabs defaultValue="users">
             <TabsList className="grid w-full grid-cols-3">

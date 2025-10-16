@@ -1,4 +1,5 @@
 
+
 import { NextResponse } from 'next/server';
 import { readDB, writeDB } from '@/lib/db';
 
@@ -103,6 +104,36 @@ export async function POST(request: Request) {
 
             await writeDB(db);
             return NextResponse.json({ message: `Depósito de ${amount} realizado a ${user.name}.` });
+        }
+        
+        case 'withdraw_from_user': {
+            const { publicId, amount } = payload;
+            if (!publicId || !amount || amount <= 0) {
+                 return NextResponse.json({ message: 'ID de usuario y cantidad son requeridos.' }, { status: 400 });
+            }
+            const user = db.users.find((u: any) => u.publicId === publicId);
+            if (!user) {
+                return NextResponse.json({ message: 'Usuario no encontrado.' }, { status: 404 });
+            }
+
+            if (!db.balances[user.id] || db.balances[user.id].amount < amount) {
+                return NextResponse.json({ message: 'Fondos insuficientes en la cuenta del usuario.' }, { status: 400 });
+            }
+            
+            db.balances[user.id].amount -= amount;
+
+            if (!db.transactions) db.transactions = [];
+            db.transactions.push({
+                id: `txn-${Date.now()}`,
+                userId: user.id,
+                type: 'withdraw',
+                amount,
+                description: 'Retiro manual de administrador',
+                date: new Date().toISOString(),
+            });
+
+            await writeDB(db);
+            return NextResponse.json({ message: `Retiro de ${amount} realizado a ${user.name}.` });
         }
 
         default:
