@@ -139,7 +139,7 @@ export default function DashboardPage() {
                 <p className="text-muted-foreground mt-1">Explora oportunidades exclusivas para hacer crecer tu dinero.</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-6">
-                {properties.slice(0,2).map((property) => (
+                {properties.map((property) => (
                   <PropertyCard key={property.id} property={property} />
                 ))}
               </div>

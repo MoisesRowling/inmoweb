@@ -10,7 +10,7 @@
   ],
   "balances": {
     "user-1698864200000": {
-      "amount": 8056,
+      "amount": 100,
       "lastUpdated": "2023-11-01T18:43:20.000Z"
     }
   },
@@ -111,6 +111,34 @@
       "amount": 56,
       "description": "Depósito manual de administrador",
       "date": "2025-10-16T06:42:03.366Z"
+    },
+    {
+      "id": "txn-1760597021514",
+      "userId": "user-1698864200000",
+      "type": "withdraw",
+      "amount": 3000,
+      "description": "Retiro aprobado y procesado exitosamente",
+      "clabe": "123323443423443333",
+      "accountHolderName": "laten lavier",
+      "date": "2025-10-16T06:43:41.514Z"
+    },
+    {
+      "id": "txn-1760597028853",
+      "userId": "user-1698864200000",
+      "type": "withdraw",
+      "amount": 5000,
+      "description": "Retiro aprobado y procesado exitosamente",
+      "clabe": "018009392838221333",
+      "accountHolderName": "lolololo",
+      "date": "2025-10-16T06:43:48.853Z"
+    },
+    {
+      "id": "txn-1760597038966",
+      "userId": "user-1698864200000",
+      "type": "deposit",
+      "amount": 44,
+      "description": "Depósito realizado con éxito",
+      "date": "2025-10-16T06:43:58.966Z"
     }
   ],
   "withdrawalRequests": [
@@ -120,7 +148,7 @@
       "amount": 3000,
       "clabe": "123323443423443333",
       "accountHolderName": "laten lavier",
-      "status": "pending",
+      "status": "approved",
       "date": "2025-10-16T06:35:05.157Z"
     },
     {
@@ -129,7 +157,7 @@
       "amount": 5000,
       "clabe": "018009392838221333",
       "accountHolderName": "lolololo",
-      "status": "pending",
+      "status": "approved",
       "date": "2025-10-16T06:38:38.077Z"
     }
   ]
