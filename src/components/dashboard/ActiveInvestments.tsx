@@ -51,6 +51,7 @@ export function ActiveInvestments() {
                   </p>
                   <p className="text-xs text-green-600">
                     +{(investment.investedAmount * (investment.dailyReturn || 0)).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}/día
+                    <span className="font-bold"> ({(investment.dailyReturn * 100).toFixed(2)}%)</span>
                   </p>
                 </div>
               </div>
