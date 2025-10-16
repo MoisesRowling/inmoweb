@@ -16,40 +16,40 @@ export default function DashboardPage() {
   const [totalInvested, setTotalInvested] = useState(0);
 
   useEffect(() => {
-    const calculateCurrentValue = (investment: any, property: any) => {
-      if (!property || property.dailyReturn <= 0) {
-        return investment.investedAmount;
-      }
-      const investmentDate = new Date(investment.investmentDate);
-      const now = new Date();
-      const secondsElapsed = Math.floor((now.getTime() - investmentDate.getTime()) / 1000);
-
-      if (secondsElapsed > 0) {
-        const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
-        const totalGains = gainPerSecond * secondsElapsed;
-        return investment.investedAmount + totalGains;
-      }
-      return investment.investedAmount;
-    };
-    
     if (investments.length > 0 && properties.length > 0) {
-        const initialTotal = investments.reduce((sum, inv) => {
-            const property = properties.find(p => p.id === inv.propertyId);
-            return sum + calculateCurrentValue(inv, property);
+      const calculateCurrentValue = (investment: any, property: any) => {
+        if (!property || property.dailyReturn <= 0) {
+          return investment.investedAmount;
+        }
+        const investmentDate = new Date(investment.investmentDate);
+        const now = new Date();
+        const secondsElapsed = Math.floor((now.getTime() - investmentDate.getTime()) / 1000);
+
+        if (secondsElapsed > 0) {
+          const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
+          const totalGains = gainPerSecond * secondsElapsed;
+          return investment.investedAmount + totalGains;
+        }
+        return investment.investedAmount;
+      };
+
+      const initialTotal = investments.reduce((sum, inv) => {
+        const property = properties.find(p => p.id === inv.propertyId);
+        return sum + calculateCurrentValue(inv, property);
+      }, 0);
+      setTotalInvested(initialTotal);
+
+      const interval = setInterval(() => {
+        const currentTotal = investments.reduce((sum, inv) => {
+          const property = properties.find(p => p.id === inv.propertyId);
+          return sum + calculateCurrentValue(inv, property);
         }, 0);
-        setTotalInvested(initialTotal);
+        setTotalInvested(currentTotal);
+      }, 1000);
 
-        const interval = setInterval(() => {
-          const currentTotal = investments.reduce((sum, inv) => {
-            const property = properties.find(p => p.id === inv.propertyId);
-            return sum + calculateCurrentValue(inv, property);
-          }, 0);
-          setTotalInvested(currentTotal);
-        }, 1000);
-
-        return () => clearInterval(interval);
+      return () => clearInterval(interval);
     } else {
-        setTotalInvested(0);
+      setTotalInvested(0);
     }
   }, [investments, properties]);
 

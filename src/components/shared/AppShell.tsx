@@ -23,10 +23,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isPublicRoute = publicPages.includes(pathname);
 
   useEffect(() => {
-    if (!isAuthLoading) {
-        if (!isAuthenticated && !isPublicRoute) {
-            router.replace('/login');
-        }
+    if (!isAuthLoading && !isAuthenticated && !isPublicRoute) {
+        router.replace('/login');
     }
   }, [isAuthenticated, isAuthLoading, pathname, router, isPublicRoute]);
   
@@ -34,10 +32,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <FullPageLoader />;
   }
   
+  // For public routes, just render the content
   if (isPublicRoute) {
       return <>{children}</>;
   }
   
+  // For authenticated routes, render the full app shell
   return (
     <div className="min-h-screen flex flex-col bg-secondary/50">
       <Header />
