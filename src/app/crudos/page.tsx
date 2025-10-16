@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft, RefreshCw } from 'lucide-react';
 import { AppShell } from '@/components/shared/AppShell';
 import type { User as UserType, Investment, WithdrawalRequest, Property } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,7 +38,7 @@ const ManualDepositCard = ({ onAction, isSaving }: { onAction: Function, isSavin
     };
 
     return (
-        <Card>
+        <Card className="bg-background/50">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-green-600">
                     <ArrowRight className="h-5 w-5"/>
@@ -90,7 +90,7 @@ const ManualWithdrawalCard = ({ onAction, isSaving }: { onAction: Function, isSa
     };
 
     return (
-        <Card>
+        <Card className="bg-background/50">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-red-600">
                     <ArrowLeft className="h-5 w-5"/>
@@ -258,34 +258,26 @@ export default function CrudosPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground font-headline">CRUD Manager</h1>
-            <p className="text-muted-foreground mt-1">
-              Gestiona los datos de la aplicación de forma visual.
-            </p>
-          </div>
-          <Button onClick={fetchData} disabled={isLoading || isSaving} variant="outline">
-            {isLoading || isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Recargar Datos
-          </Button>
-        </div>
-
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
         ) : (
           <>
-          <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Banknote className="text-primary"/>
-                    Operaciones Manuales
-                </CardTitle>
-                <CardDescription>Realiza depósitos y retiros directos a las cuentas de los usuarios.</CardDescription>
+          <Card className="bg-card/50">
+            <CardHeader className="flex flex-row items-start justify-between">
+                <div>
+                    <CardTitle className="text-2xl font-bold text-foreground font-headline">CRUD Manager</CardTitle>
+                    <CardDescription>
+                        Gestiona los datos de la aplicación, realiza depósitos y retiros manuales.
+                    </CardDescription>
+                </div>
+                <Button onClick={fetchData} disabled={isLoading || isSaving} variant="outline" size="sm">
+                    {isLoading || isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    Recargar Datos
+                </Button>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
               <ManualDepositCard onAction={handleAction} isSaving={isSaving} />
               <ManualWithdrawalCard onAction={handleAction} isSaving={isSaving} />
             </CardContent>
