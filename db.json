@@ -1,31 +1,32 @@
+
 {
   "admin": {
-    "password": "#Caballos1212"
+    "password": "#Laten1212"
   },
   "users": [
     {
-      "id": "user-1698864200000",
-      "publicId": "12345",
-      "name": "Test User",
-      "email": "test@test.com",
+      "id": "user-1718131013149",
+      "publicId": "58639",
+      "name": "Admin",
+      "email": "admin@admin.com",
       "password": "password"
     },
     {
-      "id": "user-1760597572719",
-      "publicId": "51640",
-      "name": "maria de los angeles",
-      "email": "mxlaten@gmail.com",
-      "password": "caballos1212"
+      "id": "user-1718131023773",
+      "publicId": "87948",
+      "name": "Test",
+      "email": "test@test.com",
+      "password": "password"
     }
   ],
   "balances": {
-    "user-1698864200000": {
-      "amount": 0,
-      "lastUpdated": "2023-11-01T18:43:20.000Z"
+    "user-1718131013149": {
+      "amount": 100000,
+      "lastUpdated": "2024-06-11T18:36:53.149Z"
     },
-    "user-1760597572719": {
-      "amount": 0,
-      "lastUpdated": "2025-10-16T06:52:52.719Z"
+    "user-1718131023773": {
+      "amount": 5000,
+      "lastUpdated": "2024-06-11T18:37:03.773Z"
     }
   },
   "properties": [
@@ -74,148 +75,7 @@
       "dailyReturn": 0.1
     }
   ],
-  "investments": [
-    {
-      "id": "inv-1760597465320",
-      "userId": "user-1698864200000",
-      "propertyId": "2",
-      "investedAmount": 12000,
-      "ownedShares": 24,
-      "investmentDate": "2025-10-16T06:51:05.320Z",
-      "term": 7
-    }
-  ],
-  "transactions": [
-    {
-      "id": "txn-1760593392558",
-      "userId": "user-1698864200000",
-      "type": "deposit",
-      "amount": 5000,
-      "description": "Depósito simulado",
-      "date": "2025-10-16T05:43:12.558Z"
-    },
-    {
-      "id": "txn-1760594648956",
-      "userId": "user-1698864200000",
-      "type": "investment",
-      "amount": 12000,
-      "description": "Inversión en Hacienda Santorini",
-      "date": "2025-10-16T06:04:08.956Z"
-    },
-    {
-      "id": "txn-1760596696182",
-      "userId": "user-1698864200000",
-      "type": "deposit",
-      "amount": 5000,
-      "description": "Depósito simulado",
-      "date": "2025-10-16T06:38:16.182Z"
-    },
-    {
-      "id": "txn-w-req-wd-req-1760596718077",
-      "userId": "user-1698864200000",
-      "type": "withdraw-request",
-      "amount": 5000,
-      "description": "Solicitud de retiro - Pendiente",
-      "date": "2025-10-16T06:38:38.077Z"
-    },
-    {
-      "id": "txn-1760596923366",
-      "userId": "user-1698864200000",
-      "type": "deposit",
-      "amount": 56,
-      "description": "Depósito realizado con éxito",
-      "date": "2025-10-16T06:42:03.366Z"
-    },
-    {
-      "id": "txn-1760597021514",
-      "userId": "user-1698864200000",
-      "type": "withdraw",
-      "amount": 3000,
-      "description": "Retiro aprobado y procesado exitosamente",
-      "clabe": "123323443423443333",
-      "accountHolderName": "laten lavier",
-      "date": "2025-10-16T06:43:41.514Z"
-    },
-    {
-      "id": "txn-1760597028853",
-      "userId": "user-1698864200000",
-      "type": "withdraw",
-      "amount": 5000,
-      "description": "Retiro aprobado y procesado exitosamente",
-      "clabe": "018009392838221333",
-      "accountHolderName": "lolololo",
-      "date": "2025-10-16T06:43:48.853Z"
-    },
-    {
-      "id": "txn-1760597038966",
-      "userId": "user-1698864200000",
-      "type": "deposit",
-      "amount": 44,
-      "description": "Depósito realizado con éxito",
-      "date": "2025-10-16T06:43:58.966Z"
-    },
-    {
-      "id": "txn-refund-1760597440166",
-      "userId": "user-1698864200000",
-      "type": "investment-refund",
-      "amount": 12000,
-      "description": "Reembolso de inversión (ID: inv-1760594648956)",
-      "date": "2025-10-16T06:50:40.166Z"
-    },
-    {
-      "id": "txn-inv-1760597465320",
-      "userId": "user-1698864200000",
-      "type": "investment",
-      "amount": 12000,
-      "description": "Inversión en Casa Monaco",
-      "date": "2025-10-16T06:51:05.320Z"
-    },
-    {
-      "id": "txn-w-req-wd-req-1760597489993",
-      "userId": "user-1698864200000",
-      "type": "withdraw-request",
-      "amount": 100,
-      "description": "Solicitud de retiro - Pendiente",
-      "date": "2025-10-16T06:51:29.993Z"
-    },
-    {
-      "id": "txn-1760597517308",
-      "userId": "user-1698864200000",
-      "type": "withdraw",
-      "amount": 100,
-      "description": "Retiro aprobado y procesado exitosamente",
-      "clabe": "018009392838221333",
-      "accountHolderName": "juan lopez",
-      "date": "2025-10-16T06:51:57.308Z"
-    }
-  ],
-  "withdrawalRequests": [
-    {
-      "id": "wd-req-1760596505157",
-      "userId": "user-1698864200000",
-      "amount": 3000,
-      "clabe": "123323443423443333",
-      "accountHolderName": "laten lavier",
-      "status": "approved",
-      "date": "2025-10-16T06:35:05.157Z"
-    },
-    {
-      "id": "wd-req-1760596718077",
-      "userId": "user-1698864200000",
-      "amount": 5000,
-      "clabe": "018009392838221333",
-      "accountHolderName": "lolololo",
-      "status": "approved",
-      "date": "2025-10-16T06:38:38.077Z"
-    },
-    {
-      "id": "wd-req-1760597489993",
-      "userId": "user-1698864200000",
-      "amount": 100,
-      "clabe": "018009392838221333",
-      "accountHolderName": "juan lopez",
-      "status": "approved",
-      "date": "2025-10-16T06:51:29.993Z"
-    }
-  ]
+  "investments": [],
+  "transactions": [],
+  "withdrawalRequests": []
 }
