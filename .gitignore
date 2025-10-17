@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Local Database
+db.json
+
 # Dependencies
 /node_modules
 /.pnp
@@ -15,22 +18,19 @@
 # Production
 /build
 
-# Local data
-db.json
-
-# misc
+# Misc
 .DS_Store
 *.pem
 
-# debug
+# Debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Local Env Files
+# Local .env files
 .env*.local
 .env
 
-# typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
