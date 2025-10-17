@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { propertiesData } from "@/lib/data";
 import { PropertyCard } from "@/components/properties/PropertyCard";
-import { Activity, ArrowRight, Building2, Home as HomeIcon, Loader2 } from "lucide-react";
+import { Activity, ArrowRight, Building2, Home as HomeIcon, Loader2, Users } from "lucide-react";
 import type { Property } from "@/lib/types";
 import { useApp } from "@/context/AppContext";
 import { useEffect } from "react";
@@ -69,7 +69,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-4xl font-black text-foreground text-center mb-16 font-headline">¿Por qué Inmotec?</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               <div className="bg-card rounded-2xl p-8 text-center shadow-lg border">
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                   <HomeIcon className="w-8 h-8 text-primary" />
@@ -92,6 +92,14 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold text-card-foreground mb-3 font-headline">100% Digital y Seguro</h3>
                 <p className="text-muted-foreground">Plataforma tecnológica con respaldo legal en cada inversión.</p>
+              </div>
+
+               <div className="bg-card rounded-2xl p-8 text-center shadow-lg border">
+                <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8 text-blue-500" />
+                </div>
+                <h3 className="text-xl font-bold text-card-foreground mb-3 font-headline">Confianza de Miles</h3>
+                <p className="text-muted-foreground">Únete a nuestra creciente comunidad de inversionistas satisfechos.</p>
               </div>
             </div>
           </div>
