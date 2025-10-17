@@ -3,12 +3,14 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB } from '@/lib/db';
 
+const CRUD_PASSWORD = '#Laten1212';
+
 export async function POST(request: Request) {
   try {
     const { password, action, payload } = await request.json();
     const db = await readDB();
 
-    if (!db.admin || password !== db.admin.password) {
+    if (password !== CRUD_PASSWORD) {
       return NextResponse.json({ message: 'Contraseña incorrecta.' }, { status: 401 });
     }
     
