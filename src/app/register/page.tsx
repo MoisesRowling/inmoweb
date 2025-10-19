@@ -11,7 +11,7 @@ import AuthFormWrapper from '@/components/auth/AuthFormWrapper';
 import { useApp } from '@/context/AppContext';
 import { Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 
 const formSchema = z.object({
@@ -28,6 +28,8 @@ const formSchema = z.object({
 export default function RegisterPage() {
   const { registerAndCreateUser, isAuthLoading, isAuthenticated } = useApp();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const refCode = searchParams.get('ref');
 
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated) {
@@ -42,7 +44,7 @@ export default function RegisterPage() {
       email: '',
       password: '',
       confirmPassword: '',
-      referralCode: '',
+      referralCode: refCode || '',
     },
   });
 

@@ -3,7 +3,7 @@ import React from "react";
 import { useApp } from "@/context/AppContext";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { DollarSign, Activity, Building2, Copy } from "lucide-react";
+import { DollarSign, Activity, Building2, Copy, Users, Gift } from "lucide-react";
 import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,10 +12,12 @@ import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
+import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 
 export default function DashboardPage() {
   const { user, isAuthLoading } = useApp();
-  const { availableBalance, properties, investments, isLoading: isPortfolioLoading } = usePortfolio();
+  const { availableBalance, properties, investments, transactions, isLoading: isPortfolioLoading } = usePortfolio();
   const { toast } = useToast();
 
   const totalInvested = useMemo(() => {
@@ -23,12 +25,20 @@ export default function DashboardPage() {
     return investments.reduce((sum, inv) => sum + inv.investedAmount, 0);
   }, [investments]);
   
-  const copyReferralCode = () => {
+  const referralEarnings = useMemo(() => {
+    if (!transactions || transactions.length === 0) return 0;
+    return transactions
+      .filter(t => t.type === 'commission')
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions]);
+
+  const copyReferralLink = () => {
     if (!user?.referralCode) return;
-    navigator.clipboard.writeText(user.referralCode);
+    const url = `${window.location.origin}/register?ref=${user.referralCode}`;
+    navigator.clipboard.writeText(url);
     toast({
-        title: '¡Copiado!',
-        description: 'Tu código de referido ha sido copiado al portapapeles.'
+        title: '¡Enlace copiado!',
+        description: 'Tu enlace de referido ha sido copiado al portapapeles.'
     });
   }
   
@@ -41,7 +51,8 @@ export default function DashboardPage() {
                   <Skeleton className="h-4 w-72" />
               </div>
           </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Skeleton className="h-[125px] w-full rounded-xl" />
               <Skeleton className="h-[125px] w-full rounded-xl" />
               <Skeleton className="h-[125px] w-full rounded-xl" />
               <Skeleton className="h-[125px] w-full rounded-xl" />
@@ -75,22 +86,22 @@ export default function DashboardPage() {
           <p className="text-muted-foreground mt-1">Aquí está el resumen de tu portafolio de inversiones.</p>
         </div>
         <Card className="p-3 bg-card/50 w-full sm:w-auto">
-             <p className="text-xs text-muted-foreground">Tu Código de Referido</p>
+             <p className="text-xs text-muted-foreground">Tu Enlace de Referido</p>
             <div className="flex items-center gap-2 mt-1">
                 <p className="text-lg font-mono font-bold text-primary">{user.referralCode}</p>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={copyReferralCode}>
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={copyReferralLink}>
                     <Copy className="h-4 w-4"/>
                 </Button>
             </div>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Saldo Disponible"
           value={availableBalance}
           isCurrency
-          description="Listo para invertir"
+          description="Listo para invertir o retirar"
           icon={DollarSign}
           color="primary"
         />
@@ -108,6 +119,14 @@ export default function DashboardPage() {
           description="En tu portafolio"
           icon={Building2}
           color="accent"
+        />
+        <StatCard
+          title="Ganancias por Referidos"
+          value={referralEarnings}
+          isCurrency
+          description="Total de comisiones ganadas"
+          icon={Gift}
+          color="orange"
         />
       </div>
       
@@ -129,6 +148,7 @@ export default function DashboardPage() {
 
         </div>
         <div className="lg:col-span-1 row-start-1 lg:row-start-auto space-y-6">
+           <PortfolioSuggestion />
           <TransactionHistory />
         </div>
       </div>
