@@ -13,7 +13,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
-import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
 
 export default function DashboardPage() {
   const { user, isAuthLoading } = useApp();
@@ -148,7 +147,6 @@ export default function DashboardPage() {
 
         </div>
         <div className="lg:col-span-1 row-start-1 lg:row-start-auto space-y-6">
-           <PortfolioSuggestion />
           <TransactionHistory />
         </div>
       </div>
