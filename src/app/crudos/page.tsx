@@ -1,12 +1,10 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft, RefreshCw, History, Trash2, Undo, Copy, Database, Share2 } from 'lucide-react';
+import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft, RefreshCw, History, Trash2, Undo, Copy, Database, Share2, Building2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import type { User as UserType, Investment, WithdrawalRequest, Property, Transaction } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -219,7 +217,8 @@ export default function CrudosPage() {
                 body: JSON.stringify({ password, action: 'read' })
             });
             if (!response.ok) {
-                throw new Error('Contraseña incorrecta.');
+                const result = await response.json();
+                throw new Error(result.message || 'Contraseña incorrecta.');
             }
             setIsAuthenticated(true);
         } catch (error: any) {
@@ -694,3 +693,5 @@ export default function CrudosPage() {
     </main>
   );
 }
+
+    
