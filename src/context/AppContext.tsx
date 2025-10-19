@@ -31,7 +31,7 @@ interface AppContextType {
   isAuthLoading: boolean; 
   logout: () => void;
   login: (email: string, pass: string) => Promise<void>;
-  registerAndCreateUser: (name: string, email: string, password: string) => Promise<void>;
+  registerAndCreateUser: (name: string, email: string, password: string, referralCode?: string) => Promise<void>;
   handleDeposit: (amount: number) => Promise<void>;
   handleWithdraw: (amount: number, clabe: string, accountHolderName: string) => Promise<boolean>;
   handleInvest: (amount: number, property: Property, term: number) => Promise<void>;
@@ -97,13 +97,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const registerAndCreateUser = async (name: string, email: string, password: string) => {
+  const registerAndCreateUser = async (name: string, email: string, password: string, referralCode?: string) => {
     setIsAuthLoading(true);
     try {
         const response = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, password }),
+            body: JSON.stringify({ name, email, password, referralCode }),
         });
         const result = await response.json();
         if (response.status === 201) {

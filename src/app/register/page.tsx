@@ -19,6 +19,7 @@ const formSchema = z.object({
   email: z.string().email({ message: 'Por favor ingresa un correo electrónico válido.' }),
   password: z.string().min(6, { message: 'La contraseña debe tener al menos 6 caracteres.' }),
   confirmPassword: z.string(),
+  referralCode: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden.',
   path: ['confirmPassword'],
@@ -41,11 +42,12 @@ export default function RegisterPage() {
       email: '',
       password: '',
       confirmPassword: '',
+      referralCode: '',
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    registerAndCreateUser(values.name, values.email, values.password);
+    registerAndCreateUser(values.name, values.email, values.password, values.referralCode);
   }
 
   if (isAuthLoading || (!isAuthLoading && isAuthenticated)) {
@@ -110,6 +112,19 @@ export default function RegisterPage() {
                 <FormLabel>Confirmar contraseña</FormLabel>
                 <FormControl>
                   <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="referralCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Código de Referido (Opcional)</FormLabel>
+                <FormControl>
+                  <Input placeholder="CÓDIGO123" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

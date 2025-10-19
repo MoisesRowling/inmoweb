@@ -3,21 +3,34 @@ import React from "react";
 import { useApp } from "@/context/AppContext";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { DollarSign, Activity, Building2 } from "lucide-react";
+import { DollarSign, Activity, Building2, Copy } from "lucide-react";
 import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PropertyCard } from "@/components/properties/PropertyCard";
 import { useMemo } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardPage() {
   const { user, isAuthLoading } = useApp();
   const { availableBalance, properties, investments, isLoading: isPortfolioLoading } = usePortfolio();
+  const { toast } = useToast();
 
   const totalInvested = useMemo(() => {
     if (!investments || investments.length === 0) return 0;
     return investments.reduce((sum, inv) => sum + inv.investedAmount, 0);
   }, [investments]);
+  
+  const copyReferralCode = () => {
+    if (!user?.referralCode) return;
+    navigator.clipboard.writeText(user.referralCode);
+    toast({
+        title: '¡Copiado!',
+        description: 'Tu código de referido ha sido copiado al portapapeles.'
+    });
+  }
   
   if (isAuthLoading || !user || isPortfolioLoading) {
     return (
@@ -56,15 +69,20 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground font-headline">Bienvenido, {(user.name || user.email).split(' ')[0]}</h1>
           <p className="text-muted-foreground mt-1">Aquí está el resumen de tu portafolio de inversiones.</p>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-muted-foreground">ID de Usuario</p>
-          <p className="text-sm font-mono font-semibold text-primary">{user.publicId}</p>
-        </div>
+        <Card className="p-3 bg-card/50 w-full sm:w-auto">
+             <p className="text-xs text-muted-foreground">Tu Código de Referido</p>
+            <div className="flex items-center gap-2 mt-1">
+                <p className="text-lg font-mono font-bold text-primary">{user.referralCode}</p>
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={copyReferralCode}>
+                    <Copy className="h-4 w-4"/>
+                </Button>
+            </div>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

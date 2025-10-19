@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, ArrowDown, ArrowUp, ShoppingCart, Info, Repeat, Hourglass } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, ShoppingCart, Info, Repeat, Hourglass, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -32,6 +32,7 @@ export function TransactionHistory() {
     'withdraw-request': <Hourglass className="w-4 h-4 text-yellow-500" />,
     investment: <ShoppingCart className="w-4 h-4 text-primary" />,
     'investment-release': <Repeat className="w-4 h-4 text-blue-500" />,
+    'commission': <Gift className="w-4 h-4 text-purple-500" />,
   };
   
   return (
@@ -81,12 +82,12 @@ export function TransactionHistory() {
                    </div>
                 </div>
                 <div className={cn("text-right font-bold text-sm", {
-                    'text-green-600': trans.type === 'deposit' || trans.type === 'investment-release',
+                    'text-green-600': ['deposit', 'investment-release', 'commission'].includes(trans.type),
                     'text-red-600': trans.type === 'withdraw',
                     'text-yellow-600': trans.type === 'withdraw-request',
                     'text-foreground': trans.type === 'investment',
                 })}>
-                  {trans.type === 'withdraw' || trans.type === 'investment' || trans.type === 'withdraw-request' ? '-' : '+'}
+                  {['withdraw', 'investment', 'withdraw-request'].includes(trans.type) ? '-' : '+'}
                   {trans.amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
                 </div>
               </div>

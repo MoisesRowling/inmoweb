@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB } from '@/lib/db';
+import { customAlphabet } from 'nanoid';
+
+const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password } = await request.json();
+    const { name, email, password, referralCode } = await request.json();
 
     const db = await readDB();
 
@@ -11,6 +14,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'El correo electrónico ya está en uso.' }, { status: 400 });
     }
     
+    let referredBy = undefined;
+    if (referralCode) {
+        const referrer = db.users.find((u: any) => u.referralCode === referralCode.toUpperCase());
+        if (!referrer) {
+            return NextResponse.json({ message: 'El código de referido no es válido.'}, { status: 400 });
+        }
+        referredBy = referrer.id;
+    }
+
     // Generate a unique ID for the user
     const newUserId = `user-${Date.now()}`;
     const newUser = {
@@ -19,6 +31,8 @@ export async function POST(request: Request) {
       name,
       email,
       password: password, // Storing password in plain text as requested
+      referralCode: nanoid(),
+      referredBy,
     };
     
     const newBalance = {

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import type { Investment, Property, Transaction, User } from '@/lib/types';
+import type { Investment, Property, Transaction, User, Commission } from '@/lib/types';
 import { readDB, writeDB } from '@/lib/db';
 
 async function getCurrentTime() {
@@ -104,6 +104,26 @@ export async function GET(request: NextRequest) {
   }
 }
 
+function findReferrerChain(userId: string, users: User[]): string[] {
+    const chain = [];
+    let currentUser = users.find(u => u.id === userId);
+    for (let i = 0; i < 3; i++) {
+        if (currentUser && currentUser.referredBy) {
+            const referrer = users.find(u => u.id === currentUser.referredBy);
+            if (referrer) {
+                chain.push(referrer.id);
+                currentUser = referrer;
+            } else {
+                break; // Referrer not found, break chain
+            }
+        } else {
+            break; // No more referrers, break chain
+        }
+    }
+    return chain;
+}
+
+
 export async function POST(request: NextRequest) {
     const { action, payload, userId } = await request.json();
 
@@ -189,21 +209,58 @@ export async function POST(request: NextRequest) {
 
                 const sharePrice = property.price / property.totalShares;
                 const ownedShares = amount / sharePrice;
+                
+                const investmentId = `inv-${Date.now()}`;
+                
+                const commissions: Commission[] = [];
+                const referrerChain = findReferrerChain(userId, db.users);
+                const commissionRates = [0.05, 0.03, 0.01]; // Level 1, 2, 3
+
+                referrerChain.forEach((referrerId, index) => {
+                    const commissionAmount = amount * commissionRates[index];
+                    const commission: Commission = {
+                        beneficiaryId: referrerId,
+                        amount: commissionAmount,
+                        level: index + 1
+                    };
+                    commissions.push(commission);
+                    
+                    // Add balance to referrer
+                    if (db.balances[referrerId]) {
+                        db.balances[referrerId].amount += commissionAmount;
+                    } else {
+                        db.balances[referrerId] = { amount: commissionAmount, lastUpdated: new Date().toISOString() };
+                    }
+                    
+                    // Add commission transaction
+                    if (!db.transactions) db.transactions = [];
+                    const investorUser = db.users.find((u:User) => u.id === userId);
+                    db.transactions.push({
+                        id: `txn-comm-${Date.now()}-${referrerId}`,
+                        userId: referrerId,
+                        type: 'commission',
+                        amount: commissionAmount,
+                        description: `Comisión (Nivel ${index + 1}) por inversión de ${investorUser?.name || 'un referido'}`,
+                        date: new Date().toISOString(),
+                        sourceInvestmentId: investmentId,
+                    });
+                });
 
                 if (!db.investments) db.investments = [];
                 db.investments.push({
-                    id: `inv-${Date.now()}`,
+                    id: investmentId,
                     userId,
                     propertyId: property.id,
                     investedAmount: amount,
                     ownedShares,
                     investmentDate: new Date().toISOString(),
                     term,
+                    commissions: commissions,
                 });
                 
                 if (!db.transactions) db.transactions = [];
                 db.transactions.push({
-                    id: `txn-inv-${Date.now()}`,
+                    id: `txn-inv-${investmentId}`,
                     userId,
                     type: 'investment',
                     amount,

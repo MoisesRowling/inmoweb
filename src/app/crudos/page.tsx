@@ -6,9 +6,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft, RefreshCw, History, Trash2, Undo, Copy, Database } from 'lucide-react';
+import { Loader2, Lock, User, DollarSign, Briefcase, Pencil, CheckCircle, XCircle, Banknote, ArrowRight, ArrowLeft, RefreshCw, History, Trash2, Undo, Copy, Database, Share2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { AppShell } from '@/components/shared/AppShell';
 import type { User as UserType, Investment, WithdrawalRequest, Property, Transaction } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -210,16 +209,29 @@ export default function CrudosPage() {
     }
   };
   
-  const handleAuth = () => {
-      if (password) {
-        setIsAuthenticated(true);
-      } else {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Por favor, introduce la contraseña.',
-        });
-      }
+  const handleAuth = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsLoading(true);
+       try {
+            const response = await fetch('/api/crudos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password, action: 'read' })
+            });
+            if (!response.ok) {
+                throw new Error('Contraseña incorrecta.');
+            }
+            setIsAuthenticated(true);
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Error de autenticación',
+                description: error.message,
+            });
+            setIsAuthenticated(false);
+        } finally {
+            setIsLoading(false);
+        }
   }
 
   const handleUpdateUser = (e: React.FormEvent<HTMLFormElement>) => {
@@ -257,30 +269,36 @@ export default function CrudosPage() {
 
   if (!isAuthenticated) {
     return (
-        <AppShell>
-            <div className="flex flex-col items-center justify-center gap-4 py-16">
-                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <Lock className="w-8 h-8 text-primary" />
-                </div>
-                <h1 className="text-2xl font-bold">Acceso de Administrador</h1>
-                <p className="text-muted-foreground">Introduce la clave secreta para gestionar la base de datos.</p>
-                <div className="flex w-full max-w-sm items-center space-x-2 mt-4">
-                    <Input 
-                        type="password" 
-                        placeholder="Contraseña de administrador" 
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAuth()}
-                    />
-                    <Button onClick={handleAuth}>Acceder</Button>
-                </div>
-            </div>
-        </AppShell>
+        <main className='flex items-center justify-center min-h-screen p-4'>
+            <Card className="w-full max-w-sm">
+                <CardHeader className="text-center">
+                     <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 mx-auto">
+                      <Lock className="w-8 h-8 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold">Acceso de Administrador</CardTitle>
+                    <CardDescription>Introduce la clave secreta para gestionar la base de datos.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={handleAuth} className="space-y-4">
+                        <Input 
+                            type="password" 
+                            placeholder="Contraseña de administrador" 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                        <Button type="submit" className="w-full" disabled={isLoading}>
+                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                             Acceder
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
+        </main>
     )
   }
 
   return (
-    <AppShell>
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       <div className="space-y-6">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
@@ -309,11 +327,12 @@ export default function CrudosPage() {
           
 
           <Tabs defaultValue="users">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="users"><User className="mr-2"/>Usuarios</TabsTrigger>
               <TabsTrigger value="withdrawals"><DollarSign className="mr-2"/>Retiros</TabsTrigger>
               <TabsTrigger value="investments"><Briefcase className="mr-2"/>Inversiones</TabsTrigger>
               <TabsTrigger value="transactions"><History className="mr-2"/>Transacciones</TabsTrigger>
+              <TabsTrigger value="properties"><Building2 className="mr-2"/>Propiedades</TabsTrigger>
             </TabsList>
             
             <TabsContent value="users" className="mt-4">
@@ -329,7 +348,8 @@ export default function CrudosPage() {
                                 <TableHead>ID</TableHead>
                                 <TableHead>Nombre</TableHead>
                                 <TableHead>Email</TableHead>
-                                <TableHead>Contraseña</TableHead>
+                                <TableHead>Cód. Referido</TableHead>
+                                <TableHead>Referido Por</TableHead>
                                 <TableHead>Saldo</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
@@ -340,7 +360,12 @@ export default function CrudosPage() {
                                     <TableCell className="font-mono">{user.publicId}</TableCell>
                                     <TableCell>{user.name}</TableCell>
                                     <TableCell>{user.email}</TableCell>
-                                    <TableCell className="font-mono">{user.password}</TableCell>
+                                    <TableCell className="font-mono text-primary font-bold">{user.referralCode}</TableCell>
+                                    <TableCell>
+                                        {user.referredBy ? (
+                                            findUserById(user.referredBy)?.name || <span className='text-muted-foreground italic'>ID no encontrado</span>
+                                        ) : <span className='text-muted-foreground'>N/A</span>}
+                                    </TableCell>
                                     <TableCell>
                                       {(dbData.balances[user.id]?.amount ?? 0).toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}
                                     </TableCell>
@@ -421,6 +446,7 @@ export default function CrudosPage() {
                                 <TableHead>Inversor</TableHead>
                                 <TableHead>Propiedad</TableHead>
                                 <TableHead>Monto Invertido</TableHead>
+                                <TableHead>Comisiones</TableHead>
                                 <TableHead>Fecha de Inversión</TableHead>
                                 <TableHead>Plazo</TableHead>
                                 <TableHead>Tiempo Restante</TableHead>
@@ -436,6 +462,16 @@ export default function CrudosPage() {
                                         <TableCell>{user?.name || inv.userId}</TableCell>
                                         <TableCell>{property?.name || inv.propertyId}</TableCell>
                                         <TableCell>{inv.investedAmount.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
+                                        <TableCell>
+                                            {inv.commissions?.length ? (
+                                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                   <Share2 className="h-3 w-3" />
+                                                   {inv.commissions.length}
+                                                </div>
+                                            ) : (
+                                                'N/A'
+                                            )}
+                                        </TableCell>
                                         <TableCell>{format(new Date(inv.investmentDate), "dd MMM yyyy")}</TableCell>
                                         <TableCell>{inv.term} días</TableCell>
                                         <TableCell>{getInvestmentTimeLeft(inv)}</TableCell>
@@ -495,7 +531,7 @@ export default function CrudosPage() {
                         <TableBody>
                             {dbData?.transactions.map(trans => {
                                 const user = findUserById(trans.userId);
-                                const isPositive = trans.type === 'deposit' || trans.type === 'investment-release' || trans.type === 'investment-refund';
+                                const isPositive = ['deposit', 'investment-release', 'investment-refund', 'commission'].includes(trans.type);
                                 return (
                                     <TableRow key={trans.id}>
                                         <TableCell>
@@ -508,6 +544,7 @@ export default function CrudosPage() {
                                                 'bg-red-100 text-red-800': trans.type === 'withdraw',
                                                 'bg-blue-100 text-blue-800': trans.type === 'investment-release',
                                                 'bg-orange-100 text-orange-800': trans.type === 'investment-refund',
+                                                'bg-purple-100 text-purple-800': trans.type === 'commission',
                                                 'bg-gray-100 text-gray-800': trans.type === 'investment',
                                                 'bg-yellow-100 text-yellow-800': trans.type === 'withdraw-request',
                                             })}>{trans.type}</span>
@@ -553,6 +590,41 @@ export default function CrudosPage() {
                             })}
                         </TableBody>
                     </Table>
+                  </CardContent>
+                 </Card>
+            </TabsContent>
+            
+            <TabsContent value="properties" className="mt-4">
+                 <Card>
+                  <CardHeader>
+                    <CardTitle>Propiedades en la Plataforma</CardTitle>
+                    <CardDescription>Información sobre las propiedades disponibles para inversión.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                     <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Nombre</TableHead>
+                                <TableHead>Ubicación</TableHead>
+                                <TableHead>Tipo</TableHead>
+                                <TableHead className="text-right">Precio</TableHead>
+                                <TableHead className="text-right">Inv. Mínima</TableHead>
+                                <TableHead className="text-right">Retorno Diario</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                             {dbData?.properties.map(prop => (
+                                <TableRow key={prop.id}>
+                                    <TableCell className="font-medium">{prop.name}</TableCell>
+                                    <TableCell>{prop.location}</TableCell>
+                                    <TableCell>{prop.type}</TableCell>
+                                    <TableCell className="text-right">{prop.price.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
+                                    <TableCell className="text-right">{prop.minInvestment.toLocaleString('es-MX', {style: 'currency', currency: 'MXN'})}</TableCell>
+                                    <TableCell className="text-right font-bold text-green-600">{(prop.dailyReturn * 100).toFixed(2)}%</TableCell>
+                                </TableRow>
+                             ))}
+                        </TableBody>
+                     </Table>
                   </CardContent>
                  </Card>
             </TabsContent>
@@ -603,9 +675,9 @@ export default function CrudosPage() {
                                 <Label htmlFor="email" className="text-right">Email</Label>
                                 <Input id="email" type="email" value={editingUser.email} onChange={(e) => setEditingUser({...editingUser, email: e.target.value})} className="col-span-3" />
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="password" className="text-right">Contraseña</Label>
-                                <Input id="password" value={editingUser.password} onChange={(e) => setEditingUser({...editingUser, password: e.target.value})} className="col-span-3" />
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="referralCode" className="text-right">Cód. Referido</Label>
+                                <Input id="referralCode" value={editingUser.referralCode} onChange={(e) => setEditingUser({...editingUser, referralCode: e.target.value})} className="col-span-3" />
                             </div>
                         </div>
                         <DialogFooter>
@@ -619,12 +691,6 @@ export default function CrudosPage() {
                 )}
             </DialogContent>
         </Dialog>
-    </AppShell>
+    </main>
   );
 }
-
-
-    
-
-
-    
