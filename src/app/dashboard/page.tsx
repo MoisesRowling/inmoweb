@@ -16,7 +16,7 @@ import Link from "next/link";
 
 export default function DashboardPage() {
   const { user, isAuthLoading } = useApp();
-  const { availableBalance, properties, investments, transactions, isLoading: isPortfolioLoading } = usePortfolio();
+  const { availableBalance, properties, investments, transactions, referredUsersCount, isLoading: isPortfolioLoading } = usePortfolio();
   const { toast } = useToast();
 
   const totalInvested = useMemo(() => {
@@ -123,7 +123,7 @@ export default function DashboardPage() {
           title="Ganancias por Referidos"
           value={referralEarnings}
           isCurrency
-          description="Total de comisiones ganadas"
+          description={`${referredUsersCount} referidos directos`}
           icon={Gift}
           color="orange"
         />

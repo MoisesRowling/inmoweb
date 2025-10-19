@@ -49,6 +49,7 @@ export function usePortfolio() {
     transactions: (data?.transactions as Transaction[]) ?? [],
     investments: (data?.investments as Investment[]) ?? [],
     withdrawalRequests: (data?.withdrawalRequests as WithdrawalRequest[]) ?? [],
+    referredUsersCount: data?.referredUsersCount ?? 0,
     isLoading: isLoading,
     error: error,
     refreshData,

@@ -88,6 +88,8 @@ export async function GET(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...userSafe } = user;
 
+    const referredUsersCount = db.users.filter((u: any) => u.referredBy === userId).length;
+
     const userData = {
       user: userSafe,
       balance: userBalanceInfo.amount,
@@ -95,6 +97,7 @@ export async function GET(request: NextRequest) {
       transactions: (db.transactions || []).filter((t: any) => t.userId === userId).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()),
       properties: db.properties || [],
       withdrawalRequests: (db.withdrawalRequests || []).filter((wr: any) => wr.userId === userId),
+      referredUsersCount,
     };
 
     return NextResponse.json(userData);
