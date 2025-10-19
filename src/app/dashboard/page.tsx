@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useApp } from "@/context/AppContext";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -8,53 +8,17 @@ import { ActiveInvestments } from "@/components/dashboard/ActiveInvestments";
 import { TransactionHistory } from "@/components/dashboard/TransactionHistory";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PropertyCard } from "@/components/properties/PropertyCard";
-import { PortfolioSuggestion } from "@/components/ai/PortfolioSuggestion";
+import { useMemo } from "react";
 
 export default function DashboardPage() {
   const { user, isAuthLoading } = useApp();
   const { availableBalance, properties, investments, isLoading: isPortfolioLoading } = usePortfolio();
+
+  const totalInvested = useMemo(() => {
+    if (!investments || investments.length === 0) return 0;
+    return investments.reduce((sum, inv) => sum + inv.investedAmount, 0);
+  }, [investments]);
   
-  const [totalInvested, setTotalInvested] = useState(0);
-
-  useEffect(() => {
-    if (investments.length > 0 && properties.length > 0) {
-      const calculateCurrentValue = (investment: any, property: any) => {
-        if (!property || property.dailyReturn <= 0) {
-          return investment.investedAmount;
-        }
-        const investmentDate = new Date(investment.investmentDate);
-        const now = new Date();
-        const secondsElapsed = Math.floor((now.getTime() - investmentDate.getTime()) / 1000);
-
-        if (secondsElapsed > 0) {
-          const gainPerSecond = (investment.investedAmount * property.dailyReturn) / 86400;
-          const totalGains = gainPerSecond * secondsElapsed;
-          return investment.investedAmount + totalGains;
-        }
-        return investment.investedAmount;
-      };
-
-      const initialTotal = investments.reduce((sum, inv) => {
-        const property = properties.find(p => p.id === inv.propertyId);
-        return sum + calculateCurrentValue(inv, property);
-      }, 0);
-      setTotalInvested(initialTotal);
-
-      const interval = setInterval(() => {
-        const currentTotal = investments.reduce((sum, inv) => {
-          const property = properties.find(p => p.id === inv.propertyId);
-          return sum + calculateCurrentValue(inv, property);
-        }, 0);
-        setTotalInvested(currentTotal);
-      }, 1000);
-
-      return () => clearInterval(interval);
-    } else {
-      setTotalInvested(0);
-    }
-  }, [investments, properties]);
-
-
   if (isAuthLoading || !user || isPortfolioLoading) {
     return (
       <div className="space-y-8">
@@ -113,7 +77,7 @@ export default function DashboardPage() {
           color="primary"
         />
         <StatCard
-          title="Valor del Portafolio"
+          title="Total Invertido"
           value={totalInvested}
           isCurrency
           description={`+${dailyGain.toLocaleString('es-MX', {style:'currency', currency: 'MXN'})} / día`}

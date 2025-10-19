@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2 } from "lucide-react";
@@ -30,7 +30,6 @@ const calculateCurrentValue = (investment: Investment, property: Property | unde
 
 export function ActiveInvestments() {
   const { properties, investments: rawInvestments } = usePortfolio();
-  const [displayInvestments, setDisplayInvestments] = useState<DisplayInvestment[]>([]);
 
   const investmentsWithProps = useMemo(() => {
     return (rawInvestments || [])
@@ -48,25 +47,7 @@ export function ActiveInvestments() {
   }, [rawInvestments, properties]);
 
 
-  useEffect(() => {
-    setDisplayInvestments(investmentsWithProps);
-
-    const interval = setInterval(() => {
-      setDisplayInvestments(prevInvestments =>
-        prevInvestments.map(inv => {
-          const property = properties.find(p => p.id === inv.propertyId);
-          return {
-            ...inv,
-            currentValue: calculateCurrentValue(inv, property),
-          };
-        })
-      );
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [investmentsWithProps, properties]);
-
-  const activeInvestments = displayInvestments;
+  const activeInvestments = investmentsWithProps;
 
   return (
     <Card>
