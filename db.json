@@ -2,8 +2,249 @@
   "admin": {
     "password": "#Laten1212"
   },
-  "users": [],
-  "balances": {},
+  "users": [
+    {
+      "id": "user-1760840621628",
+      "publicId": "65210",
+      "name": "laten",
+      "email": "mxlaten@gmail.com",
+      "password": "caballos1212",
+      "referralCode": "SEHZ3V"
+    },
+    {
+      "id": "user-1760843175296",
+      "publicId": "15204",
+      "name": "Abraham Sanchez ",
+      "email": "sanchurc3105@gmail.com",
+      "password": "SANab3199",
+      "referralCode": "BWWY1V"
+    },
+    {
+      "id": "user-1760846054353",
+      "publicId": "93803",
+      "name": "Luis rosales sanchez",
+      "email": "pago3347hola@gmail.com",
+      "password": "Wildones40",
+      "referralCode": "TH6ELL"
+    },
+    {
+      "id": "user-1760924497390",
+      "publicId": "65739",
+      "name": "Alberto Salgado",
+      "email": "komanderct2025@gmail.com",
+      "password": "amazon2025",
+      "referralCode": "M1437Y"
+    },
+    {
+      "id": "user-1760946369778",
+      "publicId": "82425",
+      "name": "Diego urcino",
+      "email": "diegourcino1997@gmail.com",
+      "password": "Paco5648@",
+      "referralCode": "SCLD1J"
+    },
+    {
+      "id": "user-1760991017852",
+      "publicId": "29246",
+      "name": "Nicole Gomez",
+      "email": "nicolegomzz@outlook.com",
+      "password": "Nicole999%",
+      "referralCode": "X91MXD"
+    },
+    {
+      "id": "user-1761014339017",
+      "publicId": "43974",
+      "name": "Patricia Hernández",
+      "email": "jacintamonec@gmail.com",
+      "password": "paty@8821",
+      "referralCode": "BMBJF6"
+    },
+    {
+      "id": "user-1761014425670",
+      "publicId": "75930",
+      "name": "Martha isabel galicia ",
+      "email": "marthaisabelgaliciadominguez8@gmail.com",
+      "password": "Flakis93",
+      "referralCode": "7OZCMK",
+      "referredBy": "user-1761014339017"
+    },
+    {
+      "id": "user-1761014669541",
+      "publicId": "70602",
+      "name": "Bris di",
+      "email": "Beiseida.diarte@outlook.com",
+      "password": "Diamante01",
+      "referralCode": "EV8KUP",
+      "referredBy": "user-1761014425670"
+    },
+    {
+      "id": "user-1761015246844",
+      "publicId": "21133",
+      "name": "Diego hernandez",
+      "email": "diegohernandezdominguez89e@gmail.com",
+      "password": "123456",
+      "referralCode": "FLLLMC",
+      "referredBy": "user-1761014669541"
+    },
+    {
+      "id": "user-1761017048796",
+      "publicId": "57684",
+      "name": "Diego urcino",
+      "email": "jarjarbic1@gmail.com",
+      "password": "Paco5648@",
+      "referralCode": "X5GK4X"
+    },
+    {
+      "id": "user-1761018300687",
+      "publicId": "55989",
+      "name": "Carlos Rodriguez Villegas ",
+      "email": "charlisex11@hotmail.com",
+      "password": "Bebecagon",
+      "referralCode": "4RSBNH",
+      "referredBy": "user-1761014425670"
+    },
+    {
+      "id": "user-1761019076855",
+      "publicId": "15574",
+      "name": "Imelda Vazquez ",
+      "email": "vmely92@gmail.com",
+      "password": "Adosant91",
+      "referralCode": "RFX0JF",
+      "referredBy": "user-1761014669541"
+    },
+    {
+      "id": "user-1761019410481",
+      "publicId": "77039",
+      "name": "Pablo Domínguez Gabriel ",
+      "email": "pdggoa@gmail.com",
+      "password": "pablodg75",
+      "referralCode": "LSHSY3",
+      "referredBy": "user-1761014339017"
+    },
+    {
+      "id": "user-1761029836052",
+      "publicId": "90315",
+      "name": "Martin Hernandez ",
+      "email": "estratus280@gmail.com",
+      "password": "MA07rtin",
+      "referralCode": "OBNIWF",
+      "referredBy": "user-1761014339017"
+    },
+    {
+      "id": "user-1761068526034",
+      "publicId": "53797",
+      "name": "Faustino Xolot Ambrosio",
+      "email": "faustixo16@hotmail.com",
+      "password": "F160295",
+      "referralCode": "4TF41I",
+      "referredBy": "user-1761014339017"
+    },
+    {
+      "id": "user-1761075133519",
+      "publicId": "48332",
+      "name": "Humberto hernandez",
+      "email": "beto@gmail.com",
+      "password": "Popis1213",
+      "referralCode": "G295LJ",
+      "referredBy": "user-1761014339017"
+    },
+    {
+      "id": "user-1761090831255",
+      "publicId": "70785",
+      "name": "Lydia Flores ",
+      "email": "olgaflores30@outlook.com",
+      "password": "angetli7",
+      "referralCode": "YXLEA4",
+      "referredBy": "user-1761014339017"
+    },
+    {
+      "id": "user-1761094464739",
+      "publicId": "91280",
+      "name": "Luis",
+      "email": "supervelozfer@gmail.com",
+      "password": "fernando28",
+      "referralCode": "YSCOHY",
+      "referredBy": "user-1761014425670"
+    }
+  ],
+  "balances": {
+    "user-1760840621628": {
+      "amount": 0,
+      "lastUpdated": "2025-10-19T02:23:41.629Z"
+    },
+    "user-1760843175296": {
+      "amount": 0,
+      "lastUpdated": "2025-10-19T03:06:15.296Z"
+    },
+    "user-1760846054353": {
+      "amount": 300,
+      "lastUpdated": "2025-10-19T03:54:14.353Z"
+    },
+    "user-1760924497390": {
+      "amount": 0,
+      "lastUpdated": "2025-10-20T01:41:37.390Z"
+    },
+    "user-1760946369778": {
+      "amount": 0,
+      "lastUpdated": "2025-10-20T07:46:09.778Z"
+    },
+    "user-1760991017852": {
+      "amount": 0,
+      "lastUpdated": "2025-10-20T20:10:17.852Z"
+    },
+    "user-1761014339017": {
+      "amount": 0,
+      "lastUpdated": "2025-10-21T02:38:59.017Z"
+    },
+    "user-1761014425670": {
+      "amount": 0,
+      "lastUpdated": "2025-10-21T02:40:25.670Z"
+    },
+    "user-1761014669541": {
+      "amount": 0,
+      "lastUpdated": "2025-10-21T02:44:29.541Z"
+    },
+    "user-1761015246844": {
+      "amount": 0,
+      "lastUpdated": "2025-10-21T02:54:06.844Z"
+    },
+    "user-1761017048796": {
+      "amount": 0,
+      "lastUpdated": "2025-10-21T03:24:08.796Z"
+    },
+    "user-1761018300687": {
+      "amount": 0,
+      "lastUpdated": "2025-10-21T03:45:00.687Z"
+    },
+    "user-1761019076855": {
+      "amount": 0,
+      "lastUpdated": "2025-10-21T03:57:56.855Z"
+    },
+    "user-1761019410481": {
+      "amount": 0,
+      "lastUpdated": "2025-10-21T04:03:30.481Z"
+    },
+    "user-1761029836052": {
+      "amount": 0,
+      "lastUpdated": "2025-10-21T06:57:16.052Z"
+    },
+    "user-1761068526034": {
+      "amount": 0,
+      "lastUpdated": "2025-10-21T17:42:06.034Z"
+    },
+    "user-1761075133519": {
+      "amount": 0,
+      "lastUpdated": "2025-10-21T19:32:13.519Z"
+    },
+    "user-1761090831255": {
+      "amount": 0,
+      "lastUpdated": "2025-10-21T23:53:51.255Z"
+    },
+    "user-1761094464739": {
+      "amount": 0,
+      "lastUpdated": "2025-10-22T00:54:24.739Z"
+    }
+  },
   "properties": [
     {
       "id": "1",
@@ -50,7 +291,79 @@
       "dailyReturn": 0.1
     }
   ],
-  "investments": [],
-  "transactions": [],
+  "investments": [
+    {
+      "id": "inv-1760938506805",
+      "userId": "user-1760924497390",
+      "propertyId": "4",
+      "investedAmount": 250,
+      "ownedShares": 1,
+      "investmentDate": "2025-10-20T05:35:06.805Z",
+      "term": 30,
+      "commissions": []
+    },
+    {
+      "id": "inv-1760846181007",
+      "userId": "user-1760846054353",
+      "propertyId": "3",
+      "investedAmount": 700,
+      "ownedShares": 0.9999838709677419,
+      "investmentDate": "2025-10-19T03:56:21.007Z",
+      "term": 7,
+      "commissions": []
+    },
+    {
+      "id": "inv-1760846164052",
+      "userId": "user-1760846054353",
+      "propertyId": "2",
+      "investedAmount": 500,
+      "ownedShares": 1,
+      "investmentDate": "2025-10-19T03:56:04.052Z",
+      "term": 7,
+      "commissions": []
+    }
+  ],
+  "transactions": [
+    {
+      "id": "txn-inv-inv-1760938506805",
+      "userId": "user-1760924497390",
+      "type": "investment",
+      "amount": 250,
+      "description": "Inversión en Loft Esmeralda",
+      "date": "2025-10-20T05:35:06.805Z"
+    },
+    {
+      "id": "txn-1760938369566",
+      "userId": "user-1760924497390",
+      "type": "deposit",
+      "amount": 250,
+      "description": "Depósito realizado con éxito",
+      "date": "2025-10-20T05:32:49.566Z"
+    },
+    {
+      "id": "txn-inv-inv-1760846181007",
+      "userId": "user-1760846054353",
+      "type": "investment",
+      "amount": 700,
+      "description": "Inversión en Residencia Ejecutiva",
+      "date": "2025-10-19T03:56:21.007Z"
+    },
+    {
+      "id": "txn-inv-inv-1760846164052",
+      "userId": "user-1760846054353",
+      "type": "investment",
+      "amount": 500,
+      "description": "Inversión en Casa Monaco",
+      "date": "2025-10-19T03:56:04.052Z"
+    },
+    {
+      "id": "txn-1760846127440",
+      "userId": "user-1760846054353",
+      "type": "deposit",
+      "amount": 1500,
+      "description": "Depósito realizado con éxito",
+      "date": "2025-10-19T03:55:27.440Z"
+    }
+  ],
   "withdrawalRequests": []
 }
